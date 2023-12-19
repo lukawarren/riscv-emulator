@@ -1,0 +1,4 @@
+- Sanitise stuff like cpu.registers[instruction.get_rs1()] (opcodes_i.cpp)
+- Deal with invalid memory reads
+- Check instructions are 4-byte aligned (check spec)
+- Sanitises cpu.registers[bla]
