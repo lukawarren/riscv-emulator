@@ -22,26 +22,19 @@ void CPU::cycle()
     // Reset x0
     registers[0] = 0;
 
-    // Decode
-    bool did_find_opcode = false;
-    switch(opcode)
+    // Decode - try base cases first because ECALL and ZICSR overlap
+    bool did_find_opcode = opcodes_base(*this, instruction);
+    if (!did_find_opcode)
     {
-        case OPCODES_BASE_I_TYPE:
-        case OPCODES_BASE_I_TYPE_32:
-        case OPCODES_BASE_B_TYPE:
-        case JAL:
-        case JALR:
-        case LUI:
-        case AUIPC:
-            did_find_opcode = opcodes_base(*this, instruction);
-            break;
+        switch(opcode)
+        {
+            case OPCODES_ZICSR:
+                did_find_opcode = opcodes_zicsr(*this, instruction);
+                break;
 
-        case OPCODES_ZICSR:
-            did_find_opcode = opcodes_zicsr(*this, instruction);
-            break;
-
-        default:
-            break;
+            default:
+                break;
+        }
     }
 
     if (!did_find_opcode)

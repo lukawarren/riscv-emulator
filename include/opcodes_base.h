@@ -6,6 +6,18 @@
     https://www.cs.sfu.ca/~ashriram/Courses/CS295/assets/notebooks/RISCV/RISCV_CARD.pdf
 */
 
+#define OPCODES_BASE_R_TYPE 0x33
+#define ADD     0x0
+#define SUB     0x20 // funct7; funct3 same as ADDA
+#define XOR     0x4
+#define OR      0x6
+#define AND     0x7
+#define SLL     0x1
+#define SRL     0x5
+#define SRA     0x20 // funct7; funct3 same as SRL
+#define SLT     0x2
+#define SLTU    0x3
+
 #define OPCODES_BASE_I_TYPE 0x13
 #define ADDI    0x0
 #define XORI    0x4
@@ -31,11 +43,26 @@
 #define LUI     0b0110111
 #define AUIPC   0b0010111
 
+#define OPCODES_BASE_SYSTEM 0x73
+#define ECALL               0x0
+#define EBREAK              0x1
+#define URET                0x2
+#define SRET                0x8
+#define MRET                0x18
+#define WFI                 0x8
+#define SFENCE_VMA          0x9
+#define HFENCE_BVMA         0x11
+#define HFENCE_GVMA         0x51
+
+#define OPCODES_BASE_FENCE 0xf
+
 // --- RV64I-specific ---
-#define OPCODES_BASE_I_TYPE_32 0b0011011
+#define OPCODES_BASE_I_TYPE_32 0x1b
 #define ADDIW   0b000
 
 bool opcodes_base(CPU& cpu, const Instruction& instruction);
+
+void _or     (CPU& cpu, const Instruction& instruction);
 
 void addi   (CPU& cpu, const Instruction& instruction);
 void xori   (CPU& cpu, const Instruction& instruction);
@@ -58,5 +85,7 @@ void jal    (CPU& cpu, const Instruction& instruction);
 
 void lui    (CPU& cpu, const Instruction& instruction);
 void auipc  (CPU& cpu, const Instruction& instruction);
+
+void mret   (CPU& cpu, const Instruction& instruction);
 
 void addiw  (CPU& cpu, const Instruction& instruction);
