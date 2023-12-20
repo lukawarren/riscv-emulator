@@ -2,20 +2,10 @@
 #include <stdexcept>
 #include <iostream>
 
-void opcode_base(CPU& cpu, const Instruction& instruction)
+bool opcodes_base(CPU& cpu, const Instruction& instruction)
 {
     u8 opcode = instruction.get_opcode();
     u8 funct3 = instruction.get_funct3();
-
-    const auto unknown = [&]()
-    {
-        throw std::runtime_error(
-            "unknown opcpode " +
-            std::to_string(funct3) +
-            " with funct3 " +
-            std::to_string(funct3)
-        );
-    };
 
     switch(opcode)
     {
@@ -26,7 +16,7 @@ void opcode_base(CPU& cpu, const Instruction& instruction)
                 case ADDI: addi(cpu, instruction); break;
 
                 default:
-                    unknown();
+                    return false;
             }
             break;
         }
@@ -34,14 +24,17 @@ void opcode_base(CPU& cpu, const Instruction& instruction)
         case JAL: jal(cpu, instruction); break;
 
         default:
-            unknown();
+            return false;
     }
+
+    return true;
 }
 
 void addi(CPU& cpu, const Instruction& instruction)
 {
     // No need for overflow checks
-    cpu.registers[instruction.get_rs1()] = sign_extend_16(instruction.get_imm(Instruction::Type::I));
+    i64 imm = instruction.get_imm(Instruction::Type::I);
+    cpu.registers[instruction.get_rd()] = cpu.registers[instruction.get_rs1()] + imm;
 }
 
 void slli(CPU& cpu, const Instruction& instruction) {}
@@ -56,12 +49,12 @@ void andi(CPU& cpu, const Instruction& instruction) {}
 
 void jal(CPU& cpu, const Instruction& instruction)
 {
-    // Add offset to program counter
-    i64 offset = sign_extend_16(instruction.get_imm(Instruction::Type::J));
-    cpu.pc += offset;
-
     // Target register will contain pc + 4
     cpu.registers[instruction.get_rd()] = cpu.pc + 4;
+
+    // Add offset to program counter - sign extension done for us
+    i64 offset = instruction.get_imm(Instruction::Type::J);
+    cpu.pc += offset;
 
     // Minus 4 because 4 is always added anyway by caller
     cpu.pc -= 4;

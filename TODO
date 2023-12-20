@@ -2,3 +2,14 @@
 - Deal with invalid memory reads
 - Check instructions are 4-byte aligned (check spec)
 - Sanitises cpu.registers[bla]
+
+
+// Test result is stored at a0 (x10), a function argument and a return value.
+            // The riscv-tests set a0 to 0 when all tests pass.
+            assert_eq!(0, emu.cpu.xregs.read(10));
+
+            // All tests start the user mode and finish with the instruction `ecall`, independently
+            // of it succeeds or fails.
+            assert_eq!(Mode::Machine, emu.cpu.mode);
+            Ok(())
+        }

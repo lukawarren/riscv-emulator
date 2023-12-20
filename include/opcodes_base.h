@@ -21,7 +21,7 @@
 #define JAL     0b1101111
 #define JALR    0b1100111
 
-void opcode_base(CPU& cpu, const Instruction& instruction);
+bool opcodes_base(CPU& cpu, const Instruction& instruction);
 
 void addi   (CPU& cpu, const Instruction& instruction);
 void slli   (CPU& cpu, const Instruction& instruction);
