@@ -234,9 +234,10 @@ void mret(CPU& cpu, const Instruction& instruction)
 
 void addiw(CPU& cpu, const Instruction& instruction)
 {
-    const u32 result = i32(
-        cpu.registers[instruction.get_rs1()] +
-        instruction.get_imm(Instruction::Type::I)
-    );
-    cpu.registers[instruction.get_rd()] = (u64)(i64)result;
+    const u64 result = cpu.registers[instruction.get_rs1()] +
+        instruction.get_imm(Instruction::Type::I);
+
+    // Take the lower 32 bits, then sign extend to 64
+    const u64 extended = (i64)(i32)(result & 0xffffffff);
+    cpu.registers[instruction.get_rd()] = extended;
 }
