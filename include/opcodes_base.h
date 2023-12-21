@@ -62,7 +62,9 @@
 
 bool opcodes_base(CPU& cpu, const Instruction& instruction);
 
-void _or     (CPU& cpu, const Instruction& instruction);
+void _add   (CPU& cpu, const Instruction& instruction);
+void _or    (CPU& cpu, const Instruction& instruction);
+void sltu   (CPU& cpu, const Instruction& instruction);
 
 void addi   (CPU& cpu, const Instruction& instruction);
 void xori   (CPU& cpu, const Instruction& instruction);
