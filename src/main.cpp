@@ -1,28 +1,49 @@
 #include <iostream>
+#include <cstring>
+#include <filesystem>
+#include <vector>
 #include "cpu.h"
 
+namespace fs = std::filesystem;
+
+bool does_pass(const std::string& filename);
+
 int main()
+{
+    std::vector<std::string> files = {};
+    for (const auto& entry : fs::directory_iterator("../external/bin-files")) {
+        if (fs::is_regular_file(entry.path())) {
+            files.emplace_back(entry.path());
+        }
+    }
+
+    for (const auto& file : files)
+        if (!does_pass(file))
+            return 1;
+
+    return 0;
+}
+
+bool does_pass(const std::string& filename)
 {
     try
     {
         CPU cpu(1024 * 1024);
-        cpu.bus.write_file(Bus::ram_base, "../external/bin-files/rv64-ui-p-addi");
+        cpu.bus.write_file(Bus::ram_base, filename);
         while(1)
-        {
-            //cpu.trace();
-            //80000200 good
-            //80000204 bad for x7 (i.e. bad opcode at 80000200 - addiw)
-            //8000020c bad
-            if (cpu.pc == 0x80000204)
-            {
-                cpu.trace();
-            }
             cpu.cycle();
-        }
     }
     catch (std::exception& e)
     {
-        std::cout << "Error: " << e.what() << std::endl;
+        if (strcmp(e.what(), "pass") == 0)
+        {
+            std::cout << "pass" << std::endl;
+            return true;
+        }
+        else
+        {
+            std::cout << "error: " << e.what() << std::endl;
+            return false;
+        }
     }
-    return 0;
 }

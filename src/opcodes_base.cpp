@@ -60,7 +60,12 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
             const u8 funct7 = instruction.get_funct7();
 
             if (rs2 == ECALL && funct7 == 0)
-                throw std::runtime_error("ecall, x10 = " + std::to_string(cpu.registers[10]) + " (0 = pass)");
+            {
+                if (cpu.registers[10] == 0)
+                    throw std::runtime_error("pass");
+                else
+                    throw std::runtime_error("ecall, x10 = " + std::to_string(cpu.registers[10]) + " (0 = pass)");
+            }
 
             if (rs2 == EBREAK && funct7 == 0)
                 throw std::runtime_error("ebreak");
