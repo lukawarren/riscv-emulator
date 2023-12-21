@@ -85,7 +85,7 @@ struct Instruction
                 | ((instruction >> 7) & 0x1e);
 
             case Type:: U:
-                return (i64)(i32)(instruction & 0xfffff000);
+                return ((i64)(i32)(instruction & 0xfffff000)) >> 12;
 
             case Type::J:
                 return (u64)((i64)(i32)(instruction & 0x80000000) >> 11)

@@ -120,6 +120,11 @@ void addi(CPU& cpu, const Instruction& instruction)
 {
     // No need for overflow checks
     const i64 imm = instruction.get_imm(Instruction::Type::I);
+    if (cpu.pc >= 0x80000208 && cpu.pc <= 0x8000020c)
+    {
+    std::cout << "imm = " << std::hex << imm << std::endl;
+    std::cout << "rs1 = " << std::hex << cpu.registers[instruction.get_rs1()] << std::endl;
+    }
     cpu.registers[instruction.get_rd()] = cpu.registers[instruction.get_rs1()] + imm;
 }
 
@@ -132,6 +137,7 @@ void orri(CPU& cpu, const Instruction& instruction)
 void slli(CPU& cpu, const Instruction& instruction)
 {
     const u8 shift_amount = instruction.get_shamt();
+    std::cout << "shift amount = " << std::hex << (u64)shift_amount << std::endl;
     cpu.registers[instruction.get_rd()] = cpu.registers[instruction.get_rs1()] << shift_amount;
 }
 
