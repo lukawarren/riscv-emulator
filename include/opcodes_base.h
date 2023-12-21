@@ -8,7 +8,7 @@
 
 #define OPCODES_BASE_R_TYPE 0x33
 #define ADD     0x0
-#define SUB     0x20 // funct7; funct3 same as ADDA
+#define SUB     0x20 // funct7; funct3 same as ADD
 #define XOR     0x4
 #define OR      0x6
 #define AND     0x7
@@ -28,6 +28,18 @@
 #define SRAI    0x20
 #define SLTI    0x2
 #define SLTIU   0x3
+
+#define OPCODES_BASE_LOAD_TYPE 0x3
+#define LB      0x0
+#define LH      0x1
+#define LW      0x2
+#define LBU     0x4
+#define LHU     0x5
+
+#define OPCODES_BASE_S_TYPE 0x23
+#define SB      0x0
+#define SH      0x1
+#define SW      0x2
 
 #define OPCODES_BASE_B_TYPE 0x63
 #define BEQ     0x0
@@ -54,16 +66,25 @@
 #define HFENCE_BVMA         0x11
 #define HFENCE_GVMA         0x51
 
-#define OPCODES_BASE_FENCE 0xf
+#define OPCODES_BASE_FENCE  0xf
+#define FENCE               0x0
+#define FENCE_I             0x1
 
 // --- RV64I-specific ---
+
 #define OPCODES_BASE_I_TYPE_32 0x1b
 #define ADDIW   0b000
 
+#define OPCODES_BASE_R_TYPE_32 0x3b
+#define ADDW    0b000
+
+
 bool opcodes_base(CPU& cpu, const Instruction& instruction);
 
-void _add   (CPU& cpu, const Instruction& instruction);
+void add    (CPU& cpu, const Instruction& instruction);
+void sub    (CPU& cpu, const Instruction& instruction);
 void _or    (CPU& cpu, const Instruction& instruction);
+void _and   (CPU& cpu, const Instruction& instruction);
 void sltu   (CPU& cpu, const Instruction& instruction);
 
 void addi   (CPU& cpu, const Instruction& instruction);
@@ -76,6 +97,16 @@ void srai   (CPU& cpu, const Instruction& instruction);
 void slti   (CPU& cpu, const Instruction& instruction);
 void sltiu  (CPU& cpu, const Instruction& instruction);
 
+void lb     (CPU& cpu, const Instruction& instruction);
+void lh     (CPU& cpu, const Instruction& instruction);
+void lw     (CPU& cpu, const Instruction& instruction);
+void lbu    (CPU& cpu, const Instruction& instruction);
+void lhu    (CPU& cpu, const Instruction& instruction);
+
+void sb     (CPU& cpu, const Instruction& instruction);
+void sh     (CPU& cpu, const Instruction& instruction);
+void sw     (CPU& cpu, const Instruction& instruction);
+
 void beq    (CPU& cpu, const Instruction& instruction);
 void bne    (CPU& cpu, const Instruction& instruction);
 void blt    (CPU& cpu, const Instruction& instruction);
@@ -84,6 +115,7 @@ void bltu   (CPU& cpu, const Instruction& instruction);
 void bgeu   (CPU& cpu, const Instruction& instruction);
 
 void jal    (CPU& cpu, const Instruction& instruction);
+void jalr   (CPU& cpu, const Instruction& instruction);
 
 void lui    (CPU& cpu, const Instruction& instruction);
 void auipc  (CPU& cpu, const Instruction& instruction);
@@ -91,3 +123,5 @@ void auipc  (CPU& cpu, const Instruction& instruction);
 void mret   (CPU& cpu, const Instruction& instruction);
 
 void addiw  (CPU& cpu, const Instruction& instruction);
+
+void addw   (CPU& cpu, const Instruction& instruction);

@@ -3,6 +3,7 @@
 #include "opcodes_base.h"
 #include "opcodes_zicsr.h"
 #include <iostream>
+#include <format>
 
 CPU::CPU(const u64 ram_size) : bus(ram_size)
 {
@@ -38,18 +39,20 @@ void CPU::cycle()
     }
 
     if (!did_find_opcode)
-        throw std::runtime_error(
-                "unknown opcpode " +
-                std::to_string(opcode) +
-                " with funct3 " +
-                std::to_string(funct3)
-            );
+        throw std::runtime_error(std::format(
+            "unknown opcode 0x{:x} with funct3 0x{:x} - raw = 0x{:x}, pc = 0x{:x}",
+            opcode,
+            funct3,
+            instruction.instruction,
+            pc
+        ));
 
     pc += sizeof(u32);
 }
 
 void CPU::trace()
 {
+    // std::cout << std::endl;
     // for (int i = 0; i < 32; ++i)
     //     std::cout << "x" << i << ": " << std::hex << registers[i] << std::endl;
     std::cout << "0x" << std::hex << pc << std::endl;
