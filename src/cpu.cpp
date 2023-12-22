@@ -52,8 +52,8 @@ void CPU::cycle()
 
 void CPU::trace()
 {
-    // std::cout << std::endl;
-    // for (int i = 0; i < 32; ++i)
-    //     std::cout << "x" << i << ": " << std::hex << registers[i] << std::endl;
+    // if (pc == 0x800001b0)
+    //     for (int i = 0; i < 32; ++i)
+    //         std::cout << "x" << i << ": " << std::hex << registers[i] << std::endl;
     std::cout << "0x" << std::hex << pc << std::endl;
 }

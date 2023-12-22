@@ -65,6 +65,11 @@ struct Instruction
         return (instruction >> 20) & 0b11111;
     }
 
+    u8 get_rs2_6_bits() const
+    {
+        return (instruction >> 20) & 0b111111;
+    }
+
     u64 get_imm(const Type type) const
     {
         switch (type)
