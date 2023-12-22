@@ -1,64 +1,7 @@
 #pragma once
 #include "types.h"
 #include "bus.h"
-
-enum class PrivilegeLevel
-{
-    User,
-    Supervisor,
-    Hypervisor,
-    Machine,
-    Debug
-};
-
-/*
-    Each CSR is 12 bits:
-    - Last 4 bits control R/W access and privilege level
-    - 2 most significant bits determine R/W status
-    - Next 2 most significant bits determine privilege
-
-    - Attempts to access a non-existent CSR raise an illegal instruction exception.
-
-    - Attempts to access a CSR without appropriate privilege level or to write a
-        read-only register also raise illegal instruction
-        exceptions.
-
-    - A read/write register might also contain some bits that are read-only, in which case
-        writes to the read-only bits are ignored.
- */
-struct CSR
-{
-    u64 data;
-
-    CSR(const u64 data) : data(data) {}
-
-    bool is_read_only(const u16 address) const
-    {
-        return ((address >> 10) & 0b11) == 0b11;
-    }
-
-    PrivilegeLevel get_privilege_level(const u16 address) const
-    {
-        /*
-            Machine-mode standard read-write CSRs 0x7A0–0x7BF are reserved for use by
-            the debug system. Of these CSRs, 0x7A0–0x7AF are accessible to machine mode,
-            whereas 0x7B0–0x7BF are only visible to debug mode. Implementations should
-            raise illegal instruction exceptions on machine-mode access to the latter
-            set of registers.
-         */
-        if (address >= 0x7b0 && address <= 0x7bf)
-            return PrivilegeLevel::Debug;
-
-        const u8 code = (address >> 8) & 0b11;
-        switch (code)
-        {
-            case 0b00: return PrivilegeLevel::User;
-            case 0b01: return PrivilegeLevel::Supervisor;
-            case 0b10: return PrivilegeLevel::Hypervisor;
-            case 0b11: return PrivilegeLevel::Machine;
-        }
-    }
-};
+#include "csrs.h"
 
 class CPU
 {
@@ -86,11 +29,29 @@ public:
     u64 registers[32] = {};
     u64 pc = 0;
 
-    // CSRs
-    CSR mtvec = { 0 };
-    CSR mepec = { 0 }; // virtual address of instruction interrupted before exception occured
-    CSR mnstatus = { 0 }; // Smrnmi extension; only for tests
-    CSR hartid = { 0 };
+    // Supervisor Protection and Translation
+    UnimplementedCSR satp;              // Supervisor address translation and protection
+
+    // Machine information registers
+    MHartID mhartid = {}; // ID of hart
+
+    // Machine trap setup
+    MStatus mstatus = {};               // Status bits
+    UnimplementedCSR misa = {};         // ISA and extensions
+    UnimplementedCSR medeleg = {};      // Machine exception delegation register
+    UnimplementedCSR mideleg = {};      // Machine interrupt delegation register
+    UnimplementedCSR mie = {};          // Machine interrupt-enable register
+    MTVec mtvec = {};                   // Machine trap-handler base address
+    UnimplementedCSR mcounteren = {};   // Machine counter enable
+
+    // Machine trap handling
+    UnimplementedCSR mscratch = {};     // Scratch register for machine trap handlers
+    MEPC mepc = {};                     // Machine exception program counter
+    UnimplementedCSR mcause = {};       // Machine trap cause
+    UnimplementedCSR mtval = {};        // Machine bad address or instruction
+    UnimplementedCSR mip = {};          // Machine interrupt pending
+    UnimplementedCSR mtinst = {};       // Machine trap instruction (transformed)
+    UnimplementedCSR mtval2 = {};       // Machine bad guest physical address
 
     Bus bus;
 };

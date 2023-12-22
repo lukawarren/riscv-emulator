@@ -531,7 +531,7 @@ void mret(CPU& cpu, const Instruction& instruction)
 
     // TODO: set status flags
 
-    cpu.pc = read_csr(cpu, CSR_MEPEC).data - 4;
+    cpu.pc = read_csr(cpu, CSR_MEPC) - 4;
 }
 
 void lwu(CPU& cpu, const Instruction& instruction)

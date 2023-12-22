@@ -20,11 +20,14 @@ int main()
     }
 
     for (const auto& file : files)
+    {
+        std::cout << "Running " << file << std::endl;
         if (!does_pass(file))
         {
             std::cout << std::dec << passes << " passes out of " << files.size() << std::endl;
             return 1;
         }
+    }
 
     return 0;
 }

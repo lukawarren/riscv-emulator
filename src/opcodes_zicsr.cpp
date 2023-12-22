@@ -19,36 +19,42 @@ bool opcodes_zicsr(CPU& cpu, const Instruction& instruction)
     return true;
 }
 
-CSR read_csr(CPU& cpu, const u16 address)
+u64 read_csr(CPU& cpu, const u16 address)
 {
     if ((address >= CSR_PMPCFG0 && address <= CSR_PMPCFG15) ||
         (address >= CSR_PMPADDR0 && address <= CSR_PMPADDR63)) {
         std::cout << "TODO: pmpaddr*" << std::endl;
-        return { 0 } ;
+        return 0;
     }
 
     // TODO: check privilege level, throw exceptions, etc.
     switch(address & 0xfff)
     {
-        case CSR_SATP: return 0; // TODO: raises exception when mstatus has certain value
-
-        case CSR_MSTATUS: return 0;
-        case CSR_MEDELEG: return 0;
-        case CSR_MIDELEG: return 0;
-        case CSR_MIE: return 0;
-
-        case CSR_MTVEC: return cpu.mtvec;
-        case CSR_MEPEC: return cpu.mepec;
-
-        // Hart ID - only one "core" for now
-        case CSR_MHARTID: return cpu.hartid;
+        // TODO: raises exception when mstatus has certain value
+        case CSR_SATP:          return cpu.satp.read();
+        case CSR_MSTATUS:       return cpu.mstatus.read();
+        case CSR_MISA:          return cpu.misa.read();
+        case CSR_MEDELEG:       return cpu.medeleg.read();
+        case CSR_MIDELEG:       return cpu.mideleg.read();
+        case CSR_MIE:           return cpu.mie.read();
+        case CSR_MTVEC:         return cpu.mtvec.read();
+        case CSR_MCOUNTER_EN:   return cpu.mcounteren.read();
+        case CSR_MSCRATCH:      return cpu.mscratch.read();
+        case CSR_MEPC:          return cpu.mepc.read();
+        case CSR_MCAUSE:        return cpu.mcause.read();
+        case CSR_MTVAL:         return cpu.mtval.read();
+        case CSR_MIP:           return cpu.mip.read();
+        case CSR_MTINST:        return cpu.mtinst.read();
+        case CSR_MTVAL2:        return cpu.mtval2.read();
+        case CSR_MNSTATUS:      return 0; // Part of Smrnmi; needed for riscv-tests
+        case CSR_MHARTID:       return cpu.mhartid.read();
 
         default:
             throw std::runtime_error("unknown csr read " + std::format("0x{:x}", address & 0xfff));
     }
 }
 
-void write_csr(CPU& cpu, const CSR& csr, const u16 address)
+void write_csr(CPU& cpu, const u64 value, const u16 address)
 {
     if ((address >= CSR_PMPCFG0 && address <= CSR_PMPCFG15) ||
         (address >= CSR_PMPADDR0 && address <= CSR_PMPADDR63)) {
@@ -56,33 +62,35 @@ void write_csr(CPU& cpu, const CSR& csr, const u16 address)
         return;
     }
 
-    // TODO: check privilege level, RW access, throw exceptions, etc.
-    std::cout << "Wrote 0x" << std::hex << csr.data << " to CSR 0x" << std::hex << address << std::endl;
+    if (CSR::is_read_only(address)) {
+        // TODO: illegal instruction exception
+        return;
+    }
+
+    // TODO: check privilege level, throw exceptions, etc.
+
+    std::cout << "value = " << value << std::endl;
+
     switch(address & 0xfff)
     {
-        case CSR_SATP:
-            // Virtual memory for supervisor - 0 means it's disabled
-            if (csr.data != 0)
-                throw std::runtime_error("paging not supported; tried to enable");
-        break;
-
-        case CSR_MSTATUS:
-            if (csr.data != 0)
-                throw std::runtime_error("mstatus not supported");
-        break;
-
-        case CSR_MEDELEG:
-        case CSR_MIDELEG:
-        case CSR_MIE:
-            // Each bit configures an interrupt
-            if (csr.data != 0)
-                throw std::runtime_error("interrupts not supported; tried to enable");
-        break;
-
-        case CSR_MTVEC: cpu.mtvec = csr; break;
-        case CSR_MEPEC: cpu.mepec = csr; break;
-
-        case CSR_MNSTATUS: cpu.mnstatus = csr; break;
+        // TODO: raises exception when mstatus has certain value (maybe? well is for reads idk)
+        case CSR_SATP:          cpu.satp.write(value);         break;
+        case CSR_MSTATUS:       cpu.mstatus.write(value);      break;
+        case CSR_MISA:          cpu.misa.write(value);         break;
+        case CSR_MEDELEG:       cpu.medeleg.write(value);      break;
+        case CSR_MIDELEG:       cpu.mideleg.write(value);      break;
+        case CSR_MIE:           cpu.mie.write(value);          break;
+        case CSR_MTVEC:         cpu.mtvec.write(value);        break;
+        case CSR_MCOUNTER_EN:   cpu.mcounteren.write(value);   break;
+        case CSR_MSCRATCH:      cpu.mscratch.write(value);     break;
+        case CSR_MEPC:          cpu.mepc.write(value);         break;
+        case CSR_MCAUSE:        cpu.mcause.write(value);       break;
+        case CSR_MTVAL:         cpu.mtval.write(value);        break;
+        case CSR_MIP:           cpu.mip.write(value);          break;
+        case CSR_MTINST:        cpu.mtinst.write(value);       break;
+        case CSR_MTVAL2:        cpu.mtval2.write(value);       break;
+        case CSR_MNSTATUS:                                     break; // Part of Smrnmi; needed for riscv-tests
+        case CSR_MHARTID:       cpu.mhartid.write(value);      break;
 
         default:
             throw std::runtime_error("unknown csr write " + std::format("0x{:x}", address & 0xfff));
@@ -96,33 +104,32 @@ void csrrw(CPU& cpu, const Instruction& instruction)
         cause any of the side-effects that might occur on a CSR read
      */
 
-    u64 address = instruction.get_imm(Instruction::Type::I);
-    CSR csr = (instruction.get_rd() != 0) ? read_csr(cpu, address) : CSR { 0 };
+    const u64 address = instruction.get_imm(Instruction::Type::I);
+    const u64 value = (instruction.get_rd() != 0) ? read_csr(cpu, address) : 0;
 
     // Write rs1 to CSR
     write_csr(cpu, { cpu.registers[instruction.get_rs1()] }, address);
 
     // Put old value of CSR into rd
     if (instruction.get_rd() != 0)
-        cpu.registers[instruction.get_rd()] = csr.data;
+        cpu.registers[instruction.get_rd()] = value;
 }
 
 void csrrs(CPU& cpu, const Instruction& instruction)
 {
     // Write CSR to rd
-    u64 address = instruction.get_imm(Instruction::Type::I);
-    CSR csr = read_csr(cpu, address);
-    cpu.registers[instruction.get_rd()] = csr.data;
+    const u64 address = instruction.get_imm(Instruction::Type::I);
+    const u64 csr = read_csr(cpu, address);
+    cpu.registers[instruction.get_rd()] = csr;
 
     // Initial value in rs1 is treated as a bit mask that specifies bit
     // positions to be set in the CSR. Any bit that is high in rs1 will cause
     // the corresponding bit to be set in the CSR, if that CSR is writable.
     // Other bits are unaffected (though may have side effects when written).
-    if (!csr.is_read_only(address))
+    if (!CSR::is_read_only(address))
     {
         const u64 bitmask = cpu.registers[instruction.get_rs1()];
-        csr.data |= bitmask;
-        write_csr(cpu, csr, address);
+        write_csr(cpu, csr | bitmask, address);
     }
 }
 
@@ -133,13 +140,13 @@ void csrrwi(CPU& cpu, const Instruction& instruction)
         cause any of the side-effects that might occur on a CSR read
      */
 
-    u64 address = instruction.get_imm(Instruction::Type::I);
-    CSR csr = (instruction.get_rd() != 0) ? read_csr(cpu, address) : CSR { 0 };
+    const u64 address = instruction.get_imm(Instruction::Type::I);
+    const u64 csr = (instruction.get_rd() != 0) ? read_csr(cpu, address) : 0;
 
     // Write value in rs1 directly to CSR
     write_csr(cpu, { instruction.get_rs1() }, address);
 
     // Put old value of CSR into rd
     if (instruction.get_rd() != 0)
-        cpu.registers[instruction.get_rd()] = csr.data;
+        cpu.registers[instruction.get_rd()] = csr;
 }
