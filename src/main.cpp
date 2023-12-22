@@ -13,7 +13,7 @@ int passes = 0;
 int main()
 {
     std::vector<std::string> files = {};
-    for (const auto& entry : fs::directory_iterator("../external/bin-files")) {
+    for (const auto& entry : fs::directory_iterator("../external/bin-files-m")) {
         if (fs::is_regular_file(entry.path())) {
             files.emplace_back(entry.path());
         }

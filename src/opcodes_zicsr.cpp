@@ -69,8 +69,6 @@ void write_csr(CPU& cpu, const u64 value, const u16 address)
 
     // TODO: check privilege level, throw exceptions, etc.
 
-    std::cout << "value = " << value << std::endl;
-
     switch(address & 0xfff)
     {
         // TODO: raises exception when mstatus has certain value (maybe? well is for reads idk)

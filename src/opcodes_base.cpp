@@ -382,61 +382,84 @@ void sltiu(CPU& cpu, const Instruction& instruction)
 
 void lb(CPU& cpu, const Instruction& instruction)
 {
-    cpu.registers[instruction.get_rd()] = (u64)(i64)(i8)cpu.bus.read_8(
-        get_load_address(cpu, instruction)
-    );
+    std::optional<u8> value = cpu.bus.read_8(get_load_address(cpu, instruction));
+    if (!value)
+    {
+        cpu.raise_exception(CPU::Exception::LoadAccessFault);
+        return;
+    }
+    cpu.registers[instruction.get_rd()] = (u64)(i64)(i8)*value;
 }
 
 void lh(CPU& cpu, const Instruction& instruction)
 {
-    cpu.registers[instruction.get_rd()] = (u64)(i64)(i16)cpu.bus.read_16(
-        get_load_address(cpu, instruction)
-    );
+    std::optional<u16> value = cpu.bus.read_16(get_load_address(cpu, instruction));
+    if (!value)
+    {
+        cpu.raise_exception(CPU::Exception::LoadAccessFault);
+        return;
+    }
+    cpu.registers[instruction.get_rd()] = (u64)(i64)(i16)*value;
 }
 
 void lw(CPU& cpu, const Instruction& instruction)
 {
-    cpu.registers[instruction.get_rd()] = (u64)(i64)(i32)cpu.bus.read_32(
-        get_load_address(cpu, instruction)
-    );
+    std::optional<u32> value = cpu.bus.read_32(get_load_address(cpu, instruction));
+    if (!value)
+    {
+        cpu.raise_exception(CPU::Exception::LoadAccessFault);
+        return;
+    }
+    cpu.registers[instruction.get_rd()] = (u64)(i64)(i32)*value;
 }
 
 void lbu(CPU& cpu, const Instruction& instruction)
 {
-    cpu.registers[instruction.get_rd()] = cpu.bus.read_8(
-        get_load_address(cpu, instruction)
-    );
+    std::optional<u8> value = cpu.bus.read_8(get_load_address(cpu, instruction));
+    if (!value)
+    {
+        cpu.raise_exception(CPU::Exception::LoadAccessFault);
+        return;
+    }
+    cpu.registers[instruction.get_rd()] = *value;
 }
 
 void lhu(CPU& cpu, const Instruction& instruction)
 {
-    cpu.registers[instruction.get_rd()] = cpu.bus.read_16(
-        get_load_address(cpu, instruction)
-    );
+    std::optional<u16> value = cpu.bus.read_16(get_load_address(cpu, instruction));
+    if (!value)
+    {
+        cpu.raise_exception(CPU::Exception::LoadAccessFault);
+        return;
+    }
+    cpu.registers[instruction.get_rd()] = *value;
 }
 
 void sb(CPU& cpu, const Instruction& instruction)
 {
-    cpu.bus.write_8(
+    if (!cpu.bus.write_8(
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
-    );
+    ))
+        cpu.raise_exception(CPU::Exception::StoreOrAMOAccessFault);
 }
 
 void sh(CPU& cpu, const Instruction& instruction)
 {
-    cpu.bus.write_16(
+    if (!cpu.bus.write_16(
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
-    );
+    ))
+        cpu.raise_exception(CPU::Exception::StoreOrAMOAccessFault);
 }
 
 void sw(CPU& cpu, const Instruction& instruction)
 {
-    cpu.bus.write_32(
+    if (!cpu.bus.write_32(
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
-    );
+    ))
+        cpu.raise_exception(CPU::Exception::StoreOrAMOAccessFault);
 }
 
 void beq(CPU& cpu, const Instruction& instruction)
@@ -529,31 +552,49 @@ void mret(CPU& cpu, const Instruction& instruction)
         0".
      */
 
-    // TODO: set status flags
+    // Must be in machine mode or higher
+    if (cpu.privilege_level < PrivilegeLevel::Machine)
+    {
+        cpu.raise_exception(CPU::Exception::IllegalInstruction);
+        return;
+    }
 
     cpu.pc = read_csr(cpu, CSR_MEPC) - 4;
+    cpu.privilege_level = (PrivilegeLevel)cpu.mstatus.fields.mpp;
+    cpu.mstatus.fields.mie = cpu.mstatus.fields.mpie;
+    cpu.mstatus.fields.mpie = 1;
+    cpu.mstatus.fields.mpp = 0;
 }
 
 void lwu(CPU& cpu, const Instruction& instruction)
 {
-    cpu.registers[instruction.get_rd()] = cpu.bus.read_32(
-        get_load_address(cpu, instruction)
-    );
+    std::optional<u32> value = cpu.bus.read_32(get_load_address(cpu, instruction));
+    if (!value)
+    {
+        cpu.raise_exception(CPU::Exception::LoadAccessFault);
+        return;
+    }
+    cpu.registers[instruction.get_rd()] = *value;
 }
 
 void ld(CPU& cpu, const Instruction& instruction)
 {
-    cpu.registers[instruction.get_rd()] = (u64)(i64)cpu.bus.read_64(
-        get_load_address(cpu, instruction)
-    );
+    std::optional<u64> value = cpu.bus.read_64(get_load_address(cpu, instruction));
+    if (!value)
+    {
+        cpu.raise_exception(CPU::Exception::LoadAccessFault);
+        return;
+    }
+    cpu.registers[instruction.get_rd()] = (u64)(i64)*value;
 }
 
 void sd(CPU& cpu, const Instruction& instruction)
 {
-    cpu.bus.write_64(
+    if (!cpu.bus.write_64(
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
-    );
+    ))
+        cpu.raise_exception(CPU::Exception::StoreOrAMOAccessFault);
 }
 
 void addiw(CPU& cpu, const Instruction& instruction)

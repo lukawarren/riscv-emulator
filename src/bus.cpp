@@ -16,15 +16,15 @@ u64 get_ram_address(const u64 address)
     return address - Bus::ram_base;
 }
 
-u8  Bus::read_8(const u64 address) { return ram.read_8(get_ram_address(address)); }
-u16 Bus::read_16(const u64 address) { return ram.read_16(get_ram_address(address)); }
-u32 Bus::read_32(const u64 address) { return ram.read_32(get_ram_address(address)); }
-u64 Bus::read_64(const u64 address) { return ram.read_64(get_ram_address(address)); }
+std::optional<u8> Bus::read_8(const u64 address) { return ram.read_8(get_ram_address(address)); }
+std::optional<u16>Bus::read_16(const u64 address) { return ram.read_16(get_ram_address(address)); }
+std::optional<u32>Bus::read_32(const u64 address) { return ram.read_32(get_ram_address(address)); }
+std::optional<u64>Bus::read_64(const u64 address) { return ram.read_64(get_ram_address(address)); }
 
-void Bus::write_8(const u64 address, const u8 value) { ram.write_8(get_ram_address(address), value); }
-void Bus::write_16(const u64 address, const u16 value) { ram.write_16(get_ram_address(address), value); }
-void Bus::write_32(const u64 address, const u32 value) { ram.write_32(get_ram_address(address), value); }
-void Bus::write_64(const u64 address, const u64 value) { ram.write_64(get_ram_address(address), value); }
+[[nodiscard]] bool Bus::write_8(const u64 address, const u8 value) { return ram.write_8(get_ram_address(address), value); }
+[[nodiscard]] bool Bus::write_16(const u64 address, const u16 value) { return ram.write_16(get_ram_address(address), value); }
+[[nodiscard]] bool Bus::write_32(const u64 address, const u32 value) { return ram.write_32(get_ram_address(address), value); }
+[[nodiscard]] bool Bus::write_64(const u64 address, const u64 value) { return ram.write_64(get_ram_address(address), value); }
 
 void Bus::write_file(const u64 address, const std::string& filename)
 {
@@ -63,5 +63,5 @@ void Bus::write_file(const u64 address, const std::string& filename)
 
     // TODO: memcpy fast-path
     for (u64 i = 0; i < fileLen; ++i)
-        write_8(address + i, buffer[i]);
+        std::ignore = write_8(address + i, buffer[i]);
 }

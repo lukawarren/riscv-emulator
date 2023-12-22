@@ -28,6 +28,9 @@ public:
     */
     u64 registers[32] = {};
     u64 pc = 0;
+    Bus bus;
+
+    PrivilegeLevel privilege_level = PrivilegeLevel::Machine;
 
     // Supervisor Protection and Translation
     UnimplementedCSR satp;              // Supervisor address translation and protection
@@ -53,5 +56,24 @@ public:
     UnimplementedCSR mtinst = {};       // Machine trap instruction (transformed)
     UnimplementedCSR mtval2 = {};       // Machine bad guest physical address
 
-    Bus bus;
+    // Exceptions
+    enum class Exception
+    {
+        InstructionAddressMisaligned = 0,
+        InstructionAccessFault = 1,
+        IllegalInstruction = 2,
+        Breakpoint = 3,
+        LoadAddressMisaligned = 4,
+        LoadAccessFault = 5,
+        StoreOrAMOAddressMisaligned = 6,
+        StoreOrAMOAccessFault = 7,
+        EnvironmentCallFromUMode = 8,
+        EnvironmentCallFromSMode = 9,
+        EnvironmentCallFromMMode = 11,
+        InstructionPageFault = 12,
+        LoadPageFault = 13,
+        StoreOrAMOPageFault = 15
+    };
+    void raise_exception(const Exception exception);
+    bool exception_pending = false;
 };

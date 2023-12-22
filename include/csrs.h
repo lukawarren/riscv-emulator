@@ -28,11 +28,11 @@
 
 enum class PrivilegeLevel
 {
-    User,
-    Supervisor,
-    Hypervisor,
-    Machine,
-    Debug
+    User = 0,
+    Supervisor = 1,
+    Hypervisor = 2,
+    Machine = 3,
+    Debug = 4
 };
 
 class CPU;

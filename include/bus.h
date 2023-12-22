@@ -8,15 +8,15 @@ class Bus
 public:
     Bus(const uint64_t ram_size);
 
-    u8  read_8 (const u64 address);
-    u16 read_16(const u64 address);
-    u32 read_32(const u64 address);
-    u64 read_64(const u64 address);
+    std::optional<u8>  read_8 (const u64 address);
+    std::optional<u16> read_16(const u64 address);
+    std::optional<u32> read_32(const u64 address);
+    std::optional<u64> read_64(const u64 address);
 
-    void write_8 (const u64 address, const u8  value);
-    void write_16(const u64 address, const u16 value);
-    void write_32(const u64 address, const u32 value);
-    void write_64(const u64 address, const u64 value);
+    [[nodiscard]] bool write_8 (const u64 address, const u8  value);
+    [[nodiscard]] bool write_16(const u64 address, const u16 value);
+    [[nodiscard]] bool write_32(const u64 address, const u32 value);
+    [[nodiscard]] bool write_64(const u64 address, const u64 value);
 
     void write_file(const u64 address, const std::string& filename);
 
