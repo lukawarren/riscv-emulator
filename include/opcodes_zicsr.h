@@ -3,6 +3,7 @@
 #include "instruction.h"
 #include "types.h"
 #include "csrs.h"
+#include <optional>
 
 #define OPCODES_ZICSR   0b1110011
 #define CSRRW           0b001
@@ -14,8 +15,8 @@
 
 bool opcodes_zicsr(CPU& cpu, const Instruction& instruction);
 
-u64 read_csr(CPU& cpu, const u16 address);
-void write_csr(CPU& cpu, const u64 value, const u16 address);
+std::optional<u64> read_csr(CPU& cpu, const u16 address);
+[[nodiscard]] bool write_csr(CPU& cpu, const u64 value, const u16 address);
 
 void csrrw(CPU& cpu, const Instruction& instruction);
 void csrrs(CPU& cpu, const Instruction& instruction);

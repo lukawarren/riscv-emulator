@@ -57,6 +57,9 @@ public:
     UnimplementedCSR mtinst = {};       // Machine trap instruction (transformed)
     UnimplementedCSR mtval2 = {};       // Machine bad guest physical address
 
+    // Debug registers
+    DefaultCSR debug_registers[CSR_DEBUG_END - CSR_DEBUG_BEGIN + 1] = {};
+
     // Exceptions
     void raise_exception(const Exception exception, const u64 info = 0);
     bool exception_did_occur = false;

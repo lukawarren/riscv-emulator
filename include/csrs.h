@@ -25,6 +25,9 @@
 #define CSR_PMPADDR0    0x3b0
 #define CSR_PMPADDR63   0x3ef
 #define CSR_MNSTATUS    0x744
+#define CSR_DEBUG_BEGIN 0x7a0
+#define CSR_DEBUG_LIMIT 0x7af
+#define CSR_DEBUG_END   0x7bf
 #define CSR_MHARTID     0xf14
 
 enum class PrivilegeLevel
@@ -112,35 +115,45 @@ struct CSR
             case 0b01: return PrivilegeLevel::Supervisor;
             case 0b10: return PrivilegeLevel::Hypervisor;
             case 0b11: return PrivilegeLevel::Machine;
+            default:   return PrivilegeLevel::Machine;
         }
     }
 
-    virtual void write(const u64 value, CPU& cpu) = 0;
+    virtual bool write(const u64 value, CPU& cpu) = 0;
     virtual u64 read(CPU& cpu) = 0;
 };
 
 struct MTVec : CSR
 {
     u64 address;
+
+    // WARL
     enum class Mode
     {
         Direct = 0,
         Vectored = 1
     } mode;
 
-    void write(const u64 value, CPU&) override
+    bool write(const u64 value, CPU&) override
     {
-        // TODO: check is aligned to 4-byte boundary
+        // Check is aligned to 4-byte boundary
+        // TODO: check if needed when have compact instructions
+        if ((value & 0x3) != 0)
+            return false;
+
         address = value & 0xfffffffffffffffc;
         mode = (Mode)(value & 0b11);
 
         // WARL for mode; >=2 is reserved
         if ((u8)mode >= 2)
             mode = Mode::Direct;
+
+        return true;
     }
 
     u64 read(CPU&) override
     {
+        if (mode == Mode::Vectored) throw std::runtime_error("todo");
         return address | (u64)mode;
     }
 };
@@ -149,11 +162,12 @@ struct MEPC : CSR
 {
     u64 address;
 
-    void write(const u64 value, CPU&) override
+    bool write(const u64 value, CPU&) override
     {
         // WARL; lowest bit is always zero, and 2nd lowest is zero if IALIGN
         // can only be 32 (but we support 16, or will)
         address = value & 0xfffffffffffffffe;
+        return true;
     }
 
     u64 read(CPU&) override
@@ -171,12 +185,13 @@ struct MCause : CSR
     bool interrupt;
     u64 exception_code;
 
-    void write(const u64 value, CPU&) override
+    bool write(const u64 value, CPU&) override
     {
         // Code is WLRL; not required to raise exception but could if we wanted to
         // Interrupt is set if trap was caused by an interrupt. TODO: emulate
         interrupt = false;
         exception_code = value;
+        return true;
     }
 
     u64 read(CPU&) override
@@ -223,20 +238,62 @@ struct MStatus : CSR
         memset(&fields, 0, sizeof(MStatus));
     }
 
-    void write(const u64 value, CPU&) override
+    bool write(const u64 value, CPU&) override
     {
-        memcpy(&fields, &value, sizeof(Fields));
-        fields.wpri_1 = 0;
-        fields.wpri_2 = 0;
-        fields.wpri_3 = 0;
-        fields.wpri_4 = 0;
-        fields.wpri_5 = 0;
+        // Don't set the wpri fields; keep them zero
+        fields.sd = (value >> 63) & 0x1;
+        fields.mbe = (value >> 37) & 0x1;
+        fields.sbe = (value >> 36) & 0x1;
+        fields.sxl = (value >> 34) & 0x3;
+        fields.uxl = (value >> 32) & 0x3;
+        fields.tsr = (value >> 22) & 0x1;
+        fields.tw = (value >> 21) & 0x1;
+        fields.tvm = (value >> 20) & 0x1;
+        fields.mxr = (value >> 19) & 0x1;
+        fields.sum = (value >> 18) & 0x1;
+        fields.mprv = (value >> 17) & 0x1;
+        fields.xs = (value >> 15) & 0x3;
+        fields.fs = (value >> 13) & 0x3;
+        fields.mpp = (value >> 11) & 0x3;
+        fields.vs = (value >> 9) & 0x3;
+        fields.spp = (value >> 8) & 0x1;
+        fields.mpie = (value >> 7) & 0x1;
+        fields.ube = (value >> 6) & 0x1;
+        fields.spie = (value >> 5) & 0x1;
+        fields.mie = (value >> 3) & 0x1;
+        fields.sie = (value >> 1) & 0x1;
+        return true;
     }
 
     u64 read(CPU&) override
     {
-        u64 value;
-        memcpy(&value, &fields, sizeof(Fields));
+        u64 value = 0;
+        value |= ((u64)(fields.sd) << 63);
+        value |= ((u64)(fields.wpri_1) << 38);
+        value |= ((u64)(fields.mbe) << 37);
+        value |= ((u64)(fields.sbe) << 36);
+        value |= ((u64)(fields.sxl) << 34);
+        value |= ((u64)(fields.uxl) << 32);
+        value |= ((u64)(fields.wpri_2) << 23);
+        value |= ((u64)(fields.tsr) << 22);
+        value |= ((u64)(fields.tw) << 21);
+        value |= ((u64)(fields.tvm) << 20);
+        value |= ((u64)(fields.mxr) << 19);
+        value |= ((u64)(fields.sum) << 18);
+        value |= ((u64)(fields.mprv) << 17);
+        value |= ((u64)(fields.xs) << 15);
+        value |= ((u64)(fields.fs) << 13);
+        value |= ((u64)(fields.mpp) << 11);
+        value |= ((u64)(fields.vs) << 9);
+        value |= ((u64)(fields.spp) << 8);
+        value |= ((u64)(fields.mpie) << 7);
+        value |= ((u64)(fields.ube) << 6);
+        value |= ((u64)(fields.spie) << 5);
+        value |= ((u64)(fields.wpri_3) << 4);
+        value |= ((u64)(fields.mie) << 3);
+        value |= ((u64)(fields.wpri_4) << 2);
+        value |= ((u64)(fields.sie) << 1);
+        value |= (u64)(fields.wpri_5);
         return value;
     }
 
@@ -247,22 +304,26 @@ struct MEDeleg : CSR
 {
     u64 data;
 
-    void write(const u64 value, CPU&) override {
+    bool write(const u64 value, CPU&) override
+    {
         data = value;
+        return true;
     }
 
-    u64 read(CPU&) override {
+    u64 read(CPU&) override
+    {
         return data;
     }
 
-    bool should_delegate(const Exception type) const {
+    bool should_delegate(const Exception type) const
+    {
         return ((data >> (u64)type) & 1) == 1;
     }
 };
 
 struct MHartID : CSR
 {
-    void write(const u64 value, CPU&) override {}
+    bool write(const u64 value, CPU&) override { return true; }
 
     u64 read(CPU&) override {
         // Only one core for now! :)
@@ -275,8 +336,10 @@ struct DefaultCSR: CSR
 {
     u64 value;
 
-    void write(const u64 value, CPU&) override {
+    bool write(const u64 value, CPU&) override
+    {
         this->value = value;
+        return true;
     }
 
     u64 read(CPU&) override {
@@ -286,8 +349,10 @@ struct DefaultCSR: CSR
 
 struct UnimplementedCSR : CSR
 {
-    void write(const u64 value, CPU&) override {
+    bool write(const u64 value, CPU&) override
+    {
         assert(value == 0);
+        return true;
     }
 
     u64 read(CPU&) override { return 0; }

@@ -559,7 +559,10 @@ void mret(CPU& cpu, const Instruction& instruction)
         return;
     }
 
-    cpu.pc = read_csr(cpu, CSR_MEPC) - 4;
+    if (cpu.mstatus.fields.mpp != (u64)PrivilegeLevel::Machine)
+        cpu.mstatus.fields.mprv = 0;
+
+    cpu.pc = *read_csr(cpu, CSR_MEPC) - 4;
     cpu.privilege_level = (PrivilegeLevel)cpu.mstatus.fields.mpp;
     cpu.mstatus.fields.mie = cpu.mstatus.fields.mpie;
     cpu.mstatus.fields.mpie = 1;

@@ -71,10 +71,10 @@ void CPU::cycle()
 
 void CPU::trace()
 {
-    // if (pc == 0x800001b0)
-    //     for (int i = 0; i < 32; ++i)
-    //         std::cout << "x" << i << ": " << std::hex << registers[i] << std::endl;
-    std::cout << "0x" << std::hex << pc << std::endl;
+    if (pc == 0x800002c8)
+        for (int i = 0; i < 32; ++i)
+            std::cout << "x" << i << ": " << std::hex << registers[i] << std::endl;
+    std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
 }
 
 void CPU::raise_exception(const Exception exception, const u64 info)
