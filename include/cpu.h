@@ -49,7 +49,7 @@ public:
     UnimplementedCSR mcounteren = {};   // Machine counter enable
 
     // Machine trap handling
-    UnimplementedCSR mscratch = {};     // Scratch register for machine trap handlers
+    DefaultCSR mscratch = {};           // Scratch register for machine trap handlers
     MEPC mepc = {};                     // Machine exception program counter
     MCause mcause = {};                 // Machine trap cause
     DefaultCSR mtval = {};              // Machine bad address or instruction

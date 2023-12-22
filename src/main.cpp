@@ -25,11 +25,9 @@ int main()
         if (!does_pass(file))
         {
             std::cout << std::dec << passes << " passes out of " << files.size() << std::endl;
-            //return 1;
+            return 1;
         }
     }
-
-    std::cout << std::dec << "passed " << passes << " out of " << files.size() << std::endl;
 
     return 0;
 }

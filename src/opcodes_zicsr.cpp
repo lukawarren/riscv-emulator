@@ -8,9 +8,12 @@ bool opcodes_zicsr(CPU& cpu, const Instruction& instruction)
 
     switch (funct3)
     {
-        case CSRRS:     csrrs (cpu, instruction); break;
         case CSRRW:     csrrw (cpu, instruction); break;
+        case CSRRS:     csrrs (cpu, instruction); break;
+        case CSRRC:     csrrc (cpu, instruction); break;
         case CSRRWI:    csrrwi(cpu, instruction); break;
+        case CSRRSI:    csrrsi(cpu, instruction); break;
+        case CSRRCI:    csrrci(cpu, instruction); break;
 
         default:
             return false;
@@ -158,8 +161,6 @@ void csrrs(CPU& cpu, const Instruction& instruction)
     const std::optional<u64> csr = read_csr(cpu, address);
     if (!csr) return;
 
-    cpu.registers[instruction.get_rd()] = *csr;
-
     // If rs1=x0, then the instruction will not write to the CSR at all
     if (instruction.get_rs1() != 0)
     {
@@ -171,6 +172,27 @@ void csrrs(CPU& cpu, const Instruction& instruction)
         if (!write_csr(cpu, (*csr) | bitmask, address))
             return;
     }
+
+    cpu.registers[instruction.get_rd()] = *csr;
+}
+
+void csrrc(CPU& cpu, const Instruction& instruction)
+{
+    // Write CSR to rd
+    const u64 address = instruction.get_imm(Instruction::Type::I);
+    const std::optional<u64> csr = read_csr(cpu, address);
+    if (!csr) return;
+
+    // If rs1=x0, then the instruction will not write to the CSR at all
+    if (instruction.get_rs1() != 0)
+    {
+        // Like csrrs but instead of setting, we're clearing
+        const u64 bitmask = cpu.registers[instruction.get_rs1()];
+        if (!write_csr(cpu, (*csr) & (~bitmask), address))
+            return;
+    }
+
+    cpu.registers[instruction.get_rd()] = *csr;
 }
 
 void csrrwi(CPU& cpu, const Instruction& instruction)
@@ -182,9 +204,7 @@ void csrrwi(CPU& cpu, const Instruction& instruction)
 
     const u64 address = instruction.get_imm(Instruction::Type::I);
     const std::optional<u64> csr = (instruction.get_rd() != 0) ? read_csr(cpu, address) : 0;
-
-    if (!csr)
-        return;
+    if (!csr) return;
 
     // Write value in rs1 directly to CSR
     if (!write_csr(cpu, instruction.get_rs1(), address))
@@ -193,4 +213,34 @@ void csrrwi(CPU& cpu, const Instruction& instruction)
     // Put old value of CSR into rd
     if (instruction.get_rd() != 0)
         cpu.registers[instruction.get_rd()] = *csr;
+}
+
+void csrrsi(CPU& cpu, const Instruction& instruction)
+{
+    // Read CSR
+    const u64 address = instruction.get_imm(Instruction::Type::I);
+    const std::optional<u64> csr = read_csr(cpu, address);
+    if (!csr) return;
+
+    // OR with raw value of rs1, but only if rs1!=0
+    if (instruction.get_rs1() != 0)
+        if (!write_csr(cpu, *csr | instruction.get_rs1(), address))
+            return;
+
+    cpu.registers[instruction.get_rd()] = *csr;
+}
+
+void csrrci(CPU& cpu, const Instruction& instruction)
+{
+    // Read CSR
+    const u64 address = instruction.get_imm(Instruction::Type::I);
+    const std::optional<u64> csr = read_csr(cpu, address);
+    if (!csr) return;
+
+    // Again, only if rs1!=0
+    if (instruction.get_rs1() != 0)
+        if (!write_csr(cpu, *csr & (~instruction.get_rs1()), address))
+            return;
+
+    cpu.registers[instruction.get_rd()] = *csr;
 }

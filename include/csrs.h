@@ -208,8 +208,8 @@ struct MStatus : CSR
         u64 wpri_1: 25;
         u64 mbe:    1;
         u64 sbe:    1;
-        u64 sxl:    2;
-        u64 uxl:    2;
+        u64 sxl:    2; // warl
+        u64 uxl:    2; // warl
         u64 wpri_2: 9;
         u64 tsr:    1;
         u64 tw:     1;
@@ -262,6 +262,11 @@ struct MStatus : CSR
         fields.spie = (value >> 5) & 0x1;
         fields.mie = (value >> 3) & 0x1;
         fields.sie = (value >> 1) & 0x1;
+
+        // WARL for SXL and UXL
+        fields.sxl = 2; // xlen = 64
+        fields.uxl = 2; // xlen = 64
+
         return true;
     }
 
