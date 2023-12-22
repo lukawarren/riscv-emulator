@@ -2,6 +2,7 @@
 #include "types.h"
 #include "bus.h"
 #include "csrs.h"
+#include "exceptions.h"
 
 class CPU
 {
@@ -41,7 +42,7 @@ public:
     // Machine trap setup
     MStatus mstatus = {};               // Status bits
     UnimplementedCSR misa = {};         // ISA and extensions
-    UnimplementedCSR medeleg = {};      // Machine exception delegation register
+    MEDeleg medeleg = {};               // Machine exception delegation register
     UnimplementedCSR mideleg = {};      // Machine interrupt delegation register
     UnimplementedCSR mie = {};          // Machine interrupt-enable register
     MTVec mtvec = {};                   // Machine trap-handler base address
@@ -50,30 +51,13 @@ public:
     // Machine trap handling
     UnimplementedCSR mscratch = {};     // Scratch register for machine trap handlers
     MEPC mepc = {};                     // Machine exception program counter
-    UnimplementedCSR mcause = {};       // Machine trap cause
-    UnimplementedCSR mtval = {};        // Machine bad address or instruction
+    MCause mcause = {};                 // Machine trap cause
+    DefaultCSR mtval = {};              // Machine bad address or instruction
     UnimplementedCSR mip = {};          // Machine interrupt pending
     UnimplementedCSR mtinst = {};       // Machine trap instruction (transformed)
     UnimplementedCSR mtval2 = {};       // Machine bad guest physical address
 
     // Exceptions
-    enum class Exception
-    {
-        InstructionAddressMisaligned = 0,
-        InstructionAccessFault = 1,
-        IllegalInstruction = 2,
-        Breakpoint = 3,
-        LoadAddressMisaligned = 4,
-        LoadAccessFault = 5,
-        StoreOrAMOAddressMisaligned = 6,
-        StoreOrAMOAccessFault = 7,
-        EnvironmentCallFromUMode = 8,
-        EnvironmentCallFromSMode = 9,
-        EnvironmentCallFromMMode = 11,
-        InstructionPageFault = 12,
-        LoadPageFault = 13,
-        StoreOrAMOPageFault = 15
-    };
-    void raise_exception(const Exception exception);
-    bool exception_pending = false;
+    void raise_exception(const Exception exception, const u64 info = 0);
+    bool exception_did_occur = false;
 };

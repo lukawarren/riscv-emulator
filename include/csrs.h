@@ -1,5 +1,6 @@
 #pragma once
 #include "types.h"
+#include "exceptions.h"
 #include <cstring>
 #include <cassert>
 #include <iostream>
@@ -118,7 +119,7 @@ struct CSR
     virtual u64 read(CPU& cpu) = 0;
 };
 
-struct MTVec: CSR
+struct MTVec : CSR
 {
     u64 address;
     enum class Mode
@@ -144,7 +145,7 @@ struct MTVec: CSR
     }
 };
 
-struct MEPC: CSR
+struct MEPC : CSR
 {
     u64 address;
 
@@ -162,6 +163,25 @@ struct MEPC: CSR
         // Though masked, mepc[1] remains writable when IALIGN=32.
         std::cout << "TODO: respect IALIGN" << std::endl;
         return address;
+    }
+};
+
+struct MCause : CSR
+{
+    bool interrupt;
+    u64 exception_code;
+
+    void write(const u64 value, CPU&) override
+    {
+        // Code is WLRL; not required to raise exception but could if we wanted to
+        // Interrupt is set if trap was caused by an interrupt. TODO: emulate
+        interrupt = false;
+        exception_code = value;
+    }
+
+    u64 read(CPU&) override
+    {
+        return exception_code & 0x7fffffffffffffff;
     }
 };
 
@@ -223,21 +243,50 @@ struct MStatus : CSR
     static_assert(sizeof(Fields) == sizeof(u64));
 };
 
+struct MEDeleg : CSR
+{
+    u64 data;
+
+    void write(const u64 value, CPU&) override {
+        data = value;
+    }
+
+    u64 read(CPU&) override {
+        return data;
+    }
+
+    bool should_delegate(const Exception type) const {
+        return ((data >> (u64)type) & 1) == 1;
+    }
+};
+
 struct MHartID : CSR
 {
     void write(const u64 value, CPU&) override {}
 
-    u64 read(CPU&) override
-    {
+    u64 read(CPU&) override {
         // Only one core for now! :)
         return 0;
     }
 };
 
+// No special restrictions or bits; just holds a value
+struct DefaultCSR: CSR
+{
+    u64 value;
+
+    void write(const u64 value, CPU&) override {
+        this->value = value;
+    }
+
+    u64 read(CPU&) override {
+        return value;
+    }
+};
+
 struct UnimplementedCSR : CSR
 {
-    void write(const u64 value, CPU&) override
-    {
+    void write(const u64 value, CPU&) override {
         assert(value == 0);
     }
 
