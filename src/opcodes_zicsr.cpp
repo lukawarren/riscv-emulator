@@ -31,23 +31,23 @@ u64 read_csr(CPU& cpu, const u16 address)
     switch(address & 0xfff)
     {
         // TODO: raises exception when mstatus has certain value
-        case CSR_SATP:          return cpu.satp.read();
-        case CSR_MSTATUS:       return cpu.mstatus.read();
-        case CSR_MISA:          return cpu.misa.read();
-        case CSR_MEDELEG:       return cpu.medeleg.read();
-        case CSR_MIDELEG:       return cpu.mideleg.read();
-        case CSR_MIE:           return cpu.mie.read();
-        case CSR_MTVEC:         return cpu.mtvec.read();
-        case CSR_MCOUNTER_EN:   return cpu.mcounteren.read();
-        case CSR_MSCRATCH:      return cpu.mscratch.read();
-        case CSR_MEPC:          return cpu.mepc.read();
-        case CSR_MCAUSE:        return cpu.mcause.read();
-        case CSR_MTVAL:         return cpu.mtval.read();
-        case CSR_MIP:           return cpu.mip.read();
-        case CSR_MTINST:        return cpu.mtinst.read();
-        case CSR_MTVAL2:        return cpu.mtval2.read();
+        case CSR_SATP:          return cpu.satp.read(cpu);
+        case CSR_MSTATUS:       return cpu.mstatus.read(cpu);
+        case CSR_MISA:          return cpu.misa.read(cpu);
+        case CSR_MEDELEG:       return cpu.medeleg.read(cpu);
+        case CSR_MIDELEG:       return cpu.mideleg.read(cpu);
+        case CSR_MIE:           return cpu.mie.read(cpu);
+        case CSR_MTVEC:         return cpu.mtvec.read(cpu);
+        case CSR_MCOUNTER_EN:   return cpu.mcounteren.read(cpu);
+        case CSR_MSCRATCH:      return cpu.mscratch.read(cpu);
+        case CSR_MEPC:          return cpu.mepc.read(cpu);
+        case CSR_MCAUSE:        return cpu.mcause.read(cpu);
+        case CSR_MTVAL:         return cpu.mtval.read(cpu);
+        case CSR_MIP:           return cpu.mip.read(cpu);
+        case CSR_MTINST:        return cpu.mtinst.read(cpu);
+        case CSR_MTVAL2:        return cpu.mtval2.read(cpu);
         case CSR_MNSTATUS:      return 0; // Part of Smrnmi; needed for riscv-tests
-        case CSR_MHARTID:       return cpu.mhartid.read();
+        case CSR_MHARTID:       return cpu.mhartid.read(cpu);
 
         default:
             throw std::runtime_error("unknown csr read " + std::format("0x{:x}", address & 0xfff));
@@ -74,23 +74,23 @@ void write_csr(CPU& cpu, const u64 value, const u16 address)
     switch(address & 0xfff)
     {
         // TODO: raises exception when mstatus has certain value (maybe? well is for reads idk)
-        case CSR_SATP:          cpu.satp.write(value);         break;
-        case CSR_MSTATUS:       cpu.mstatus.write(value);      break;
-        case CSR_MISA:          cpu.misa.write(value);         break;
-        case CSR_MEDELEG:       cpu.medeleg.write(value);      break;
-        case CSR_MIDELEG:       cpu.mideleg.write(value);      break;
-        case CSR_MIE:           cpu.mie.write(value);          break;
-        case CSR_MTVEC:         cpu.mtvec.write(value);        break;
-        case CSR_MCOUNTER_EN:   cpu.mcounteren.write(value);   break;
-        case CSR_MSCRATCH:      cpu.mscratch.write(value);     break;
-        case CSR_MEPC:          cpu.mepc.write(value);         break;
-        case CSR_MCAUSE:        cpu.mcause.write(value);       break;
-        case CSR_MTVAL:         cpu.mtval.write(value);        break;
-        case CSR_MIP:           cpu.mip.write(value);          break;
-        case CSR_MTINST:        cpu.mtinst.write(value);       break;
-        case CSR_MTVAL2:        cpu.mtval2.write(value);       break;
-        case CSR_MNSTATUS:                                     break; // Part of Smrnmi; needed for riscv-tests
-        case CSR_MHARTID:       cpu.mhartid.write(value);      break;
+        case CSR_SATP:          cpu.satp.write(value, cpu);         break;
+        case CSR_MSTATUS:       cpu.mstatus.write(value, cpu);      break;
+        case CSR_MISA:          cpu.misa.write(value, cpu);         break;
+        case CSR_MEDELEG:       cpu.medeleg.write(value, cpu);      break;
+        case CSR_MIDELEG:       cpu.mideleg.write(value, cpu);      break;
+        case CSR_MIE:           cpu.mie.write(value, cpu);          break;
+        case CSR_MTVEC:         cpu.mtvec.write(value, cpu);        break;
+        case CSR_MCOUNTER_EN:   cpu.mcounteren.write(value, cpu);   break;
+        case CSR_MSCRATCH:      cpu.mscratch.write(value, cpu);     break;
+        case CSR_MEPC:          cpu.mepc.write(value, cpu);         break;
+        case CSR_MCAUSE:        cpu.mcause.write(value, cpu);       break;
+        case CSR_MTVAL:         cpu.mtval.write(value, cpu);        break;
+        case CSR_MIP:           cpu.mip.write(value, cpu);          break;
+        case CSR_MTINST:        cpu.mtinst.write(value, cpu);       break;
+        case CSR_MTVAL2:        cpu.mtval2.write(value, cpu);       break;
+        case CSR_MNSTATUS:                                          break; // Part of Smrnmi; needed for riscv-tests
+        case CSR_MHARTID:       cpu.mhartid.write(value, cpu);      break;
 
         default:
             throw std::runtime_error("unknown csr write " + std::format("0x{:x}", address & 0xfff));

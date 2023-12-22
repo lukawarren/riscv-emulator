@@ -35,6 +35,8 @@ enum class PrivilegeLevel
     Debug
 };
 
+class CPU;
+
 /*
     Each CSR is 12 bits:
     - Last 4 bits control R/W access and privilege level
@@ -112,8 +114,8 @@ struct CSR
         }
     }
 
-    virtual void write(const u64 value) = 0;
-    virtual u64 read() = 0;
+    virtual void write(const u64 value, CPU& cpu) = 0;
+    virtual u64 read(CPU& cpu) = 0;
 };
 
 struct MTVec: CSR
@@ -125,7 +127,7 @@ struct MTVec: CSR
         Vectored = 1
     } mode;
 
-    void write(const u64 value) override
+    void write(const u64 value, CPU&) override
     {
         // TODO: check is aligned to 4-byte boundary
         address = value & 0xfffffffffffffffc;
@@ -136,7 +138,7 @@ struct MTVec: CSR
             mode = Mode::Direct;
     }
 
-    u64 read() override
+    u64 read(CPU&) override
     {
         return address | (u64)mode;
     }
@@ -146,14 +148,14 @@ struct MEPC: CSR
 {
     u64 address;
 
-    void write(const u64 value) override
+    void write(const u64 value, CPU&) override
     {
         // WARL; lowest bit is always zero, and 2nd lowest is zero if IALIGN
         // can only be 32 (but we support 16, or will)
         address = value & 0xfffffffffffffffe;
     }
 
-    u64 read() override
+    u64 read(CPU&) override
     {
         // Whenever IALIGN=32, bit mepc[1] is masked on reads so that it appears
         // to be 0. This masking occurs also for the implicit read by the MRET instruction.
@@ -201,7 +203,7 @@ struct MStatus : CSR
         memset(&fields, 0, sizeof(MStatus));
     }
 
-    void write(const u64 value) override
+    void write(const u64 value, CPU&) override
     {
         memcpy(&fields, &value, sizeof(Fields));
         fields.wpri_1 = 0;
@@ -211,7 +213,7 @@ struct MStatus : CSR
         fields.wpri_5 = 0;
     }
 
-    u64 read() override
+    u64 read(CPU&) override
     {
         u64 value;
         memcpy(&value, &fields, sizeof(Fields));
@@ -223,9 +225,9 @@ struct MStatus : CSR
 
 struct MHartID : CSR
 {
-    void write(const u64 value) override {}
+    void write(const u64 value, CPU&) override {}
 
-    u64 read() override
+    u64 read(CPU&) override
     {
         // Only one core for now! :)
         return 0;
@@ -234,10 +236,10 @@ struct MHartID : CSR
 
 struct UnimplementedCSR : CSR
 {
-    void write(const u64 value) override
+    void write(const u64 value, CPU&) override
     {
         assert(value == 0);
     }
 
-    u64 read() override { return 0; }
+    u64 read(CPU&) override { return 0; }
 };
