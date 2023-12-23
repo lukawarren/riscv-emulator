@@ -17,6 +17,13 @@ CPU::CPU(const u64 ram_size) : bus(ram_size)
 
 void CPU::do_cycle()
 {
+    // Check is 32-bit aligned (remove when compressed support added)
+    if ((pc & 0b11) != 0)
+    {
+        raise_exception(Exception::InstructionAddressMisaligned, pc);
+        return;
+    }
+
     // Fetch instruction... if we can!
     const std::optional<Instruction> instruction = { bus.read_32(pc) };
     if (!instruction)
@@ -40,8 +47,6 @@ void CPU::do_cycle()
         raise_exception(Exception::IllegalInstruction, instruction->instruction);
         return;
     }
-
-    // TODO: check instruction alignment
 
     const u8 opcode = instruction->get_opcode();
     const u8 funct3 = instruction->get_funct3();

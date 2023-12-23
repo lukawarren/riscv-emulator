@@ -7,6 +7,7 @@
 u64 get_load_address(const CPU& cpu, const Instruction& instruction);
 u64 get_store_address(const CPU& cpu, const Instruction& instruction);
 u32 get_wide_shift_amount(const CPU& cpu, const Instruction& instruction);
+bool check_branch_alignment(CPU& cpu, const u64 target);
 
 bool opcodes_base(CPU& cpu, const Instruction& instruction)
 {
@@ -473,56 +474,77 @@ void sw(CPU& cpu, const Instruction& instruction)
 
 void beq(CPU& cpu, const Instruction& instruction)
 {
-    if (cpu.registers[instruction.get_rs1()] == cpu.registers[instruction.get_rs2()])
-        cpu.pc += instruction.get_imm(Instruction::Type::B) - 4;
+    const u64 target = instruction.get_imm(Instruction::Type::B);
+
+    if (cpu.registers[instruction.get_rs1()] == cpu.registers[instruction.get_rs2()] &&
+        check_branch_alignment(cpu, target))
+        cpu.pc += target - 4;
 }
 
 void bne(CPU& cpu, const Instruction& instruction)
 {
+    const u64 target = instruction.get_imm(Instruction::Type::B);
+
     if (cpu.registers[instruction.get_rs1()] !=
-        cpu.registers[instruction.get_rs2()])
-        cpu.pc += instruction.get_imm(Instruction::Type::B) - 4;
+        cpu.registers[instruction.get_rs2()] &&
+        check_branch_alignment(cpu, target))
+        cpu.pc += target - 4;
 }
 
 void blt(CPU& cpu, const Instruction& instruction)
 {
+    const u64 target = instruction.get_imm(Instruction::Type::B);
+
     if ((i64)cpu.registers[instruction.get_rs1()] <
-        (i64)cpu.registers[instruction.get_rs2()])
-        cpu.pc += instruction.get_imm(Instruction::Type::B) - 4;
+        (i64)cpu.registers[instruction.get_rs2()] &&
+        check_branch_alignment(cpu, target))
+        cpu.pc += target - 4;
 }
 
 void bge(CPU& cpu, const Instruction& instruction)
 {
+    const u64 target = instruction.get_imm(Instruction::Type::B);
+
     if ((i64)cpu.registers[instruction.get_rs1()] >=
-        (i64)cpu.registers[instruction.get_rs2()])
-        cpu.pc += instruction.get_imm(Instruction::Type::B) - 4;
+        (i64)cpu.registers[instruction.get_rs2()] &&
+        check_branch_alignment(cpu, target))
+        cpu.pc += target - 4;
 }
 
 void bltu(CPU& cpu, const Instruction& instruction)
 {
+    const u64 target = instruction.get_imm(Instruction::Type::B);
+
     if (cpu.registers[instruction.get_rs1()] <
-        cpu.registers[instruction.get_rs2()])
-        cpu.pc += instruction.get_imm(Instruction::Type::B) - 4;
+        cpu.registers[instruction.get_rs2()] &&
+        check_branch_alignment(cpu, target))
+        cpu.pc += target - 4;
 }
 
 void bgeu(CPU& cpu, const Instruction& instruction)
 {
+    const u64 target = instruction.get_imm(Instruction::Type::B);
+
     if (cpu.registers[instruction.get_rs1()] >=
-        cpu.registers[instruction.get_rs2()])
-        cpu.pc += instruction.get_imm(Instruction::Type::B) - 4;
+        cpu.registers[instruction.get_rs2()] &&
+        check_branch_alignment(cpu, target))
+        cpu.pc += target - 4;
 }
 
 void jal(CPU& cpu, const Instruction& instruction)
 {
+    // Add offset to program counter - sign extension done for us
+    const i64 offset = instruction.get_imm(Instruction::Type::J);
+
+    // Alignment check (see jalr)
+    if (!check_branch_alignment(cpu, offset))
+        return;
+
     // Target register will contain pc + 4 (*not* for reason below though!)
     cpu.registers[instruction.get_rd()] = cpu.pc + 4;
 
-    // Add offset to program counter - sign extension done for us
-    const i64 offset = instruction.get_imm(Instruction::Type::J);
-    cpu.pc += offset;
-
     // Minus 4 because 4 is always added anyway by caller
-    cpu.pc -= 4;
+    cpu.pc += offset - 4;
 }
 
 void jalr(CPU& cpu, const Instruction& instruction)
@@ -533,7 +555,13 @@ void jalr(CPU& cpu, const Instruction& instruction)
 
     i64 offset = instruction.get_imm(Instruction::Type::I);
     offset += cpu.registers[instruction.get_rs1()];
-    offset &= 0xfffffffffffffffc;
+    offset &= 0xfffffffffffffffe;
+
+    // An instruction address misaligned exception is generated on a
+    // taken branch or unconditional jump if the target address is not
+    // four-byte aligned
+    if (!check_branch_alignment(cpu, offset))
+        return;
 
     cpu.registers[instruction.get_rd()] = cpu.pc + 4;
     cpu.pc = (u64)offset - 4;
@@ -763,4 +791,15 @@ u32 get_wide_shift_amount(const CPU&, const Instruction& instruction)
     // SLLIW, SRLIW and SRAIW generate an illegal instruction exception
     // if imm[5] != 0. TODO: emulate!
     return instruction.get_imm(Instruction::Type::I) & 0b11111;
+}
+
+bool check_branch_alignment(CPU& cpu, const u64 target)
+{
+    if ((target & 0b11) != 0)
+    {
+        cpu.raise_exception(Exception::InstructionAddressMisaligned, 0);
+        return false;
+    }
+
+    return true;
 }
