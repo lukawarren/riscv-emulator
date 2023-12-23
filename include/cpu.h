@@ -79,7 +79,9 @@ public:
     BlankCSR mhartid = {};              // ID of hart
 
     // Exceptions
-    void raise_exception(const Exception exception, const u64 info = 0);
+    void raise_exception(const Exception exception);
+    void raise_exception(const Exception exception, const u64 cause);
+    u64 get_exception_cause(const Exception exception);
     bool exception_did_occur = false;
 
     // Extensions

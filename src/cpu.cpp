@@ -94,7 +94,12 @@ void CPU::trace()
     std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
 }
 
-void CPU::raise_exception(const Exception exception, const u64 info)
+void CPU::raise_exception(const Exception exception)
+{
+    raise_exception(exception, get_exception_cause(exception));
+}
+
+void CPU::raise_exception(const Exception exception, const u64 cause)
 {
     /*
         By default, all traps at any privilege level are handled in machine mode,
@@ -128,7 +133,7 @@ void CPU::raise_exception(const Exception exception, const u64 info)
         mcause.write((u64)exception, *this);
 
         // Set mtval to (optional) exception-specific information
-        mtval.write(info, *this);
+        mtval.write(cause, *this);
 
         // Set PIE bit in mstatus to MIE bit ("IE" = interrupt enable)
         mstatus.fields.mpie = mstatus.fields.mie;
@@ -139,4 +144,25 @@ void CPU::raise_exception(const Exception exception, const u64 info)
         // Record previous privilege
         mstatus.fields.mpp = (u64)original_privilege_level;
     }
+}
+
+u64 CPU::get_exception_cause(const Exception exception)
+{
+    switch (exception)
+    {
+        case Exception::IllegalInstruction:
+            return *bus.read_32(pc);
+
+        case Exception::LoadAccessFault:
+            return pc;
+
+        case Exception::StoreOrAMOAccessFault:
+            return pc;
+
+        default:
+            throw std::runtime_error(
+                "unable to determine exception casue - "
+                "wrong overload used"
+            );
+    };
 }

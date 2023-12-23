@@ -398,7 +398,7 @@ void lb(CPU& cpu, const Instruction& instruction)
     std::optional<u8> value = cpu.bus.read_8(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::LoadAccessFault);
         return;
     }
     cpu.registers[instruction.get_rd()] = (u64)(i64)(i8)*value;
@@ -409,7 +409,7 @@ void lh(CPU& cpu, const Instruction& instruction)
     std::optional<u16> value = cpu.bus.read_16(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::LoadAccessFault);
         return;
     }
     cpu.registers[instruction.get_rd()] = (u64)(i64)(i16)*value;
@@ -420,7 +420,7 @@ void lw(CPU& cpu, const Instruction& instruction)
     std::optional<u32> value = cpu.bus.read_32(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::LoadAccessFault);
         return;
     }
     cpu.registers[instruction.get_rd()] = (u64)(i64)(i32)*value;
@@ -431,7 +431,7 @@ void lbu(CPU& cpu, const Instruction& instruction)
     std::optional<u8> value = cpu.bus.read_8(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::LoadAccessFault);
         return;
     }
     cpu.registers[instruction.get_rd()] = *value;
@@ -442,7 +442,7 @@ void lhu(CPU& cpu, const Instruction& instruction)
     std::optional<u16> value = cpu.bus.read_16(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::LoadAccessFault);
         return;
     }
     cpu.registers[instruction.get_rd()] = *value;
@@ -454,7 +454,7 @@ void sb(CPU& cpu, const Instruction& instruction)
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
     ))
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
 }
 
 void sh(CPU& cpu, const Instruction& instruction)
@@ -463,7 +463,7 @@ void sh(CPU& cpu, const Instruction& instruction)
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
     ))
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
 }
 
 void sw(CPU& cpu, const Instruction& instruction)
@@ -472,7 +472,7 @@ void sw(CPU& cpu, const Instruction& instruction)
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
     ))
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
 }
 
 void beq(CPU& cpu, const Instruction& instruction)
@@ -588,7 +588,7 @@ void sret(CPU& cpu, const Instruction& instruction)
     // will raise an illegal instruction exception.
     if (cpu.mstatus.fields.tsr == 1)
     {
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return;
     }
 
@@ -596,7 +596,7 @@ void sret(CPU& cpu, const Instruction& instruction)
 
     if (cpu.privilege_level < PrivilegeLevel::Supervisor)
     {
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return;
     }
 
@@ -623,7 +623,7 @@ void mret(CPU& cpu, const Instruction& instruction)
     // Must be in machine mode or higher
     if (cpu.privilege_level < PrivilegeLevel::Machine)
     {
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return;
     }
 
@@ -654,7 +654,7 @@ void wfi(CPU& cpu, const Instruction& instruction)
 
     if (cpu.mstatus.fields.tw == 1)
     {
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return;
     }
 
@@ -667,7 +667,7 @@ void sfence_vma(CPU& cpu, const Instruction& instruction)
     // current execution. i.e. glorified NOP for us.
     // Have to trap when TVM = 1.
     if (cpu.mstatus.fields.tvm == 1)
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
 }
 
 void lwu(CPU& cpu, const Instruction& instruction)
@@ -675,7 +675,7 @@ void lwu(CPU& cpu, const Instruction& instruction)
     std::optional<u32> value = cpu.bus.read_32(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::LoadAccessFault);
         return;
     }
     cpu.registers[instruction.get_rd()] = *value;
@@ -686,7 +686,7 @@ void ld(CPU& cpu, const Instruction& instruction)
     std::optional<u64> value = cpu.bus.read_64(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::LoadAccessFault);
         return;
     }
     cpu.registers[instruction.get_rd()] = (u64)(i64)*value;
@@ -698,7 +698,7 @@ void sd(CPU& cpu, const Instruction& instruction)
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
     ))
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault, cpu.pc);
+        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
 }
 
 void addiw(CPU& cpu, const Instruction& instruction)

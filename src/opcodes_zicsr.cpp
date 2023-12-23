@@ -30,7 +30,7 @@ bool check_satp_trap(CPU& cpu, const u16 csr_address)
         cpu.privilege_level == PrivilegeLevel::Supervisor &&
         cpu.mstatus.fields.tvm == 1)
     {
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return false;
     }
     return true;
@@ -55,7 +55,7 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
             return cpu.debug_registers[csr_address - CSR_DEBUG_BEGIN].read(cpu);
         else
         {
-            cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+            cpu.raise_exception(Exception::IllegalInstruction);
             return std::nullopt;
         }
     }
@@ -63,7 +63,7 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
     // Check privilege level
     if (CSR::get_privilege_level(address) > cpu.privilege_level)
     {
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return std::nullopt;
     }
 
@@ -115,7 +115,7 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
     if (CSR::is_read_only(csr_address) ||
         cpu.privilege_level < CSR::get_privilege_level(csr_address))
     {
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return false;
     }
 
@@ -143,7 +143,7 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
         }
 
         // In machine mode but it's a debug-only debug register!
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return false;
     }
 

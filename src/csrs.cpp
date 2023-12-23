@@ -78,7 +78,7 @@ std::optional<u64> Cycle::read(CPU& cpu)
     if (cpu.privilege_level < PrivilegeLevel::Machine &&
         !cpu.mcounteren.is_cycle_enabled())
     {
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return std::nullopt;
     }
 
@@ -91,7 +91,7 @@ std::optional<u64> InstRet::read(CPU& cpu)
     if (cpu.privilege_level < PrivilegeLevel::Machine &&
         !cpu.mcounteren.is_instret_enabled())
     {
-        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        cpu.raise_exception(Exception::IllegalInstruction);
         return std::nullopt;
     }
 
