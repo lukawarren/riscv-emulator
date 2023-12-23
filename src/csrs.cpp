@@ -67,7 +67,6 @@ std::optional<u64> MISA::read(CPU& cpu)
     return (mxl << 62)| extensions;
 }
 
-
 bool Cycle::write(const u64, CPU&)
 {
     return true;
@@ -85,3 +84,17 @@ std::optional<u64> Cycle::read(CPU& cpu)
 
     return cpu.mcycle.read(cpu);
 }
+
+std::optional<u64> InstRet::read(CPU& cpu)
+{
+    // Read-only shadow of mcycle
+    if (cpu.privilege_level < PrivilegeLevel::Machine &&
+        !cpu.mcounteren.is_instret_enabled())
+    {
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        return std::nullopt;
+    }
+
+    return cpu.minstret.read(cpu);
+}
+

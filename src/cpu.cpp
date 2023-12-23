@@ -72,10 +72,11 @@ void CPU::do_cycle()
 
     if (!did_find_opcode)
         throw std::runtime_error(std::format(
-            "unknown opcode 0x{:x} with funct3 0x{:x}, funct7 0x{:x} - raw = 0x{:x}, pc = 0x{:x}",
+            "unknown opcode 0x{:x} with funct3 0x{:x}, funct7 0x{:x}, rs2 0x{:x} - raw = 0x{:x}, pc = 0x{:x}",
             opcode,
             funct3,
             funct7,
+            instruction->get_rs2(),
             instruction->instruction,
             pc
         ));
@@ -84,7 +85,8 @@ void CPU::do_cycle()
         pc += sizeof(u32);
 
     exception_did_occur = false;
-    mcycle.write(*mcycle.read(*this) + 1, *this);
+    mcycle.increment(*this);
+    minstret.increment(*this);
 }
 
 void CPU::trace()

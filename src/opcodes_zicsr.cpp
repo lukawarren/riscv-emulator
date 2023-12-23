@@ -94,7 +94,9 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
         case CSR_MTVAL2:        return cpu.mtval2.read(cpu);
         case CSR_MNSTATUS:      return 0; // Part of Smrnmi; needed for riscv-tests
         case CSR_MCYCLE:        return cpu.mcycle.read(cpu);
+        case CSR_MINSTRET:      return cpu.minstret.read(cpu);
         case CSR_CYCLE:         return cpu.cycle.read(cpu);
+        case CSR_INSTRET:       return cpu.instret.read(cpu);
         case CSR_MVENDOR_ID:    return cpu.mvendorid.read(cpu);
         case CSR_MARCH_ID:      return cpu.marchid.read(cpu);
         case CSR_MIMP_ID:       return cpu.mimpid.read(cpu);
@@ -128,6 +130,11 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
     // Debug registers
     if (csr_address >= CSR_DEBUG_BEGIN && csr_address <= CSR_DEBUG_END)
     {
+        // To tell programs that breakpoints are not supported,
+        // tdata1 must not be writable, and must always read zero.
+        if (csr_address == CSR_TDATA1)
+            return true;
+
         if ((csr_address <= CSR_DEBUG_LIMIT && cpu.privilege_level >= PrivilegeLevel::Machine) ||
             cpu.privilege_level == PrivilegeLevel::Debug)
         {

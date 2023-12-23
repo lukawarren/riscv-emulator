@@ -30,10 +30,13 @@
 #define CSR_PMPADDR63   0x3ef
 #define CSR_MNSTATUS    0x744
 #define CSR_DEBUG_BEGIN 0x7a0
+#define CSR_TDATA1      0x7a1
 #define CSR_DEBUG_LIMIT 0x7af
 #define CSR_DEBUG_END   0x7bf
 #define CSR_MCYCLE      0xb00
+#define CSR_MINSTRET    0xb02
 #define CSR_CYCLE       0xc00
+#define CSR_INSTRET     0xc02
 #define CSR_MVENDOR_ID  0xf11
 #define CSR_MARCH_ID    0xf12
 #define CSR_MIMP_ID     0xf13
@@ -126,6 +129,13 @@ struct CSR
             case 0b11: return PrivilegeLevel::Machine;
             default:   return PrivilegeLevel::Machine;
         }
+    }
+
+    bool increment(CPU& cpu)
+    {
+        std::optional<u64> value = read(cpu);
+        if (!value) return false;
+        return write(*value + 1, cpu);
     }
 
     virtual bool write(const u64 value, CPU& cpu) = 0;
@@ -451,6 +461,11 @@ struct MIE : MIP {};
 struct Cycle : CSR
 {
     bool write(const u64 value, CPU&) override;
+    std::optional<u64> read(CPU&) override;
+};
+
+struct InstRet : Cycle
+{
     std::optional<u64> read(CPU&) override;
 };
 

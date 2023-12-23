@@ -136,7 +136,7 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
 
         case OPCODES_BASE_SYSTEM:
         {
-            // 0 = CSR instructions
+            // 0 = CSR instructions - except for ebreak
             if (funct3 != 0) return false;
 
             const u8 rs2 = instruction.get_rs2();
@@ -150,7 +150,11 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
             }
 
             if (rs2 == EBREAK && funct7 == 0)
-                throw std::runtime_error("ebreak");
+            {
+                // Used for syscalls, etc.
+                cpu.raise_exception(Exception::Breakpoint, 0);
+                return true;
+            }
 
             if (rs2 == URET && funct7 == 0)
                 throw std::runtime_error("uret");

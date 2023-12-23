@@ -63,12 +63,14 @@ public:
 
     // Machine counters / timers
     DefaultCSR mcycle = {};             // Cycle count
+    DefaultCSR minstret = {};           // Counts instructions performed ("retired")
 
     // Debug registers
     DefaultCSR debug_registers[CSR_DEBUG_END - CSR_DEBUG_BEGIN + 1] = {};
 
     // Unprivileged counters / timers
     Cycle cycle = {};                   // Cycle counter; shadows mcycle
+    InstRet instret = {};               // Shadows minstret
 
     // Machine information registers
     BlankCSR mvendorid = {};            // Vendor ID
