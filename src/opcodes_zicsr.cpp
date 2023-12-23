@@ -22,6 +22,20 @@ bool opcodes_zicsr(CPU& cpu, const Instruction& instruction)
     return true;
 }
 
+bool check_satp_trap(CPU& cpu, const u16 csr_address)
+{
+    // When TVM=1, attempts to read or write the satp CSR while executing in
+    // S-mode will raise an illegal instruction exception
+    if (csr_address == CSR_SATP &&
+        cpu.privilege_level == PrivilegeLevel::Supervisor &&
+        cpu.mstatus.fields.tvm == 1)
+    {
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        return false;
+    }
+    return true;
+}
+
 std::optional<u64> read_csr(CPU& cpu, const u16 address)
 {
     const u16 csr_address = address & 0xfff;
@@ -41,7 +55,7 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
             return cpu.debug_registers[csr_address - CSR_DEBUG_BEGIN].read(cpu);
         else
         {
-            cpu.raise_exception(Exception::IllegalInstruction, cpu.pc);
+            cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
             return std::nullopt;
         }
     }
@@ -49,14 +63,18 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
     // Check privilege level
     if (CSR::get_privilege_level(address) > cpu.privilege_level)
     {
-        cpu.raise_exception(Exception::IllegalInstruction, cpu.pc);
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
         return std::nullopt;
     }
+
+    if (!check_satp_trap(cpu, csr_address))
+        return std::nullopt;
 
     switch(csr_address)
     {
         // TODO: raises exception when mstatus has certain value
 
+        case CSR_SSTATUS:       return cpu.sstatus.read(cpu);
         case CSR_SCOUNTER_EN:   return cpu.scounteren.read(cpu);
         case CSR_SATP:          return cpu.satp.read(cpu);
         case CSR_MSTATUS:       return cpu.mstatus.read(cpu);
@@ -94,7 +112,7 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
     if (CSR::is_read_only(csr_address) ||
         cpu.privilege_level < CSR::get_privilege_level(csr_address))
     {
-        cpu.raise_exception(Exception::IllegalInstruction, cpu.pc);
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
         return false;
     }
 
@@ -117,13 +135,17 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
         }
 
         // In machine mode but it's a debug-only debug register!
-        cpu.raise_exception(Exception::IllegalInstruction, cpu.pc);
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
         return false;
     }
+
+    if (!check_satp_trap(cpu, csr_address))
+        return false;
 
     switch(csr_address)
     {
         // TODO: raises exception when mstatus has certain value (maybe? well is for reads idk)
+        case CSR_SSTATUS:       return cpu.sstatus.write(value, cpu);
         case CSR_SCOUNTER_EN:   return cpu.scounteren.write(value, cpu);
         case CSR_SATP:          return cpu.satp.write(value, cpu);
         case CSR_MSTATUS:       return cpu.mstatus.write(value, cpu);

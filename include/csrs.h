@@ -6,6 +6,7 @@
 #include <iostream>
 #include <optional>
 
+#define CSR_SSTATUS     0x100
 #define CSR_SCOUNTER_EN 0x106
 #define CSR_SATP        0x180
 #define CSR_MSTATUS     0x300
@@ -133,7 +134,7 @@ struct CSR
 // No special restrictions or bits; just holds a value
 struct DefaultCSR: CSR
 {
-    u64 value;
+    u64 value = 0;
 
     bool write(const u64 value, CPU&) override
     {
@@ -148,7 +149,7 @@ struct DefaultCSR: CSR
 
 struct MTVec : CSR
 {
-    u64 address;
+    u64 address = 0;
 
     // WARL
     enum class Mode
@@ -159,16 +160,12 @@ struct MTVec : CSR
 
     bool write(const u64 value, CPU&) override
     {
-        // Check is aligned to 4-byte boundary
-        // TODO: check if needed when have compact instructions
-        if ((value & 0x3) != 0)
-            return false;
-
         address = value & 0xfffffffffffffffc;
         mode = (Mode)(value & 0b11);
 
-        // WARL for mode; >=2 is reserved
-        if ((u8)mode >= 2)
+        // WARL for mode; >=2 is reserved but we don't support vectored
+        // so force it to be 1
+        if ((u8)mode >= 1)
             mode = Mode::Direct;
 
         return true;
@@ -176,7 +173,6 @@ struct MTVec : CSR
 
     std::optional<u64> read(CPU&) override
     {
-        if (mode == Mode::Vectored) throw std::runtime_error("todo");
         return address | (u64)mode;
     }
 };
@@ -206,7 +202,7 @@ struct MCounterEnable : DefaultCSR
 
 struct MEPC : CSR
 {
-    u64 address;
+    u64 address = 0;
 
     bool write(const u64 value, CPU&) override
     {
@@ -276,12 +272,11 @@ struct MStatus : CSR
         u64 wpri_4: 1;
         u64 sie:    1;
         u64 wpri_5: 1;
-    };
-    Fields fields;
+    } fields;
 
     MStatus()
     {
-        memset(&fields, 0, sizeof(MStatus));
+        memset(&fields, 0, sizeof(Fields));
     }
 
     bool write(const u64 value, CPU&) override
@@ -351,6 +346,41 @@ struct MStatus : CSR
     static_assert(sizeof(Fields) == sizeof(u64));
 };
 
+struct SStatus: CSR
+{
+    // "In a straightforward implementation, reading or writing any
+    //  field in sstatus is equivalent to reading or writing the homonymous
+    //  field in mstatus."
+    // Hence there is no need to store any actual data; the below struct is
+    // merely for reference and has no instance :)
+    struct Fields
+    {
+        u64 sd: 1;      // shadowed
+        u64 wpri_1: 29;
+        u64 uxl: 2;     // shadowed
+        u64 wpri_2: 12;
+        u64 mxr: 1;     // shadowed
+        u64 sum: 1;     // shadowed
+        u64 wpri_3: 1;
+        u64 xs: 2;      // shadowed
+        u64 fs: 2;      // shadowed
+        u64 wpri_4: 2;
+        u64 vs: 2;      // shadowed
+        u64 spp: 1;     // shadowed
+        u64 wpri_5: 1;
+        u64 ube: 1;     // shadowed
+        u64 spie: 1;    // shadowed
+        u64 wpri_6: 3;
+        u64 sie: 1;     // shadowed
+        u64 wpri_7: 1;
+    };
+
+    bool write(const u64 value, CPU& cpu) override;
+    std::optional<u64> read(CPU& cpu) override;
+
+    static_assert(sizeof(Fields) == sizeof(u64));
+};
+
 struct MISA : CSR
 {
     bool write(const u64, CPU&) override;
@@ -359,11 +389,12 @@ struct MISA : CSR
 
 struct MEDeleg : CSR
 {
-    u64 data;
+    u64 data = 0;
 
     bool write(const u64 value, CPU&) override
     {
-        data = value;
+        // WARL: medeleg[11] is read-only zero
+        data = value & (~(1 << 11));
         return true;
     }
 
@@ -377,6 +408,42 @@ struct MEDeleg : CSR
         return ((data >> (u64)type) & 1) == 1;
     }
 };
+
+struct MIDeleg : DefaultCSR
+{
+    bool should_delegate(const Exception type) const
+    {
+        return ((value >> (u64)type) & 1) == 1;
+    }
+};
+
+struct MIP : CSR
+{
+    // CSR is XLEN long but bits 16 and above designated for platform or custom use
+    u16 bits = 0;
+
+    bool write(const u64 value, CPU&) override
+    {
+        // WRARL
+        bits = value & 0b0000101010101010;
+        return true;
+    }
+
+    std::optional<u64> read(CPU&) override
+    {
+        return bits;
+    }
+
+    bool mei() const { return ((bits >> 11) & 1) == 1; }
+    bool sei() const { return ((bits >>  9) & 1) == 1; }
+    bool mti() const { return ((bits >>  7) & 1) == 1; }
+    bool sti() const { return ((bits >>  5) & 1) == 1; }
+    bool msi() const { return ((bits >>  3) & 1) == 1; }
+    bool ssi() const { return ((bits >>  1) & 1) == 1; }
+};
+
+// Same fields as MIP, but meip = meie, seip = seie, etc.
+struct MIE : MIP {};
 
 struct Cycle : CSR
 {

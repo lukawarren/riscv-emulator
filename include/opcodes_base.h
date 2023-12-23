@@ -93,63 +93,65 @@
 
 bool opcodes_base(CPU& cpu, const Instruction& instruction);
 
-void add    (CPU& cpu, const Instruction& instruction);
-void sub    (CPU& cpu, const Instruction& instruction);
-void _xor   (CPU& cpu, const Instruction& instruction);
-void _or    (CPU& cpu, const Instruction& instruction);
-void _and   (CPU& cpu, const Instruction& instruction);
-void sll    (CPU& cpu, const Instruction& instruction);
-void srl    (CPU& cpu, const Instruction& instruction);
-void sra    (CPU& cpu, const Instruction& instruction);
-void slt    (CPU& cpu, const Instruction& instruction);
-void sltu   (CPU& cpu, const Instruction& instruction);
+void add        (CPU& cpu, const Instruction& instruction);
+void sub        (CPU& cpu, const Instruction& instruction);
+void _xor       (CPU& cpu, const Instruction& instruction);
+void _or        (CPU& cpu, const Instruction& instruction);
+void _and       (CPU& cpu, const Instruction& instruction);
+void sll        (CPU& cpu, const Instruction& instruction);
+void srl        (CPU& cpu, const Instruction& instruction);
+void sra        (CPU& cpu, const Instruction& instruction);
+void slt        (CPU& cpu, const Instruction& instruction);
+void sltu       (CPU& cpu, const Instruction& instruction);
 
-void addi   (CPU& cpu, const Instruction& instruction);
-void xori   (CPU& cpu, const Instruction& instruction);
-void ori    (CPU& cpu, const Instruction& instruction);
-void andi   (CPU& cpu, const Instruction& instruction);
-void slli   (CPU& cpu, const Instruction& instruction);
-void srli   (CPU& cpu, const Instruction& instruction);
-void srai   (CPU& cpu, const Instruction& instruction);
-void slti   (CPU& cpu, const Instruction& instruction);
-void sltiu  (CPU& cpu, const Instruction& instruction);
+void addi       (CPU& cpu, const Instruction& instruction);
+void xori       (CPU& cpu, const Instruction& instruction);
+void ori        (CPU& cpu, const Instruction& instruction);
+void andi       (CPU& cpu, const Instruction& instruction);
+void slli       (CPU& cpu, const Instruction& instruction);
+void srli       (CPU& cpu, const Instruction& instruction);
+void srai       (CPU& cpu, const Instruction& instruction);
+void slti       (CPU& cpu, const Instruction& instruction);
+void sltiu      (CPU& cpu, const Instruction& instruction);
 
-void lb     (CPU& cpu, const Instruction& instruction);
-void lh     (CPU& cpu, const Instruction& instruction);
-void lw     (CPU& cpu, const Instruction& instruction);
-void lbu    (CPU& cpu, const Instruction& instruction);
-void lhu    (CPU& cpu, const Instruction& instruction);
+void lb         (CPU& cpu, const Instruction& instruction);
+void lh         (CPU& cpu, const Instruction& instruction);
+void lw         (CPU& cpu, const Instruction& instruction);
+void lbu        (CPU& cpu, const Instruction& instruction);
+void lhu        (CPU& cpu, const Instruction& instruction);
 
-void sb     (CPU& cpu, const Instruction& instruction);
-void sh     (CPU& cpu, const Instruction& instruction);
-void sw     (CPU& cpu, const Instruction& instruction);
+void sb         (CPU& cpu, const Instruction& instruction);
+void sh         (CPU& cpu, const Instruction& instruction);
+void sw         (CPU& cpu, const Instruction& instruction);
 
-void beq    (CPU& cpu, const Instruction& instruction);
-void bne    (CPU& cpu, const Instruction& instruction);
-void blt    (CPU& cpu, const Instruction& instruction);
-void bge    (CPU& cpu, const Instruction& instruction);
-void bltu   (CPU& cpu, const Instruction& instruction);
-void bgeu   (CPU& cpu, const Instruction& instruction);
+void beq        (CPU& cpu, const Instruction& instruction);
+void bne        (CPU& cpu, const Instruction& instruction);
+void blt        (CPU& cpu, const Instruction& instruction);
+void bge        (CPU& cpu, const Instruction& instruction);
+void bltu       (CPU& cpu, const Instruction& instruction);
+void bgeu       (CPU& cpu, const Instruction& instruction);
 
-void jal    (CPU& cpu, const Instruction& instruction);
-void jalr   (CPU& cpu, const Instruction& instruction);
+void jal        (CPU& cpu, const Instruction& instruction);
+void jalr       (CPU& cpu, const Instruction& instruction);
 
-void lui    (CPU& cpu, const Instruction& instruction);
-void auipc  (CPU& cpu, const Instruction& instruction);
+void lui        (CPU& cpu, const Instruction& instruction);
+void auipc      (CPU& cpu, const Instruction& instruction);
 
-void mret   (CPU& cpu, const Instruction& instruction);
+void mret       (CPU& cpu, const Instruction& instruction);
+void wfi        (CPU& cpu, const Instruction& instruction);
+void sfence_vma (CPU& cpu, const Instruction& instruction);
 
-void lwu    (CPU& cpu, const Instruction& instruction);
-void ld     (CPU& cpu, const Instruction& instruction);
-void sd     (CPU& cpu, const Instruction& instruction);
+void lwu        (CPU& cpu, const Instruction& instruction);
+void ld         (CPU& cpu, const Instruction& instruction);
+void sd         (CPU& cpu, const Instruction& instruction);
 
-void addiw  (CPU& cpu, const Instruction& instruction);
-void slliw  (CPU& cpu, const Instruction& instruction);
-void srliw  (CPU& cpu, const Instruction& instruction);
-void sraiw  (CPU& cpu, const Instruction& instruction);
+void addiw      (CPU& cpu, const Instruction& instruction);
+void slliw      (CPU& cpu, const Instruction& instruction);
+void srliw      (CPU& cpu, const Instruction& instruction);
+void sraiw      (CPU& cpu, const Instruction& instruction);
 
-void addw   (CPU& cpu, const Instruction& instruction);
-void subw   (CPU& cpu, const Instruction& instruction);
-void sllw   (CPU& cpu, const Instruction& instruction);
-void srlw   (CPU& cpu, const Instruction& instruction);
-void sraw   (CPU& cpu, const Instruction& instruction);
+void addw       (CPU& cpu, const Instruction& instruction);
+void subw       (CPU& cpu, const Instruction& instruction);
+void sllw       (CPU& cpu, const Instruction& instruction);
+void srlw       (CPU& cpu, const Instruction& instruction);
+void sraw       (CPU& cpu, const Instruction& instruction);

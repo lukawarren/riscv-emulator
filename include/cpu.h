@@ -34,6 +34,7 @@ public:
     PrivilegeLevel privilege_level = PrivilegeLevel::Machine;
 
     // Supervisor trap setup
+    SStatus sstatus = {};               // Status bits; effective shadow of mstatus
     DefaultCSR scounteren = {};         // Supervisor counter enable
 
     // Supervisor Protection and Translation
@@ -43,8 +44,8 @@ public:
     MStatus mstatus = {};               // Status bits
     MISA misa = {};                     // ISA and extensions
     MEDeleg medeleg = {};               // Machine exception delegation register
-    UnimplementedCSR mideleg = {};      // Machine interrupt delegation register
-    UnimplementedCSR mie = {};          // Machine interrupt-enable register
+    MIDeleg mideleg = {};               // Machine interrupt delegation register
+    MIE mie = {};                       // Machine interrupt-enable register
     MTVec mtvec = {};                   // Machine trap-handler base address
     MCounterEnable mcounteren = {};     // Machine counter enable
 
@@ -53,7 +54,7 @@ public:
     MEPC mepc = {};                     // Machine exception program counter
     MCause mcause = {};                 // Machine trap cause
     DefaultCSR mtval = {};              // Machine bad address or instruction
-    UnimplementedCSR mip = {};          // Machine interrupt pending
+    MIP mip = {};                       // Machine interrupt pending
     UnimplementedCSR mtinst = {};       // Machine trap instruction (transformed)
     UnimplementedCSR mtval2 = {};       // Machine bad guest physical address
 

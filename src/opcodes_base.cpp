@@ -164,9 +164,17 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
             }
 
             if (rs2 == 5 && funct7 == WFI)
-                throw std::runtime_error("wfi");
+            {
+                wfi(cpu, instruction);
+                return true;
+            }
 
-            if (funct7 == SFENCE_VMA)  throw std::runtime_error("sfence.vma");
+            if (funct7 == SFENCE_VMA)
+            {
+                sfence_vma(cpu, instruction);
+                return true;
+            }
+
             if (funct7 == HFENCE_BVMA) throw std::runtime_error("hfence.bvma");
             if (funct7 == HFENCE_GVMA) throw std::runtime_error("hfence.gvma");
 
@@ -565,6 +573,39 @@ void mret(CPU& cpu, const Instruction& instruction)
     cpu.mstatus.fields.mie = cpu.mstatus.fields.mpie;
     cpu.mstatus.fields.mpie = 1;
     cpu.mstatus.fields.mpp = 0;
+}
+
+void wfi(CPU& cpu, const Instruction& instruction)
+{
+    /*
+        The Wait for Interrupt instruction (WFI) provides a hint to the
+        implementation that the current hart can be stalled until an interrupt
+        might need servicing.
+
+        The purpose of the WFI instruction is to provide a hint to the
+        implementation, and so a legal implementation is to simply implement
+        WFI as a NOP.
+
+        This instruction may raise an illegal instruction exception when TW=1
+        in mstatus.
+     */
+
+    if (cpu.mstatus.fields.tw == 1)
+    {
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        return;
+    }
+
+    std::cout << "TODO: WFI; suspend thread" << std::endl;
+}
+
+void sfence_vma(CPU& cpu, const Instruction& instruction)
+{
+    // Synchronises updates to in-memory memory-management data structres with
+    // current execution. i.e. glorified NOP for us.
+    // Have to trap when TVM = 1.
+    if (cpu.mstatus.fields.tvm == 1)
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
 }
 
 void lwu(CPU& cpu, const Instruction& instruction)

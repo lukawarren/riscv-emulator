@@ -11,6 +11,8 @@ CPU::CPU(const u64 ram_size) : bus(ram_size)
     registers[0] = 0;
     registers[2] = Bus::ram_base + ram_size;
     pc = Bus::ram_base;
+
+    // TODO: set x11 to DTB pointer and x10 to hart id
 }
 
 void CPU::do_cycle()
@@ -28,6 +30,14 @@ void CPU::do_cycle()
         else faulty_address = pc + 3;
 
         raise_exception(Exception::InstructionAccessFault, faulty_address);
+        return;
+    }
+
+    // Check it's valid
+    if (instruction->instruction == 0xffffffff ||
+        instruction->instruction == 0)
+    {
+        raise_exception(Exception::IllegalInstruction, instruction->instruction);
         return;
     }
 
@@ -75,9 +85,10 @@ void CPU::do_cycle()
 void CPU::trace()
 {
     // if (pc >= 0x800001a4 && pc <= 0x800001ac) {
-    //     for (int i = 0; i < 32; ++i)
-    //         std::cout << "x" << i << ": " << std::hex << registers[i] << std::endl;
-    // }
+    if (pc == 0x80000264) {
+        for (int i = 0; i < 2; ++i)
+            std::cout << "x" << i << ": " << std::hex << registers[i] << std::endl;
+    }
     std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
 }
 
@@ -91,8 +102,6 @@ void CPU::raise_exception(const Exception exception, const u64 info)
         that certain exceptions and interrupts should be processed directly by a
         lower privilege level.
      */
-
-    std::cout << "excecption raisaed by " << std::hex << pc << std::endl;
 
     const u64 original_pc = pc;
     const PrivilegeLevel original_privilege_level = privilege_level;
