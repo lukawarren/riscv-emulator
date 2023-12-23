@@ -137,6 +137,7 @@ void jalr       (CPU& cpu, const Instruction& instruction);
 void lui        (CPU& cpu, const Instruction& instruction);
 void auipc      (CPU& cpu, const Instruction& instruction);
 
+void sret       (CPU& cpu, const Instruction& instruction);
 void mret       (CPU& cpu, const Instruction& instruction);
 void wfi        (CPU& cpu, const Instruction& instruction);
 void sfence_vma (CPU& cpu, const Instruction& instruction);

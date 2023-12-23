@@ -37,6 +37,9 @@ public:
     SStatus sstatus = {};               // Status bits; effective shadow of mstatus
     DefaultCSR scounteren = {};         // Supervisor counter enable
 
+    // Supervisor trap handilng
+    SEPC sepc = {};
+
     // Supervisor Protection and Translation
     UnimplementedCSR satp;              // Supervisor address translation and protection
 

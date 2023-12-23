@@ -8,6 +8,7 @@
 
 #define CSR_SSTATUS     0x100
 #define CSR_SCOUNTER_EN 0x106
+#define CSR_SEPC        0x141
 #define CSR_SATP        0x180
 #define CSR_MSTATUS     0x300
 #define CSR_MISA        0x301
@@ -217,10 +218,12 @@ struct MEPC : CSR
         // Whenever IALIGN=32, bit mepc[1] is masked on reads so that it appears
         // to be 0. This masking occurs also for the implicit read by the MRET instruction.
         // Though masked, mepc[1] remains writable when IALIGN=32.
-        std::cout << "TODO: respect IALIGN" << std::endl;
+        std::cout << "TODO: respect IALIGN when adding C support" << std::endl;
         return address;
     }
 };
+
+struct SEPC : MEPC {};
 
 struct MCause : CSR
 {

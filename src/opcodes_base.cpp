@@ -155,7 +155,10 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
                 throw std::runtime_error("uret");
 
             if (rs2 == 2 && funct7 == SRET)
-                throw std::runtime_error("sret");
+            {
+                sret(cpu, instruction);
+                return true;
+            }
 
             if (rs2 == 2 && funct7 == MRET)
             {
@@ -548,6 +551,34 @@ void auipc(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = cpu.pc + offset;
 }
 
+void sret(CPU& cpu, const Instruction& instruction)
+{
+    // When TSR=1, attempts to execute SRET while executing in S-mode
+    // will raise an illegal instruction exception.
+    if (cpu.mstatus.fields.tsr == 1)
+    {
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        return;
+    }
+
+    // Otherwise virtually the same as mret (see below)
+
+    if (cpu.privilege_level < PrivilegeLevel::Supervisor)
+    {
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
+        return;
+    }
+
+    if (cpu.mstatus.fields.spp != (u64)PrivilegeLevel::Machine)
+        cpu.mstatus.fields.mprv = 0;
+
+    cpu.pc = *read_csr(cpu, CSR_SEPC) - 4;
+    cpu.privilege_level = (PrivilegeLevel)cpu.mstatus.fields.spp;
+    cpu.mstatus.fields.sie = cpu.mstatus.fields.spie;
+    cpu.mstatus.fields.spie = 1;
+    cpu.mstatus.fields.spp = 0;
+}
+
 void mret(CPU& cpu, const Instruction& instruction)
 {
     /*
@@ -561,7 +592,7 @@ void mret(CPU& cpu, const Instruction& instruction)
     // Must be in machine mode or higher
     if (cpu.privilege_level < PrivilegeLevel::Machine)
     {
-        cpu.raise_exception(Exception::IllegalInstruction, cpu.pc);
+        cpu.raise_exception(Exception::IllegalInstruction, *cpu.bus.read_32(cpu.pc));
         return;
     }
 
