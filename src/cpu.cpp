@@ -91,11 +91,6 @@ void CPU::do_cycle()
 
 void CPU::trace()
 {
-    // if (pc >= 0x800001a4 && pc <= 0x800001ac) {
-    if (pc == 0x80000264) {
-        for (int i = 0; i < 2; ++i)
-            std::cout << "x" << i << ": " << std::hex << registers[i] << std::endl;
-    }
     std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
 }
 

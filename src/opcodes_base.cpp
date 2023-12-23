@@ -144,9 +144,9 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
             if (rs2 == ECALL && funct7 == 0)
             {
                 if (cpu.registers[10] == 0)
-                    throw std::runtime_error("pass");
+                    throw std::string("pass");
                 else
-                    throw std::runtime_error("ecall, x10 = " + std::to_string(cpu.registers[10]) + " (0 = pass)");
+                    throw std::string("ecall, x10 = " + std::to_string(cpu.registers[10]) + " (0 = pass)");
             }
 
             if (rs2 == EBREAK && funct7 == 0)
@@ -192,7 +192,6 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
         case OPCODES_BASE_FENCE:
         {
             // No cores; no need!
-            std::cout << "fence - ignoring" << std::endl;
             break;
         }
 
