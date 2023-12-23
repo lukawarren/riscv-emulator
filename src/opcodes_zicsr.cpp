@@ -74,9 +74,12 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
         case CSR_MTINST:        return cpu.mtinst.read(cpu);
         case CSR_MTVAL2:        return cpu.mtval2.read(cpu);
         case CSR_MNSTATUS:      return 0; // Part of Smrnmi; needed for riscv-tests
-        case CSR_MHARTID:       return cpu.mhartid.read(cpu);
         case CSR_MCYCLE:        return cpu.mcycle.read(cpu);
         case CSR_CYCLE:         return cpu.cycle.read(cpu);
+        case CSR_MVENDOR_ID:    return cpu.mvendorid.read(cpu);
+        case CSR_MARCH_ID:      return cpu.marchid.read(cpu);
+        case CSR_MIMP_ID:       return cpu.mimpid.read(cpu);
+        case CSR_MHART_ID:      return cpu.mhartid.read(cpu);
 
         default:
             throw std::runtime_error("unknown csr read " + std::format("0x{:x}", csr_address));
@@ -138,9 +141,12 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
         case CSR_MTINST:        return cpu.mtinst.write(value, cpu);
         case CSR_MTVAL2:        return cpu.mtval2.write(value, cpu);
         case CSR_MNSTATUS:      return true; // Part of Smrnmi; needed for riscv-tests
-        case CSR_MHARTID:       return cpu.mhartid.write(value, cpu);
         case CSR_MCYCLE:        return cpu.mcycle.write(value, cpu);
         case CSR_CYCLE:         return cpu.cycle.write(value, cpu);
+        case CSR_MVENDOR_ID:    return cpu.mvendorid.write(value, cpu);
+        case CSR_MARCH_ID:      return cpu.marchid.write(value, cpu);
+        case CSR_MIMP_ID:       return cpu.mimpid.write(value, cpu);
+        case CSR_MHART_ID:      return cpu.mhartid.write(value, cpu);
 
         default:
             throw std::runtime_error("unknown csr write " + std::format("0x{:x}", csr_address));

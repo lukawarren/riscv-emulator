@@ -39,9 +39,6 @@ public:
     // Supervisor Protection and Translation
     UnimplementedCSR satp;              // Supervisor address translation and protection
 
-    // Machine information registers
-    MHartID mhartid = {}; // ID of hart
-
     // Machine trap setup
     MStatus mstatus = {};               // Status bits
     MISA misa = {};                     // ISA and extensions
@@ -68,6 +65,12 @@ public:
 
     // Unprivileged counters / timers
     Cycle cycle = {};                   // Cycle counter; shadows mcycle
+
+    // Machine information registers
+    BlankCSR mvendorid = {};            // Vendor ID
+    BlankCSR marchid = {};              // Arch ID
+    BlankCSR mimpid = {};               // Implementation ID
+    BlankCSR mhartid = {};              // ID of hart
 
     // Exceptions
     void raise_exception(const Exception exception, const u64 info = 0);

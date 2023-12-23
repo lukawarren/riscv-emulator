@@ -30,9 +30,12 @@
 #define CSR_DEBUG_BEGIN 0x7a0
 #define CSR_DEBUG_LIMIT 0x7af
 #define CSR_DEBUG_END   0x7bf
-#define CSR_MHARTID     0xf14
 #define CSR_MCYCLE      0xb00
 #define CSR_CYCLE       0xc00
+#define CSR_MVENDOR_ID  0xf11
+#define CSR_MARCH_ID    0xf12
+#define CSR_MIMP_ID     0xf13
+#define CSR_MHART_ID    0xf14
 
 enum class PrivilegeLevel
 {
@@ -375,16 +378,6 @@ struct MEDeleg : CSR
     }
 };
 
-struct MHartID : CSR
-{
-    bool write(const u64 value, CPU&) override { return true; }
-
-    std::optional<u64> read(CPU&) override {
-        // Only one core for now! :)
-        return 0;
-    }
-};
-
 struct Cycle : CSR
 {
     bool write(const u64 value, CPU&) override;
@@ -400,4 +393,18 @@ struct UnimplementedCSR : CSR
     }
 
     std::optional<u64> read(CPU&) override { return 0; }
+};
+
+// For values that are read-only and only ever return 0 - (eg marchid)
+struct BlankCSR : CSR
+{
+    bool write(const u64 value, CPU&) override
+    {
+        return true;
+    }
+
+    std::optional<u64> read(CPU&) override
+    {
+        return 0;
+    }
 };
