@@ -46,10 +46,18 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
         }
     }
 
-    // TODO: check privilege level, throw exceptions, etc.
+    // Check privilege level
+    if (CSR::get_privilege_level(address) > cpu.privilege_level)
+    {
+        cpu.raise_exception(Exception::IllegalInstruction, cpu.pc);
+        return std::nullopt;
+    }
+
     switch(csr_address)
     {
         // TODO: raises exception when mstatus has certain value
+
+        case CSR_SCOUNTER_EN:   return cpu.scounteren.read(cpu);
         case CSR_SATP:          return cpu.satp.read(cpu);
         case CSR_MSTATUS:       return cpu.mstatus.read(cpu);
         case CSR_MISA:          return cpu.misa.read(cpu);
@@ -67,6 +75,8 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
         case CSR_MTVAL2:        return cpu.mtval2.read(cpu);
         case CSR_MNSTATUS:      return 0; // Part of Smrnmi; needed for riscv-tests
         case CSR_MHARTID:       return cpu.mhartid.read(cpu);
+        case CSR_MCYCLE:        return cpu.mcycle.read(cpu);
+        case CSR_CYCLE:         return cpu.cycle.read(cpu);
 
         default:
             throw std::runtime_error("unknown csr read " + std::format("0x{:x}", csr_address));
@@ -111,6 +121,7 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
     switch(csr_address)
     {
         // TODO: raises exception when mstatus has certain value (maybe? well is for reads idk)
+        case CSR_SCOUNTER_EN:   return cpu.scounteren.write(value, cpu);
         case CSR_SATP:          return cpu.satp.write(value, cpu);
         case CSR_MSTATUS:       return cpu.mstatus.write(value, cpu);
         case CSR_MISA:          return cpu.misa.write(value, cpu);
@@ -128,6 +139,8 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
         case CSR_MTVAL2:        return cpu.mtval2.write(value, cpu);
         case CSR_MNSTATUS:      return true; // Part of Smrnmi; needed for riscv-tests
         case CSR_MHARTID:       return cpu.mhartid.write(value, cpu);
+        case CSR_MCYCLE:        return cpu.mcycle.write(value, cpu);
+        case CSR_CYCLE:         return cpu.cycle.write(value, cpu);
 
         default:
             throw std::runtime_error("unknown csr write " + std::format("0x{:x}", csr_address));

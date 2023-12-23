@@ -8,7 +8,7 @@ class CPU
 {
 public:
     CPU(const uint64_t size);
-    void cycle();
+    void do_cycle();
     void trace();
 
     /*
@@ -33,6 +33,9 @@ public:
 
     PrivilegeLevel privilege_level = PrivilegeLevel::Machine;
 
+    // Supervisor trap setup
+    DefaultCSR scounteren = {};         // Supervisor counter enable
+
     // Supervisor Protection and Translation
     UnimplementedCSR satp;              // Supervisor address translation and protection
 
@@ -41,12 +44,12 @@ public:
 
     // Machine trap setup
     MStatus mstatus = {};               // Status bits
-    UnimplementedCSR misa = {};         // ISA and extensions
+    MISA misa = {};                     // ISA and extensions
     MEDeleg medeleg = {};               // Machine exception delegation register
     UnimplementedCSR mideleg = {};      // Machine interrupt delegation register
     UnimplementedCSR mie = {};          // Machine interrupt-enable register
     MTVec mtvec = {};                   // Machine trap-handler base address
-    UnimplementedCSR mcounteren = {};   // Machine counter enable
+    MCounterEnable mcounteren = {};     // Machine counter enable
 
     // Machine trap handling
     DefaultCSR mscratch = {};           // Scratch register for machine trap handlers
@@ -57,10 +60,29 @@ public:
     UnimplementedCSR mtinst = {};       // Machine trap instruction (transformed)
     UnimplementedCSR mtval2 = {};       // Machine bad guest physical address
 
+    // Machine counters / timers
+    DefaultCSR mcycle = {};             // Cycle count
+
     // Debug registers
     DefaultCSR debug_registers[CSR_DEBUG_END - CSR_DEBUG_BEGIN + 1] = {};
+
+    // Unprivileged counters / timers
+    Cycle cycle = {};                   // Cycle counter; shadows mcycle
 
     // Exceptions
     void raise_exception(const Exception exception, const u64 info = 0);
     bool exception_did_occur = false;
+
+    // Extensions
+    static consteval u64 get_supported_extensions()
+    {
+        // 26 bits - one for each letter of alphabet, corresponding to exceptions
+        // In addition, S and U represent support for supervisor and user mode.
+        // The "I" bit is set for RV64I, etc., and "E" is set for RV64E, etc.
+        u64 bits = 0;
+        bits |= (1 << 8);  // E
+        bits |= (1 << 18); // S
+        bits |= (1 << 20); // U
+        return bits;
+    }
 };

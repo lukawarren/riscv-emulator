@@ -4,7 +4,9 @@
 #include <cstring>
 #include <cassert>
 #include <iostream>
+#include <optional>
 
+#define CSR_SCOUNTER_EN 0x106
 #define CSR_SATP        0x180
 #define CSR_MSTATUS     0x300
 #define CSR_MISA        0x301
@@ -29,6 +31,8 @@
 #define CSR_DEBUG_LIMIT 0x7af
 #define CSR_DEBUG_END   0x7bf
 #define CSR_MHARTID     0xf14
+#define CSR_MCYCLE      0xb00
+#define CSR_CYCLE       0xc00
 
 enum class PrivilegeLevel
 {
@@ -120,7 +124,23 @@ struct CSR
     }
 
     virtual bool write(const u64 value, CPU& cpu) = 0;
-    virtual u64 read(CPU& cpu) = 0;
+    virtual std::optional<u64> read(CPU& cpu) = 0;
+};
+
+// No special restrictions or bits; just holds a value
+struct DefaultCSR: CSR
+{
+    u64 value;
+
+    bool write(const u64 value, CPU&) override
+    {
+        this->value = value;
+        return true;
+    }
+
+    std::optional<u64> read(CPU&) override {
+        return value;
+    }
 };
 
 struct MTVec : CSR
@@ -151,10 +171,33 @@ struct MTVec : CSR
         return true;
     }
 
-    u64 read(CPU&) override
+    std::optional<u64> read(CPU&) override
     {
         if (mode == Mode::Vectored) throw std::runtime_error("todo");
         return address | (u64)mode;
+    }
+};
+
+struct MCounterEnable : DefaultCSR
+{
+    bool is_hardware_performance_monitor_enabled(const u32 number) const
+    {
+        return ((value >> number) & 0b1) == 1;
+    }
+
+    bool is_cycle_enabled() const
+    {
+        return is_hardware_performance_monitor_enabled(0);
+    }
+
+    bool is_time_enabled() const
+    {
+        return is_hardware_performance_monitor_enabled(1);
+    }
+
+    bool is_instret_enabled() const
+    {
+        return is_hardware_performance_monitor_enabled(2);
     }
 };
 
@@ -170,7 +213,7 @@ struct MEPC : CSR
         return true;
     }
 
-    u64 read(CPU&) override
+    std::optional<u64> read(CPU&) override
     {
         // Whenever IALIGN=32, bit mepc[1] is masked on reads so that it appears
         // to be 0. This masking occurs also for the implicit read by the MRET instruction.
@@ -194,7 +237,7 @@ struct MCause : CSR
         return true;
     }
 
-    u64 read(CPU&) override
+    std::optional<u64> read(CPU&) override
     {
         return exception_code & 0x7fffffffffffffff;
     }
@@ -270,7 +313,7 @@ struct MStatus : CSR
         return true;
     }
 
-    u64 read(CPU&) override
+    std::optional<u64> read(CPU&) override
     {
         u64 value = 0;
         value |= ((u64)(fields.sd) << 63);
@@ -305,6 +348,12 @@ struct MStatus : CSR
     static_assert(sizeof(Fields) == sizeof(u64));
 };
 
+struct MISA : CSR
+{
+    bool write(const u64, CPU&) override;
+    std::optional<u64> read(CPU& cpu) override;
+};
+
 struct MEDeleg : CSR
 {
     u64 data;
@@ -315,7 +364,7 @@ struct MEDeleg : CSR
         return true;
     }
 
-    u64 read(CPU&) override
+    std::optional<u64> read(CPU&) override
     {
         return data;
     }
@@ -330,26 +379,16 @@ struct MHartID : CSR
 {
     bool write(const u64 value, CPU&) override { return true; }
 
-    u64 read(CPU&) override {
+    std::optional<u64> read(CPU&) override {
         // Only one core for now! :)
         return 0;
     }
 };
 
-// No special restrictions or bits; just holds a value
-struct DefaultCSR: CSR
+struct Cycle : CSR
 {
-    u64 value;
-
-    bool write(const u64 value, CPU&) override
-    {
-        this->value = value;
-        return true;
-    }
-
-    u64 read(CPU&) override {
-        return value;
-    }
+    bool write(const u64 value, CPU&) override;
+    std::optional<u64> read(CPU&) override;
 };
 
 struct UnimplementedCSR : CSR
@@ -360,5 +399,5 @@ struct UnimplementedCSR : CSR
         return true;
     }
 
-    u64 read(CPU&) override { return 0; }
+    std::optional<u64> read(CPU&) override { return 0; }
 };

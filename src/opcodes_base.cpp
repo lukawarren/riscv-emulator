@@ -67,9 +67,8 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
                 {
                     switch (funct7)
                     {
-                        case SRLI:  srli(cpu, instruction); break;
                         case SRAI:  srai(cpu, instruction); break;
-                        default:    return false;
+                        default:    srli(cpu, instruction); break;
                     }
                     break;
                 }
@@ -140,7 +139,6 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
             if (funct3 != 0) return false;
 
             const u8 rs2 = instruction.get_rs2();
-            const u8 funct7 = instruction.get_funct7();
 
             if (rs2 == ECALL && funct7 == 0)
             {

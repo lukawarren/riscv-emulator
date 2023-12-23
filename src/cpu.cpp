@@ -13,7 +13,7 @@ CPU::CPU(const u64 ram_size) : bus(ram_size)
     pc = Bus::ram_base;
 }
 
-void CPU::cycle()
+void CPU::do_cycle()
 {
     // Fetch instruction... if we can!
     const std::optional<Instruction> instruction = { bus.read_32(pc) };
@@ -35,6 +35,7 @@ void CPU::cycle()
 
     const u8 opcode = instruction->get_opcode();
     const u8 funct3 = instruction->get_funct3();
+    const u8 funct7 = instruction->get_funct7();
 
     // Reset x0
     registers[0] = 0;
@@ -56,9 +57,10 @@ void CPU::cycle()
 
     if (!did_find_opcode)
         throw std::runtime_error(std::format(
-            "unknown opcode 0x{:x} with funct3 0x{:x} - raw = 0x{:x}, pc = 0x{:x}",
+            "unknown opcode 0x{:x} with funct3 0x{:x}, funct7 0x{:x} - raw = 0x{:x}, pc = 0x{:x}",
             opcode,
             funct3,
+            funct7,
             instruction->instruction,
             pc
         ));
@@ -67,11 +69,12 @@ void CPU::cycle()
         pc += sizeof(u32);
 
     exception_did_occur = false;
+    mcycle.write(*mcycle.read(*this) + 1, *this);
 }
 
 void CPU::trace()
 {
-    // if (pc >= 0x80000220 && pc <= 0x80000234) {
+    // if (pc >= 0x800001a4 && pc <= 0x800001ac) {
     //     for (int i = 0; i < 32; ++i)
     //         std::cout << "x" << i << ": " << std::hex << registers[i] << std::endl;
     // }
@@ -89,6 +92,8 @@ void CPU::raise_exception(const Exception exception, const u64 info)
         lower privilege level.
      */
 
+    std::cout << "excecption raisaed by " << std::hex << pc << std::endl;
+
     const u64 original_pc = pc;
     const PrivilegeLevel original_privilege_level = privilege_level;
     exception_did_occur = true;
@@ -103,7 +108,7 @@ void CPU::raise_exception(const Exception exception, const u64 info)
         privilege_level = PrivilegeLevel::Machine;
 
         // Set PC to mtvec
-        pc = mtvec.read(*this);
+        pc = *mtvec.read(*this);
 
         // Set mepc to virtual address of instruction that was interrupted
         mepc.write(original_pc, *this);

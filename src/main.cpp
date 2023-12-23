@@ -41,7 +41,7 @@ bool does_pass(const std::string& filename)
         while(1)
         {
             cpu.trace();
-            cpu.cycle();
+            cpu.do_cycle();
         }
     }
     catch (std::exception& e)
