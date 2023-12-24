@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <iostream>
 #include "opcodes_zicsr.h"
+#include "opcodes_m.h"
 
 // Helpers
 u64 get_load_address(const CPU& cpu, const Instruction& instruction);
@@ -19,6 +20,9 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
     {
         case OPCODES_BASE_R_TYPE:
         {
+            if (funct7 == OPCODES_M_FUNCT_7)
+                return false;
+
             switch (funct3)
             {
                 case ADD:
@@ -220,6 +224,9 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
 
         case OPCODES_BASE_R_TYPE_32:
         {
+            if (funct7 == OPCODES_M_FUNCT_7)
+                return false;
+
             switch (funct3)
             {
                 case ADDW:

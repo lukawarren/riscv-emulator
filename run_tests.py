@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-tests_dir = "external/bin-files"
+tests_dir = "external/tests"
 emulator = "./build/riscv-emulator"
 passed = 0
 failed = 0
