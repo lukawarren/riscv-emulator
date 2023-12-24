@@ -471,12 +471,7 @@ struct InstRet : Cycle
 
 struct UnimplementedCSR : CSR
 {
-    bool write(const u64 value, CPU&) override
-    {
-        assert(value == 0);
-        return true;
-    }
-
+    bool write(const u64 value, CPU& cpu) override;
     std::optional<u64> read(CPU&) override { return 0; }
 };
 

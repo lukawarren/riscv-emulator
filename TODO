@@ -9,4 +9,4 @@ The JAL and JALR instructions will generate a misaligned instruction fetch excep
 address is not aligned to a four-byte boundary
 
 for toolchain:
-./configure --prefix=$RISCV --with-arch=rv64ima_zics_zifencei --with-abi=lp64
+./configure --prefix=$RISCV --with-arch=rv64imafd_zicsr_zifencei
