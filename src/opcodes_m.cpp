@@ -2,8 +2,8 @@
 #include <limits>
 
 // Helpers
-template<typename T>
-bool overflow(T dividend, T divisor);
+template<typename T> bool overflow(T dividend, T divisor);
+template<typename T> std::pair<T, T> get_operands(CPU& cpu, const Instruction& instruction);
 void divide_by_zero(CPU& cpu, const Instruction& instruction);
 
 bool opcodes_m(CPU& cpu, const Instruction& instruction)
@@ -80,37 +80,52 @@ void mulhu(CPU& cpu, const Instruction& instruction)
 
 void div(CPU& cpu, const Instruction& instruction)
 {
-    const i64 dividend = (i64)cpu.registers[instruction.get_rs1()];
-    const i64 divisor = (i64)cpu.registers[instruction.get_rs2()];
+    const auto [dividend, divisor] = get_operands<i64>(cpu, instruction);
 
     if (divisor == 0)
         divide_by_zero(cpu, instruction);
 
-    else if (overflow<i64>(dividend, divisor))
+    else if (overflow(dividend, divisor))
         cpu.registers[instruction.get_rd()] = dividend;
 
     else
-        cpu.registers[instruction.get_rd()] =  dividend / divisor;
+        cpu.registers[instruction.get_rd()] = dividend / divisor;
 }
 
 void divu(CPU& cpu, const Instruction& instruction)
 {
-    const u64 dividend = cpu.registers[instruction.get_rs1()];
-    const u64 divisor = cpu.registers[instruction.get_rs2()];
+    const auto [dividend, divisor] = get_operands<u64>(cpu, instruction);
 
-    if (divisor == 0) divide_by_zero(cpu, instruction);
+    if (divisor == 0)
+        divide_by_zero(cpu, instruction);
+
     else
-        cpu.registers[instruction.get_rd()] =  dividend / divisor;
+        cpu.registers[instruction.get_rd()] = dividend / divisor;
 }
 
 void rem(CPU& cpu, const Instruction& instruction)
 {
+    const auto [dividend, divisor] = get_operands<i64>(cpu, instruction);
 
+    if (divisor == 0)
+        cpu.registers[instruction.get_rd()] = dividend;
+
+    else if (overflow(dividend, divisor))
+        cpu.registers[instruction.get_rd()] = 0;
+
+    else
+        cpu.registers[instruction.get_rd()] = dividend % divisor;
 }
 
 void remu(CPU& cpu, const Instruction& instruction)
 {
+    const auto [dividend, divisor] = get_operands<u64>(cpu, instruction);
 
+    if (divisor == 0)
+        cpu.registers[instruction.get_rd()] = dividend;
+
+    else
+        cpu.registers[instruction.get_rd()] = dividend % divisor;
 }
 
 void mulw(CPU& cpu, const Instruction& instruction)
@@ -123,45 +138,67 @@ void mulw(CPU& cpu, const Instruction& instruction)
 
 void divw(CPU& cpu, const Instruction& instruction)
 {
-    const i32 dividend = (i32)cpu.registers[instruction.get_rs1()];
-    const i32 divisor = (i32)cpu.registers[instruction.get_rs2()];
+    const auto [dividend, divisor] = get_operands<i32>(cpu, instruction);
 
     if (divisor == 0)
         divide_by_zero(cpu, instruction);
 
-    else if (overflow<i32>(dividend, divisor))
+    else if (overflow(dividend, divisor))
         cpu.registers[instruction.get_rd()] = (i64)dividend;
 
     else
-        cpu.registers[instruction.get_rd()] =  (i64)(dividend / divisor);
+        cpu.registers[instruction.get_rd()] = (i64)(dividend / divisor);
 }
 
 void divuw(CPU& cpu, const Instruction& instruction)
 {
-    const u32 dividend = (u32)cpu.registers[instruction.get_rs1()];
-    const u32 divisor = (u32)cpu.registers[instruction.get_rs2()];
+    const auto [dividend, divisor] = get_operands<u32>(cpu, instruction);
 
     if (divisor == 0)
         divide_by_zero(cpu, instruction);
 
     else
-        cpu.registers[instruction.get_rd()] =  (i64)(i32)(dividend / divisor);
+        cpu.registers[instruction.get_rd()] = (i64)(i32)(dividend / divisor);
 }
 
 void remw(CPU& cpu, const Instruction& instruction)
 {
+    const auto [dividend, divisor] = get_operands<i32>(cpu, instruction);
 
+    if (divisor == 0)
+        cpu.registers[instruction.get_rd()] = (i64)dividend;
+
+    else if (overflow(dividend, divisor))
+        cpu.registers[instruction.get_rd()] = 0;
+
+    else
+        cpu.registers[instruction.get_rd()] = (i64)(dividend % divisor);
 }
 
 void remuw(CPU& cpu, const Instruction& instruction)
 {
+    const auto [dividend, divisor] = get_operands<u32>(cpu, instruction);
 
+    if (divisor == 0)
+        cpu.registers[instruction.get_rd()] = (i64)(i32)dividend;
+
+    else
+        cpu.registers[instruction.get_rd()] = (i64)(i32)(dividend % divisor);
 }
 
 template<typename T>
 bool overflow(T dividend, T divisor)
 {
     return dividend == std::numeric_limits<T>::min() && divisor == -1;
+}
+
+template<typename T> std::pair<T, T>
+get_operands(CPU& cpu, const Instruction& instruction)
+{
+    return {
+        (T)cpu.registers[instruction.get_rs1()],
+        (T)cpu.registers[instruction.get_rs2()]
+    };
 }
 
 void divide_by_zero(CPU& cpu, const Instruction& instruction)
