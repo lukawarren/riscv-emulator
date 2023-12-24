@@ -4,7 +4,7 @@
 #include <iostream>
 #include <format>
 
-Bus::Bus(const uint64_t ram_size) : ram(ram_size) {}
+Bus::Bus(const u64 ram_size) : ram(ram_size) {}
 
 #define READ_X(x) std::optional<u##x> Bus::read_##x(const u64 address)\
 {\
@@ -70,13 +70,14 @@ void Bus::write_file(const u64 address, const std::string& filename)
 
 std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)
 {
-    if (address < Bus::ram_base)
-    {
+    if (address == uart_address)
+        return { uart, uart_address };
+
+    if (address < ram_base)
         throw std::runtime_error(std::format(
-            "attempt to access unmapped memory location 0x{:0x}",
+            "attempt to read unmapped memory address 0x{:0x}",
             address
         ));
-    }
 
     return { ram, ram_base };
 }

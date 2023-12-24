@@ -4,6 +4,7 @@
 #include "opcodes_zicsr.h"
 #include "opcodes_m.h"
 #include "opcodes_a.h"
+#include "dtb.h"
 #include <iostream>
 #include <format>
 
@@ -12,9 +13,16 @@ CPU::CPU(const u64 ram_size) : bus(ram_size)
     // Set x0 to 0, sp to end of memory and pc to start of RAM
     registers[0] = 0;
     registers[2] = Bus::ram_base + ram_size;
-    pc = Bus::ram_base;
+    pc = Bus::programs_base;
+
+    // Load DTB into memory
+    const u64 dtb_address = Bus::ram_base + ram_size - sizeof(DTB);
+    for (size_t i = 0; i < sizeof(DTB); ++i)
+        std::ignore = bus.write_8(dtb_address + i, DTB[i]);
 
     // TODO: set x11 to DTB pointer and x10 to hart id
+    registers[10] = 0;
+    registers[11] = dtb_address;
 }
 
 void CPU::do_cycle()
@@ -104,7 +112,7 @@ void CPU::do_cycle()
 
 void CPU::trace()
 {
-    std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
+    //std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
 }
 
 void CPU::raise_exception(const Exception exception)
@@ -127,7 +135,9 @@ void CPU::raise_exception(const Exception exception, const u64 cause)
     const PrivilegeLevel original_privilege_level = privilege_level;
     exception_did_occur = true;
 
-    std::cout << "exception occured with id " << (int)exception << ", pc = " << std::hex << pc << ", cause = " << std::hex << cause << std::dec << std::endl;
+    std::cout << "warning: exception occured with id " << (int)exception <<
+        ", pc = " << std::hex << pc << ", cause = " << std::hex << cause <<
+        std::dec << std::endl;
 
     if (privilege_level <= PrivilegeLevel::Supervisor && medeleg.should_delegate(exception))
     {

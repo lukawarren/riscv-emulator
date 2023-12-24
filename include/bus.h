@@ -1,13 +1,14 @@
 #pragma once
 #include "types.h"
 #include "ram.h"
+#include "uart_device.h"
 #include <string>
 #include <unordered_set>
 
 class Bus
 {
 public:
-    Bus(const uint64_t ram_size);
+    Bus(const u64 ram_size);
 
     [[nodiscard]] std::optional<u8>  read_8 (const u64 address);
     [[nodiscard]] std::optional<u16> read_16(const u64 address);
@@ -21,11 +22,10 @@ public:
 
     void write_file(const u64 address, const std::string& filename);
 
-    /*
-        Bus layout for emulator:
-        - RAM starts at 0x80000000
-    */
+    // Bus layout for emulator
+    constexpr static u64 uart_address = 0x3000000;
     constexpr static u64 ram_base = 0x80000000;
+    constexpr static u64 programs_base = 0x80000000;
 
     // For A extension
     std::unordered_set<u64> reservations = {};
@@ -33,4 +33,5 @@ public:
 private:
     std::pair<BusDevice&, u64> get_bus_device(const u64 address);
     RAM ram;
+    UARTDevice uart;
 };
