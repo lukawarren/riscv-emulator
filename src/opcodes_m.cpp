@@ -17,14 +17,14 @@ bool opcodes_m(CPU& cpu, const Instruction& instruction)
         {
             switch (funct3)
             {
-                case MUL:       mul(cpu, instruction);    break;
-                case MULH:      mulh(cpu, instruction);   break;
+                case MUL:       mul   (cpu, instruction); break;
+                case MULH:      mulh  (cpu, instruction); break;
                 case MULHSU:    mulhsu(cpu, instruction); break;
-                case MULHU:     mulhu(cpu, instruction);  break;
-                case DIV:       div(cpu, instruction);    break;
-                case DIVU:      divu(cpu, instruction);   break;
-                case REM:       rem(cpu, instruction);    break;
-                case REMU:      remu(cpu, instruction);   break;
+                case MULHU:     mulhu (cpu, instruction); break;
+                case DIV:       div   (cpu, instruction); break;
+                case DIVU:      divu  (cpu, instruction); break;
+                case REM:       rem   (cpu, instruction); break;
+                case REMU:      remu  (cpu, instruction); break;
                 default:        return false;
             }
             break;
@@ -34,10 +34,10 @@ bool opcodes_m(CPU& cpu, const Instruction& instruction)
         {
             switch (funct3)
             {
-                case MULW:      mulw(cpu, instruction);   break;
-                case DIVW:      divw(cpu, instruction);   break;
+                case MULW:      mulw (cpu, instruction);  break;
+                case DIVW:      divw (cpu, instruction);  break;
                 case DIVUW:     divuw(cpu, instruction);  break;
-                case REMW:      remw(cpu, instruction);   break;
+                case REMW:      remw (cpu, instruction);  break;
                 case REMUW:     remuw(cpu, instruction);  break;
                 default:        return false;
             }

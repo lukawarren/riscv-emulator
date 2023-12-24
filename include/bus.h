@@ -2,6 +2,7 @@
 #include "types.h"
 #include "ram.h"
 #include <string>
+#include <unordered_set>
 
 class Bus
 {
@@ -25,6 +26,9 @@ public:
         - RAM starts at 0x80000000
     */
     constexpr static u64 ram_base = 0x80000000;
+
+    // For A extension
+    std::unordered_set<u64> reservations = {};
 
 private:
     RAM ram;

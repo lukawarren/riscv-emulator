@@ -3,6 +3,7 @@
 #include "opcodes_base.h"
 #include "opcodes_zicsr.h"
 #include "opcodes_m.h"
+#include "opcodes_a.h"
 #include <iostream>
 #include <format>
 
@@ -71,6 +72,10 @@ void CPU::do_cycle()
                 // Distinguished from OPCODES_BASE_R_TYPE[_32] by funct7
                 if (funct7 == OPCODES_M_FUNCT_7)
                     did_find_opcode = opcodes_m(*this, *instruction);
+                break;
+
+            case OPCODES_A:
+                did_find_opcode = opcodes_a(*this, *instruction);
                 break;
 
             default:
