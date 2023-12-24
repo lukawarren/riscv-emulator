@@ -127,6 +127,8 @@ void CPU::raise_exception(const Exception exception, const u64 cause)
     const PrivilegeLevel original_privilege_level = privilege_level;
     exception_did_occur = true;
 
+    std::cout << "exception occured with id " << (int)exception << ", pc = " << std::hex << pc << ", cause = " << std::hex << cause << std::dec << std::endl;
+
     if (privilege_level <= PrivilegeLevel::Supervisor && medeleg.should_delegate(exception))
     {
         throw std::runtime_error("todo");

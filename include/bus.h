@@ -9,10 +9,10 @@ class Bus
 public:
     Bus(const uint64_t ram_size);
 
-    std::optional<u8>  read_8 (const u64 address);
-    std::optional<u16> read_16(const u64 address);
-    std::optional<u32> read_32(const u64 address);
-    std::optional<u64> read_64(const u64 address);
+    [[nodiscard]] std::optional<u8>  read_8 (const u64 address);
+    [[nodiscard]] std::optional<u16> read_16(const u64 address);
+    [[nodiscard]] std::optional<u32> read_32(const u64 address);
+    [[nodiscard]] std::optional<u64> read_64(const u64 address);
 
     [[nodiscard]] bool write_8 (const u64 address, const u8  value);
     [[nodiscard]] bool write_16(const u64 address, const u16 value);
@@ -31,5 +31,6 @@ public:
     std::unordered_set<u64> reservations = {};
 
 private:
+    std::pair<BusDevice&, u64> get_bus_device(const u64 address);
     RAM ram;
 };

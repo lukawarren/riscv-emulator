@@ -2,29 +2,31 @@
 #include <fstream>
 #include <filesystem>
 #include <iostream>
+#include <format>
 
 Bus::Bus(const uint64_t ram_size) : ram(ram_size) {}
 
-u64 get_ram_address(const u64 address)
-{
-    if (address < Bus::ram_base)
-    {
-        throw std::runtime_error("unmapped memory location");
-        return 0;
-    }
-
-    return address - Bus::ram_base;
+#define READ_X(x) std::optional<u##x> Bus::read_##x(const u64 address)\
+{\
+    std::pair<BusDevice&, u64> device_info = get_bus_device(address);\
+    return device_info.first.read_##x(address - device_info.second);\
 }
 
-std::optional<u8> Bus::read_8(const u64 address) { return ram.read_8(get_ram_address(address)); }
-std::optional<u16>Bus::read_16(const u64 address) { return ram.read_16(get_ram_address(address)); }
-std::optional<u32>Bus::read_32(const u64 address) { return ram.read_32(get_ram_address(address)); }
-std::optional<u64>Bus::read_64(const u64 address) { return ram.read_64(get_ram_address(address)); }
+READ_X(8)
+READ_X(16)
+READ_X(32)
+READ_X(64)
 
-[[nodiscard]] bool Bus::write_8(const u64 address, const u8 value) { return ram.write_8(get_ram_address(address), value); }
-[[nodiscard]] bool Bus::write_16(const u64 address, const u16 value) { return ram.write_16(get_ram_address(address), value); }
-[[nodiscard]] bool Bus::write_32(const u64 address, const u32 value) { return ram.write_32(get_ram_address(address), value); }
-[[nodiscard]] bool Bus::write_64(const u64 address, const u64 value) { return ram.write_64(get_ram_address(address), value); }
+#define WRITE_X(x) bool Bus::write_##x(const u64 address, const u##x value)\
+{\
+    std::pair<BusDevice&, u64> device_info = get_bus_device(address);\
+    return device_info.first.write_##x(address - device_info.second, value);\
+}
+
+WRITE_X(8 )
+WRITE_X(16)
+WRITE_X(32)
+WRITE_X(64)
 
 void Bus::write_file(const u64 address, const std::string& filename)
 {
@@ -64,4 +66,17 @@ void Bus::write_file(const u64 address, const std::string& filename)
     // TODO: memcpy fast-path
     for (u64 i = 0; i < fileLen; ++i)
         std::ignore = write_8(address + i, buffer[i]);
+}
+
+std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)
+{
+    if (address < Bus::ram_base)
+    {
+        throw std::runtime_error(std::format(
+            "attempt to access unmapped memory location 0x{:0x}",
+            address
+        ));
+    }
+
+    return { ram, ram_base };
 }
