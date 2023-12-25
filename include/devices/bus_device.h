@@ -43,9 +43,9 @@ public:
                 return std::nullopt;
 
         return (*values[0] << 0)  |
-            (*values[1] << 8)  |
-            (*values[2] << 16) |
-            (*values[3] << 24);
+               (*values[1] << 8)  |
+               (*values[2] << 16) |
+               (*values[3] << 24);
     }
 
     inline std::optional<u64> read_64(const u64 address)
