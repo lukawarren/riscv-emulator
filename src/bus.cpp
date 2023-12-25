@@ -73,12 +73,8 @@ std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)
     if (address == uart_address_one || address == uart_address_two)
         return { uart, uart_address_one };
 
-    if (address >= 0xc000000 && address <= 0xc200000)
-    {
-        std::cout << "warning: using PLIC stub device for address " <<
-            std::hex << address << std::endl;
-        return { stub_device, 0 };
-    }
+    if (address >= plic_base && address <= plic_end)
+        return { plic, plic_base };
 
     if (address >= 0x2000000 && address <= 0x2010000)
     {

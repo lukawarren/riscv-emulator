@@ -2,6 +2,7 @@
 #include "types.h"
 #include "devices/ram.h"
 #include "devices/uart.h"
+#include "devices/plic.h"
 #include <string>
 #include <unordered_set>
 
@@ -37,6 +38,8 @@ public:
     void write_file(const u64 address, const std::string& filename);
 
     // Bus layout for emulator
+    constexpr static u64 plic_base = 0xc000000;
+    constexpr static u64 plic_end = 0xc200000;
     constexpr static u64 uart_address_one = 0x3000000;
     constexpr static u64 uart_address_two = 0x3000001;
     constexpr static u64 ram_base = 0x80000000;
@@ -49,5 +52,6 @@ private:
     std::pair<BusDevice&, u64> get_bus_device(const u64 address);
     RAM ram;
     UART uart;
+    PLIC plic;
     StubDevice stub_device;
 };
