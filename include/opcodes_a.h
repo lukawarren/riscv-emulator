@@ -55,3 +55,62 @@ void amomin_d   (CPU& cpu, const Instruction& instruction);
 void amomax_d   (CPU& cpu, const Instruction& instruction);
 void amominu_d  (CPU& cpu, const Instruction& instruction);
 void amomaxu_d  (CPU& cpu, const Instruction& instruction);
+
+// --- Helpers macros, mostly to return early from opcodes in-case of errors ---
+
+#define GET_ADDRESS() \
+const u64 address = cpu.registers[instruction.get_rs1()];
+
+#define CHECK_LOAD_ALIGNMENT_32(addr) if (addr % 4 != 0)\
+{\
+    cpu.raise_exception(Exception::LoadAddressMisaligned);\
+    return;\
+}
+
+#define CHECK_LOAD_ALIGNMENT_64(addr) if (addr % 8 != 0)\
+{\
+    cpu.raise_exception(Exception::LoadAddressMisaligned);\
+    return;\
+}
+
+#define CHECK_STORE_ALIGNMENT_32(addr) if (addr % 4 != 0)\
+{\
+    cpu.raise_exception(Exception::StoreOrAMOAddressMisaligned);\
+    return;\
+}
+
+#define CHECK_STORE_ALIGNMENT_64(addr) if (addr % 8 != 0)\
+{\
+    cpu.raise_exception(Exception::StoreOrAMOAddressMisaligned);\
+    return;\
+}
+
+#define ATTEMPT_LOAD_32()\
+const std::optional<u32> value = cpu.bus.read_32(address);\
+if (!value)\
+{\
+    cpu.raise_exception(Exception::LoadAccessFault);\
+    return;\
+}
+
+#define ATTEMPT_LOAD_64()\
+const std::optional<u64> value = cpu.bus.read_64(address);\
+if (!value)\
+{\
+    cpu.raise_exception(Exception::LoadAccessFault);\
+    return;\
+}
+
+#define ATTEMPT_WRITE_32(value)\
+if (!cpu.bus.write_32(address, value))\
+{\
+    cpu.raise_exception(Exception::StoreOrAMOAccessFault);\
+    return;\
+}
+
+#define ATTEMPT_WRITE_64(value)\
+if (!cpu.bus.write_64(address, value))\
+{\
+    cpu.raise_exception(Exception::StoreOrAMOAccessFault);\
+    return;\
+}

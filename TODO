@@ -4,7 +4,6 @@
 - Sanitises cpu.registers[bla]
 - O3
 - time and hpmcounter* csrs
-- massively clean the atomic instructions
 
 The JAL and JALR instructions will generate a misaligned instruction fetch exception if the target
 address is not aligned to a four-byte boundary
