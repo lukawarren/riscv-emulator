@@ -31,7 +31,10 @@ void emulate(const std::string& filename)
         if (!cpu.waiting_for_interrupts)
             cpu.do_cycle();
         else
+        {
+            std::cout << "WFI exit" << std::endl;
             return;
+        }
     }
 }
 

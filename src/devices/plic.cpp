@@ -28,10 +28,10 @@ std::optional<u64> PLIC::read_byte(const u64 address)
 
     switch (address % 4)
     {
-        case 0: return { (*reg >> 24) & 0xff };
-        case 1: return { (*reg >> 16) & 0xff };
-        case 2: return { (*reg >>  8) & 0xff };
-        case 3: return { (*reg >>  0) & 0xff };
+        case 0: return { (*reg >>  0) & 0xff };
+        case 1: return { (*reg >>  8) & 0xff };
+        case 2: return { (*reg >> 16) & 0xff };
+        case 3: return { (*reg >> 24) & 0xff };
     }
 
     return { 0 };
@@ -44,10 +44,10 @@ bool PLIC::write_byte(const u64 address, const u8 value)
 
     switch (address % 4)
     {
-        case 0: *reg = (*reg & 0x00ffffff) | ((u32)value << 24); break;
-        case 1: *reg = (*reg & 0xff00ffff) | ((u32)value << 16); break;
-        case 2: *reg = (*reg & 0xffff00ff) | ((u32)value <<  8); break;
-        case 3: *reg = (*reg & 0xffffff00) | ((u32)value <<  0); break;
+        case 0: *reg = (*reg & 0xffffff00) | ((u32)value <<  0); break;
+        case 1: *reg = (*reg & 0xffff00ff) | ((u32)value <<  8); break;
+        case 2: *reg = (*reg & 0xff00ffff) | ((u32)value << 16); break;
+        case 3: *reg = (*reg & 0x00ffffff) | ((u32)value << 24); break;
     }
 
     return true;
@@ -100,4 +100,44 @@ u32* PLIC::get_register(const u64 address)
 
     assert(false);
     return nullptr;
+}
+
+u32 PLIC::get_interrupt_priority(const u16 interrupt)
+{
+    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    return interrupt_priority[interrupt];
+}
+
+bool PLIC::get_interrupt_pending(const u16 interrupt)
+{
+    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    const u16 slot = interrupt / 32;
+    const u16 bit = interrupt % 32;
+    const u32 value = (interrupt_pending[slot] >> bit) & 0b1;
+    return (value == 1) ? true : false;
+}
+
+void PLIC::set_interrupt_pending(const u16 interrupt)
+{
+    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    const u16 slot = interrupt / 32;
+    const u16 bit = interrupt % 32;
+    interrupt_pending[slot] |= (1 << bit);
+}
+
+bool PLIC::get_interrupt_enabled(const u16 interrupt)
+{
+    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    const u16 slot = interrupt / 32;
+    const u16 bit = interrupt % 32;
+    const u32 value = (interrupt_enable_bits[slot] >> bit) & 0b1;
+    return (value == 1) ? true : false;
+}
+
+void PLIC::set_interrupt_enabled(const u16 interrupt)
+{
+    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    const u16 slot = interrupt / 32;
+    const u16 bit = interrupt % 32;
+    interrupt_enable_bits[slot] |= (1 << bit);
 }
