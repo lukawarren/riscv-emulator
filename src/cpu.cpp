@@ -103,10 +103,10 @@ void CPU::do_cycle()
             pc
         ));
 
-    if (!exception_did_occur)
+    if (!trap_did_occur)
         pc += sizeof(u32);
 
-    exception_did_occur = false;
+    trap_did_occur = false;
     mcycle.increment(*this);
     minstret.increment(*this);
 }
@@ -123,19 +123,6 @@ void CPU::raise_exception(const Exception exception)
 
 void CPU::raise_exception(const Exception exception, const u64 cause)
 {
-    /*
-        By default, all traps at any privilege level are handled in machine mode,
-        though a machine-mode handler can redirect traps back to the appropriate
-        level with the MRET instruction. To increase performance, implementations
-        can provide individual read/write bits within medeleg and mideleg to indicate
-        that certain exceptions and interrupts should be processed directly by a
-        lower privilege level.
-     */
-
-    const u64 original_pc = pc;
-    const PrivilegeLevel original_privilege_level = privilege_level;
-    exception_did_occur = true;
-
     if (exception != Exception::EnvironmentCallFromUMode &&
         exception != Exception::EnvironmentCallFromSMode &&
         exception != Exception::EnvironmentCallFromMMode)
@@ -145,7 +132,33 @@ void CPU::raise_exception(const Exception exception, const u64 cause)
             std::dec << std::endl;
     }
 
-    if (privilege_level <= PrivilegeLevel::Supervisor && medeleg.should_delegate(exception))
+    handle_trap((u64)exception, cause, false);
+}
+
+void CPU::raise_interrupt(const Interrupt interrupt)
+{
+    handle_trap((u64)interrupt, 0, true);
+}
+
+void CPU::handle_trap(const u64 exception_code, const u64 cause, const bool interrupt)
+{
+    /*
+        By default, all traps at any privilege level are handled in machine mode,
+        though a machine-mode handler can redirect traps back to the appropriate
+        level with the MRET instruction. To increase performance, implementations
+        can provide individual read/write bits within medeleg and mideleg to indicate
+        that certain exceptions and interrupts should be processed directly by a
+        lower privilege level.
+     */
+
+    if (interrupt)
+        waiting_for_interrupts = false;
+
+    const u64 original_pc = pc;
+    const PrivilegeLevel original_privilege_level = privilege_level;
+    trap_did_occur = true;
+
+    if (privilege_level <= PrivilegeLevel::Supervisor && medeleg.should_delegate(exception_code))
     {
         throw std::runtime_error("todo");
     }
@@ -160,8 +173,8 @@ void CPU::raise_exception(const Exception exception, const u64 cause)
         // Set mepc to virtual address of instruction that was interrupted
         mepc.write(original_pc, *this);
 
-        // Set mcause to cause
-        mcause.write((u64)exception, *this);
+        // Set mcause to cause - interrupts have MSB set
+        mcause.write((u64)exception_code | ((u64)interrupt << 63), *this);
 
         // Set mtval to (optional) exception-specific information
         mtval.write(cause, *this);

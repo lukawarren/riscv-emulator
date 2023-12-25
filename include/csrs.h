@@ -1,6 +1,6 @@
 #pragma once
 #include "types.h"
-#include "exceptions.h"
+#include "traps.h"
 #include <cstring>
 #include <cassert>
 #include <iostream>
@@ -416,17 +416,17 @@ struct MEDeleg : CSR
         return data;
     }
 
-    bool should_delegate(const Exception type) const
+    bool should_delegate(const u64 trap_id) const
     {
-        return ((data >> (u64)type) & 1) == 1;
+        return ((data >> (u64)trap_id) & 1) == 1;
     }
 };
 
 struct MIDeleg : DefaultCSR
 {
-    bool should_delegate(const Exception type) const
+    bool should_delegate(const u64 trap_id) const
     {
-        return ((value >> (u64)type) & 1) == 1;
+        return ((value >> (u64)trap_id) & 1) == 1;
     }
 };
 
