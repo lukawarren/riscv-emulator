@@ -7,7 +7,7 @@ class UART : public BusDevice
 public:
     std::optional<u64> read_byte(const u64 address) override
     {
-        return { 0 };
+        return { 0xff };
     }
 
     bool write_byte(const u64 address, const u8 value) override

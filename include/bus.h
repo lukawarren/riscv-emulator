@@ -37,7 +37,8 @@ public:
     void write_file(const u64 address, const std::string& filename);
 
     // Bus layout for emulator
-    constexpr static u64 uart_address = 0x3000000;
+    constexpr static u64 uart_address_one = 0x3000000;
+    constexpr static u64 uart_address_two = 0x3000001;
     constexpr static u64 ram_base = 0x80000000;
     constexpr static u64 programs_base = 0x80000000;
 

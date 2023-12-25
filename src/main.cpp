@@ -7,7 +7,7 @@ bool does_pass(const std::string& filename)
 {
     try
     {
-        CPU cpu(128 * 1024 * 1024);
+        CPU cpu(1 * 1024 * 1024, true);
         cpu.bus.write_file(Bus::programs_base, filename);
         while(1)
         {
@@ -21,7 +21,24 @@ bool does_pass(const std::string& filename)
     }
 }
 
+void emulate(const std::string& filename)
+{
+    CPU cpu(128 * 1024 * 1024);
+    cpu.bus.write_file(Bus::programs_base, filename);
+
+    while(1)
+    {
+        if (!cpu.waiting_for_interrupts)
+            cpu.do_cycle();
+        else
+            return;
+    }
+}
+
 int main(int argc, char** argv)
 {
-    return does_pass(std::string(argv[1]));
+    if (argc == 3) // called with --tests or whatever
+        return does_pass(std::string(argv[2]));
+    else
+        emulate(std::string(argv[1]));
 }

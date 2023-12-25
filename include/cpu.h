@@ -7,7 +7,7 @@
 class CPU
 {
 public:
-    CPU(const uint64_t size);
+    CPU(const uint64_t size, const bool emulating_test = false);
     void do_cycle();
     void trace();
 
@@ -98,4 +98,10 @@ public:
         bits |= (1 << 20); // U
         return bits;
     }
+
+    // RISC-V tests require the CPU to terminate when an ECALL occurs
+    bool emulating_test = false;
+
+    // Harts can suspend themselves when waiting for interrupts
+    bool waiting_for_interrupts = false;
 };

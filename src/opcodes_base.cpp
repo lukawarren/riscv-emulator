@@ -147,21 +147,21 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
 
             if (rs2 == ECALL && funct7 == 0)
             {
-                if (cpu.registers[10] == 0)
-                    throw std::string("pass");
-                else
-                    throw std::string("ecall, x10 = " + std::to_string(cpu.registers[10]) + " (0 = pass)");
+                ecall(cpu, instruction);
+                return true;
             }
 
             if (rs2 == EBREAK && funct7 == 0)
             {
-                // Used for syscalls, etc.
-                cpu.raise_exception(Exception::Breakpoint, 0);
+                ebreak(cpu, instruction);
                 return true;
             }
 
             if (rs2 == URET && funct7 == 0)
-                throw std::runtime_error("uret");
+            {
+                uret(cpu, instruction);
+                return true;
+            }
 
             if (rs2 == 2 && funct7 == SRET)
             {
@@ -589,6 +589,50 @@ void auipc(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = cpu.pc + offset;
 }
 
+void ecall(CPU& cpu, const Instruction& instruction)
+{
+    if (cpu.emulating_test)
+    {
+        /*
+            RISC-V tests use an ecall to signal the test is over.
+            A 0 in x10 represents a pass.
+         */
+        if (cpu.registers[10] == 0) throw std::string("pass");
+        else throw std::string("fail");
+    }
+
+    // Normal operation
+    switch (cpu.privilege_level)
+    {
+        case PrivilegeLevel::User:
+            cpu.raise_exception(Exception::EnvironmentCallFromUMode);
+            break;
+
+        case PrivilegeLevel::Supervisor:
+            cpu.raise_exception(Exception::EnvironmentCallFromSMode);
+            break;
+
+        case PrivilegeLevel::Machine:
+            cpu.raise_exception(Exception::EnvironmentCallFromMMode);
+            break;
+
+        default:
+            cpu.raise_exception(Exception::IllegalInstruction);
+            break;
+    }
+}
+
+void ebreak(CPU& cpu, const Instruction& instruction)
+{
+    // Used for syscalls, etc.
+    cpu.raise_exception(Exception::Breakpoint, 0);
+}
+
+void uret(CPU& cpu, const Instruction& instruction)
+{
+    throw std::runtime_error("uret unsupported");
+}
+
 void sret(CPU& cpu, const Instruction& instruction)
 {
     // When TSR=1, attempts to execute SRET while executing in S-mode
@@ -665,7 +709,7 @@ void wfi(CPU& cpu, const Instruction& instruction)
         return;
     }
 
-    std::cout << "TODO: WFI; suspend thread" << std::endl;
+    cpu.waiting_for_interrupts = true;
 }
 
 void sfence_vma(CPU& cpu, const Instruction& instruction)

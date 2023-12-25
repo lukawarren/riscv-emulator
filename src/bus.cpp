@@ -70,8 +70,8 @@ void Bus::write_file(const u64 address, const std::string& filename)
 
 std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)
 {
-    if (address == uart_address)
-        return { uart, uart_address };
+    if (address == uart_address_one || address == uart_address_two)
+        return { uart, uart_address_one };
 
     if (address >= 0xc000000 && address <= 0xc200000)
     {

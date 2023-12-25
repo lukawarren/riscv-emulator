@@ -12,7 +12,7 @@ def run_test(file_path):
 
     # Emulate test
     with open(os.devnull, 'w') as devnull:
-        result = subprocess.run([emulator, file_path], stdout=devnull)
+        result = subprocess.run([emulator, "--testing", file_path], stdout=devnull)
 
     # Check the return status
     if result.returncode == 1:
