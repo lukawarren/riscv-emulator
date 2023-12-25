@@ -1,5 +1,5 @@
 #pragma once
-#include "bus_device.h"
+#include "devices/bus_device.h"
 
 class RAM : public BusDevice
 {

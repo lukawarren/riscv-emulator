@@ -1,4 +1,4 @@
-#include "ram.h"
+#include "devices/ram.h"
 #include <cassert>
 #include <iostream>
 

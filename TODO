@@ -11,3 +11,7 @@ address is not aligned to a four-byte boundary
 
 for toolchain:
 ./configure --prefix=$RISCV --with-arch=rv64ima_zicsr_zifencei
+sudo dnf install autoconf
+
+# for linux
+sudo dnf install perl-ExtUtils-MakeMaker perl-Thread-Queue

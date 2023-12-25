@@ -1,9 +1,23 @@
 #pragma once
 #include "types.h"
-#include "ram.h"
-#include "uart_device.h"
+#include "devices/ram.h"
+#include "devices/uart.h"
 #include <string>
 #include <unordered_set>
+
+class StubDevice : public BusDevice
+{
+public:
+    std::optional<u64> read_byte(const u64 address) override
+    {
+        return { 0 };
+    }
+
+    bool write_byte(const u64 address, const u8 value) override
+    {
+        return true;
+    }
+};
 
 class Bus
 {
@@ -33,5 +47,6 @@ public:
 private:
     std::pair<BusDevice&, u64> get_bus_device(const u64 address);
     RAM ram;
-    UARTDevice uart;
+    UART uart;
+    StubDevice stub_device;
 };

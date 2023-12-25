@@ -1,8 +1,8 @@
 #pragma once
-#include "bus_device.h"
+#include "devices/bus_device.h"
 #include <iostream>
 
-class UARTDevice : public BusDevice
+class UART : public BusDevice
 {
 public:
     std::optional<u64> read_byte(const u64 address) override

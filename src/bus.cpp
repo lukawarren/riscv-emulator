@@ -73,6 +73,20 @@ std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)
     if (address == uart_address)
         return { uart, uart_address };
 
+    if (address >= 0xc000000 && address <= 0xc200000)
+    {
+        std::cout << "warning: using PLIC stub device for address " <<
+            std::hex << address << std::endl;
+        return { stub_device, 0 };
+    }
+
+    if (address >= 0x2000000 && address <= 0x2010000)
+    {
+        //std::cout << "warning: using CLINT stub device for address " <<
+        //    std::hex << address << std::endl;
+        return { stub_device, 0 };
+    }
+
     if (address < ram_base)
         throw std::runtime_error(std::format(
             "attempt to read unmapped memory address 0x{:0x}",
