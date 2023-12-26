@@ -1,4 +1,5 @@
 #include "bus.h"
+#include "cpu.h"
 #include <fstream>
 #include <filesystem>
 #include <iostream>
@@ -68,6 +69,11 @@ void Bus::write_file(const u64 address, const std::string& filename)
         std::ignore = write_8(address + i, buffer[i]);
 }
 
+void Bus::clock(CPU& cpu)
+{
+    clint.increment(cpu);
+}
+
 std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)
 {
     if (address == uart_address_one || address == uart_address_two)
@@ -76,12 +82,8 @@ std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)
     if (address >= plic_base && address <= plic_end)
         return { plic, plic_base };
 
-    if (address >= 0x2000000 && address <= 0x2010000)
-    {
-        //std::cout << "warning: using CLINT stub device for address " <<
-        //    std::hex << address << std::endl;
-        return { stub_device, 0 };
-    }
+    if (address >= clint_base && address <= clint_end)
+        return { clint, clint_base };
 
     if (address < ram_base)
         throw std::runtime_error(std::format(

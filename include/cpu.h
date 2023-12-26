@@ -55,7 +55,7 @@ public:
     // Machine trap handling
     DefaultCSR mscratch = {};           // Scratch register for machine trap handlers
     MEPC mepc = {};                     // Machine exception program counter
-    MCause mcause = {};                 // Machine trap cause
+    DefaultCSR mcause = {};             // Machine trap cause
     DefaultCSR mtval = {};              // Machine bad address or instruction
     MIP mip = {};                       // Machine interrupt pending
     UnimplementedCSR mtinst = {};       // Machine trap instruction (transformed)
@@ -80,8 +80,9 @@ public:
 
     // Exceptions and interrupts
     void raise_exception(const Exception exception);
-    void raise_exception(const Exception exception, const u64 cause);
+    void raise_exception(const Exception exception, const u64 info);
     void raise_interrupt(const Interrupt interrupt);
+    std::optional<Interrupt> get_pending_interrupt();
 
     // Extensions
     static consteval u64 get_supported_extensions()
@@ -106,6 +107,6 @@ public:
 
 private:
     u64 get_exception_cause(const Exception exception);
-    void handle_trap(const u64 exception_code, const u64 cause, const bool interrupt);
+    void handle_trap(const u64 cause, const u64 info, const bool interrupt);
     bool trap_did_occur = false;
 };

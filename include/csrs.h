@@ -174,10 +174,9 @@ struct MTVec : CSR
         address = value & 0xfffffffffffffffc;
         mode = (Mode)(value & 0b11);
 
-        // WARL for mode; >=2 is reserved but we don't support vectored
-        // so force it to be 1
-        if ((u8)mode >= 1)
-            mode = Mode::Direct;
+        // WARL for mode; >=2 is reserved
+        if (mode > Mode::Vectored)
+            mode = Mode::Vectored;
 
         return true;
     }
@@ -185,6 +184,12 @@ struct MTVec : CSR
     std::optional<u64> read(CPU&) override
     {
         return address | (u64)mode;
+    }
+
+    Mode get_mode()
+    {
+        if ((address & 1) == 0) return Mode::Direct;
+        else return Mode::Vectored;
     }
 };
 
@@ -234,26 +239,6 @@ struct MEPC : CSR
 };
 
 struct SEPC : MEPC {};
-
-struct MCause : CSR
-{
-    bool interrupt;
-    u64 exception_code;
-
-    bool write(const u64 value, CPU&) override
-    {
-        // Code is WLRL; not required to raise exception but could if we wanted to
-        // Interrupt is set if trap was caused by an interrupt. TODO: emulate
-        interrupt = false;
-        exception_code = value;
-        return true;
-    }
-
-    std::optional<u64> read(CPU&) override
-    {
-        return exception_code & 0x7fffffffffffffff;
-    }
-};
 
 struct MStatus : CSR
 {
@@ -435,6 +420,8 @@ struct MIP : CSR
     // CSR is XLEN long but bits 16 and above designated for platform or custom use
     u16 bits = 0;
 
+    MIP(u16 bits = 0) : bits(bits) {}
+
     bool write(const u64 value, CPU&) override
     {
         // WRARL
@@ -453,6 +440,16 @@ struct MIP : CSR
     bool sti() const { return ((bits >>  5) & 1) == 1; }
     bool msi() const { return ((bits >>  3) & 1) == 1; }
     bool ssi() const { return ((bits >>  1) & 1) == 1; }
+
+    void set_mti()   { bits |=  (1 << 7); }
+    void set_msi()   { bits |=  (1 << 3); }
+
+    void clear_mei() { bits &= ~(bits << 11); }
+    void clear_sei() { bits &= ~(bits <<  9); }
+    void clear_mti() { bits &= ~(bits <<  7); }
+    void clear_sti() { bits &= ~(bits <<  5); }
+    void clear_msi() { bits &= ~(bits <<  3); }
+    void clear_ssi() { bits &= ~(bits <<  1); }
 };
 
 // Same fields as MIP, but meip = meie, seip = seie, etc.

@@ -701,15 +701,20 @@ void wfi(CPU& cpu, const Instruction& instruction)
 
         This instruction may raise an illegal instruction exception when TW=1
         in mstatus.
+
+        When S-mode is implemented, then executing WFI in U-mode causes an
+        illegal instruction exception, unless it completes within an
+        implementation-specific, bounded time limit.
      */
 
-    if (cpu.mstatus.fields.tw == 1)
+    if (cpu.mstatus.fields.tw == 1 || cpu.privilege_level == PrivilegeLevel::User)
     {
         cpu.raise_exception(Exception::IllegalInstruction);
         return;
     }
 
-    cpu.waiting_for_interrupts = true;
+    std::cout << "TODO: WFI" << std::endl;
+    //cpu.waiting_for_interrupts = true;
 }
 
 void sfence_vma(CPU& cpu, const Instruction& instruction)

@@ -48,6 +48,7 @@ void CPU::do_cycle()
         else faulty_address = pc + 3;
 
         raise_exception(Exception::InstructionAccessFault, faulty_address);
+        trap_did_occur = false;
         return;
     }
 
@@ -56,6 +57,7 @@ void CPU::do_cycle()
         instruction->instruction == 0)
     {
         raise_exception(Exception::IllegalInstruction, instruction->instruction);
+        trap_did_occur = false;
         return;
     }
 
@@ -121,26 +123,53 @@ void CPU::raise_exception(const Exception exception)
     raise_exception(exception, get_exception_cause(exception));
 }
 
-void CPU::raise_exception(const Exception exception, const u64 cause)
+void CPU::raise_exception(const Exception exception, const u64 info)
 {
     if (exception != Exception::EnvironmentCallFromUMode &&
         exception != Exception::EnvironmentCallFromSMode &&
         exception != Exception::EnvironmentCallFromMMode)
     {
         std::cout << "warning: exception occured with id " << (int)exception <<
-            ", pc = " << std::hex << pc << ", cause = " << std::hex << cause <<
+            ", pc = " << std::hex << pc << ", info = " << std::hex << info <<
             std::dec << std::endl;
     }
 
-    handle_trap((u64)exception, cause, false);
+    handle_trap((u64)exception, info, false);
 }
 
 void CPU::raise_interrupt(const Interrupt interrupt)
 {
     handle_trap((u64)interrupt, 0, true);
+    trap_did_occur = false;
 }
 
-void CPU::handle_trap(const u64 exception_code, const u64 cause, const bool interrupt)
+std::optional<Interrupt> CPU::get_pending_interrupt()
+{
+    if ((privilege_level == PrivilegeLevel::Machine && mstatus.fields.mie == 0) ||
+         (privilege_level == PrivilegeLevel::Supervisor && mstatus.fields.sie == 0))
+        return std::nullopt;
+
+    /*
+        TODO: When UART, etc. interrupts exist:
+        1) Tell the CLIC it's pending
+        2) Modify claim register too
+        3) Set SEIP bit in MIP
+     */
+
+    // Use bitmask to find all interrupts that are both pending and enabled
+    // For each possible source, raise interrupt if found, and clear pending bit
+    const MIP pending(mie.bits & mip.bits);
+    if (pending.mei()) { mip.clear_mei(); return Interrupt::MachineExternal;    }
+    if (pending.msi()) { mip.clear_msi(); return Interrupt::MachineSoftware;    }
+    if (pending.mti()) { mip.clear_mti(); return Interrupt::MachineTimer;       }
+    if (pending.sei()) { mip.clear_sei(); return Interrupt::SupervisorExternal; }
+    if (pending.ssi()) { mip.clear_ssi(); return Interrupt::SupervisorSoftware; }
+    if (pending.sti()) { mip.clear_sti(); return Interrupt::SupervisorTimer;    }
+
+    return std::nullopt;
+}
+
+void CPU::handle_trap(const u64 cause, const u64 info, const bool interrupt)
 {
     /*
         By default, all traps at any privilege level are handled in machine mode,
@@ -158,7 +187,7 @@ void CPU::handle_trap(const u64 exception_code, const u64 cause, const bool inte
     const PrivilegeLevel original_privilege_level = privilege_level;
     trap_did_occur = true;
 
-    if (privilege_level <= PrivilegeLevel::Supervisor && medeleg.should_delegate(exception_code))
+    if (privilege_level <= PrivilegeLevel::Supervisor && medeleg.should_delegate(cause))
     {
         throw std::runtime_error("todo");
     }
@@ -166,18 +195,19 @@ void CPU::handle_trap(const u64 exception_code, const u64 cause, const bool inte
     {
         // Handle trap in machine mode
         privilege_level = PrivilegeLevel::Machine;
-
-        // Set PC to mtvec
-        pc = *mtvec.read(*this);
+        if(mtvec.mode == MTVec::Mode::Vectored)
+            pc = mtvec.address + cause * 4;
+        else
+            pc = mtvec.address;
 
         // Set mepc to virtual address of instruction that was interrupted
         mepc.write(original_pc, *this);
 
         // Set mcause to cause - interrupts have MSB set
-        mcause.write((u64)exception_code | ((u64)interrupt << 63), *this);
+        mcause.write((u64)cause | ((u64)interrupt << 63), *this);
 
         // Set mtval to (optional) exception-specific information
-        mtval.write(cause, *this);
+        mtval.write(info, *this);
 
         // Set PIE bit in mstatus to MIE bit ("IE" = interrupt enable)
         mstatus.fields.mpie = mstatus.fields.mie;

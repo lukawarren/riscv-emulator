@@ -3,22 +3,11 @@
 #include "devices/ram.h"
 #include "devices/uart.h"
 #include "devices/plic.h"
+#include "devices/clint.h"
 #include <string>
 #include <unordered_set>
 
-class StubDevice : public BusDevice
-{
-public:
-    std::optional<u64> read_byte(const u64 address) override
-    {
-        return { 0 };
-    }
-
-    bool write_byte(const u64 address, const u8 value) override
-    {
-        return true;
-    }
-};
+class CPU;
 
 class Bus
 {
@@ -40,6 +29,8 @@ public:
     // Bus layout for emulator
     constexpr static u64 plic_base = 0xc000000;
     constexpr static u64 plic_end = 0xc200000;
+    constexpr static u64 clint_base = 0x2000000;
+    constexpr static u64 clint_end = 0x2010000;
     constexpr static u64 uart_address_one = 0x3000000;
     constexpr static u64 uart_address_two = 0x3000001;
     constexpr static u64 ram_base = 0x80000000;
@@ -48,10 +39,12 @@ public:
     // For A extension
     std::unordered_set<u64> reservations = {};
 
+    void clock(CPU& cpu);
+
 private:
     std::pair<BusDevice&, u64> get_bus_device(const u64 address);
     RAM ram;
     UART uart;
     PLIC plic;
-    StubDevice stub_device;
+    CLINT clint;
 };
