@@ -71,7 +71,11 @@ void Bus::write_file(const u64 address, const std::string& filename)
 
 void Bus::clock(CPU& cpu)
 {
-    clint.increment(cpu);
+    if (clock_counter++ > 100000000)
+    {
+        clint.increment(cpu);
+        clock_counter = 0;
+    }
 }
 
 std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)

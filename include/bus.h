@@ -47,4 +47,6 @@ private:
     UART uart;
     PLIC plic;
     CLINT clint;
+
+    u64 clock_counter = 0;
 };

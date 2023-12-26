@@ -115,7 +115,8 @@ void CPU::do_cycle()
 
 void CPU::trace()
 {
-    std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
+    //std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
+    //std::cout << std::hex << *bus.read_32(pc) << std::endl;
 }
 
 void CPU::raise_exception(const Exception exception)

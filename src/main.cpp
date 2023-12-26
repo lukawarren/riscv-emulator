@@ -14,12 +14,12 @@ bool does_pass(const std::string& filename)
             cpu.trace();
             cpu.bus.clock(cpu);
 
+            if (!cpu.waiting_for_interrupts)
+                cpu.do_cycle();
+
             const std::optional<Interrupt> interrupt = cpu.get_pending_interrupt();
             if (interrupt.has_value())
                 cpu.raise_interrupt(*interrupt);
-
-            if (!cpu.waiting_for_interrupts)
-                cpu.do_cycle();
         }
     }
     catch (std::string& s)
@@ -35,6 +35,7 @@ void emulate(const std::string& filename)
 
     while(1)
     {
+        cpu.trace();
         cpu.bus.clock(cpu);
 
         if (!cpu.waiting_for_interrupts)
