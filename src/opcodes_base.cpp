@@ -713,11 +713,12 @@ void wfi(CPU& cpu, const Instruction& instruction)
         return;
     }
 
-    assert(cpu.mstatus.fields.mie == 1 || cpu.mstatus.fields.sie == 1);
-
     // HACK
     if (!cpu.emulating_test)
-        cpu.waiting_for_interrupts = true;
+    {
+       cpu.waiting_for_interrupts = true;
+       assert(cpu.mstatus.fields.mie == 1);
+    }
 }
 
 void sfence_vma(CPU& cpu, const Instruction& instruction)

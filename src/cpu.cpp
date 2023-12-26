@@ -115,8 +115,7 @@ void CPU::do_cycle()
 
 void CPU::trace()
 {
-    //std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
-    //std::cout << std::hex << *bus.read_32(pc) << std::endl;
+    std::cout << (int)privilege_level << ": 0x" << std::hex << pc << std::endl;
 }
 
 void CPU::raise_exception(const Exception exception)
@@ -148,7 +147,13 @@ std::optional<Interrupt> CPU::get_pending_interrupt()
 {
     if ((privilege_level == PrivilegeLevel::Machine && mstatus.fields.mie == 0) ||
          (privilege_level == PrivilegeLevel::Supervisor && mstatus.fields.sie == 0))
+    {
+        if (mstatus.fields.mie == 0 && mstatus.fields.sie == 0 && waiting_for_interrupts)
+        {
+            throw std::runtime_error("interrupts will never occur!");
+        }
         return std::nullopt;
+    }
 
     /*
         TODO: When UART, etc. interrupts exist:

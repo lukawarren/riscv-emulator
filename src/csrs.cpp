@@ -5,9 +5,7 @@
 
 /*
     Some CSRs require access to the CPU.
-    That won't compile unless we have the function implementations in a source
-    file! Yes, you really can implement struct methods like this - they're
-    analogous to classes.
+    That won't compile unless we have the function implementations in a source file!
 */
 
 bool SStatus::write(const u64 value, CPU& cpu)
