@@ -120,7 +120,7 @@ void PLIC::clock(CPU& cpu)
         const u64 enabled_offset = (context * PLIC_NUM_INTERRUPTS / 32);
 
         // Find any enabled interrupts - go first in groups of 32 for speed
-        for (int i = 0; i < PLIC_NUM_INTERRUPTS / 32; ++i)
+        for (int i = 0; i < PLIC_SUPPORTED_INTERRUPTS / 32; ++i)
         {
             if (interrupt_pending[i] == 0 || interrupt_enable_bits[enabled_offset + i] == 0)
                 continue;
@@ -157,13 +157,13 @@ void PLIC::clock(CPU& cpu)
 
 u32 PLIC::get_interrupt_priority(const u16 interrupt)
 {
-    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    assert(interrupt < PLIC_SUPPORTED_INTERRUPTS);
     return interrupt_priority[interrupt];
 }
 
 bool PLIC::get_interrupt_pending(const u16 interrupt)
 {
-    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    assert(interrupt < PLIC_SUPPORTED_INTERRUPTS);
     const u16 slot = interrupt / 32;
     const u16 bit = interrupt % 32;
     const u32 value = (interrupt_pending[slot] >> bit) & 0b1;
@@ -172,7 +172,7 @@ bool PLIC::get_interrupt_pending(const u16 interrupt)
 
 void PLIC::set_interrupt_pending(const u16 interrupt)
 {
-    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    assert(interrupt < PLIC_SUPPORTED_INTERRUPTS);
     const u16 slot = interrupt / 32;
     const u16 bit = interrupt % 32;
     interrupt_pending[slot] |= (1 << bit);
@@ -180,7 +180,7 @@ void PLIC::set_interrupt_pending(const u16 interrupt)
 
 void PLIC::clear_interrupt_pending(const u16 interrupt)
 {
-    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    assert(interrupt < PLIC_SUPPORTED_INTERRUPTS);
     const u16 slot = interrupt / 32;
     const u16 bit = interrupt % 32;
     interrupt_pending[slot] &= ~(1 << bit);
@@ -188,7 +188,7 @@ void PLIC::clear_interrupt_pending(const u16 interrupt)
 
 bool PLIC::get_interrupt_enabled(const u16 interrupt, const u16 context)
 {
-    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    assert(interrupt < PLIC_SUPPORTED_INTERRUPTS);
     const u16 slot = interrupt / 32 + (context * PLIC_NUM_INTERRUPTS / 32);
     const u16 bit = interrupt % 32;
     const u32 value = (interrupt_enable_bits[slot] >> bit) & 0b1;
@@ -197,7 +197,7 @@ bool PLIC::get_interrupt_enabled(const u16 interrupt, const u16 context)
 
 void PLIC::set_interrupt_enabled(const u16 interrupt, const u16 context)
 {
-    assert(interrupt < PLIC_NUM_INTERRUPTS);
+    assert(interrupt < PLIC_SUPPORTED_INTERRUPTS);
     const u16 slot = interrupt / 32 + (context * PLIC_NUM_INTERRUPTS / 32);
     const u16 bit = interrupt % 32;
     interrupt_enable_bits[slot] |= (1 << bit);

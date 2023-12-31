@@ -4,9 +4,10 @@
 class CPU;
 
 // We support two contexts - HART 0 supervisor and HART 0 machine mode
-#define PLIC_NUM_INTERRUPTS     1024
-#define PLIC_NUM_CONTEXTS       15872
-#define PLIC_SUPPORTED_CONTEXTS 2
+#define PLIC_NUM_INTERRUPTS         1024
+#define PLIC_NUM_CONTEXTS           15872
+#define PLIC_SUPPORTED_CONTEXTS     2
+#define PLIC_SUPPORTED_INTERRUPTS   32
 
 #define PLIC_INTERRUPT_UART     10
 
