@@ -2,6 +2,10 @@
 #include <iostream>
 #include <cassert>
 
+// For stdin
+#include <termios.h>
+#include <unistd.h>
+
 #define TX_RX_REG   0
 #define STATUS_REG  1
 
@@ -9,6 +13,16 @@
 #define RX_INTERRUPT_BIT    1
 #define TXEMPTY_BIT         2
 #define TX_INTERRUPT_BIT    3
+
+UART::UART()
+{
+    input_thread = std::thread(input_thread_run, std::ref(*this));
+}
+
+UART::~UART()
+{
+    input_thread.join();
+}
 
 std::optional<u64> UART::read_byte(const u64 address)
 {
@@ -65,10 +79,10 @@ void UART::clock(PLIC& plic)
 {
     bool should_trigger_irq = false;
 
+    // Write to stdout
     if (tx_buffer.size() > max_buffers_size - 1)
     {
-        // Print out all characters in "transmitted buffer",
-        // and transfer them to the "received buffer"
+        // Print out all characters in "transmitted buffer"
         while (tx_buffer.size() > 0)
         {
             const u8 character = tx_buffer.front();
@@ -88,4 +102,44 @@ void UART::clock(PLIC& plic)
         plic.set_interrupt_pending(PLIC_INTERRUPT_UART);
     else
         plic.clear_interrupt_pending(PLIC_INTERRUPT_UART);
+}
+
+void UART::input_thread_run(UART& uart)
+{
+    while(true)
+    {
+        // Block and wait for input
+        int character = read_character();
+        if (character != -1 && character != '\0')
+            if (uart.rx_buffer.size() < max_buffers_size)
+                uart.rx_buffer.push((char)character);
+    }
+}
+
+int UART::read_character()
+{
+    char buf = 0;
+    struct termios old;
+
+    if (tcgetattr(0, &old) < 0)
+        return -1;
+
+    old.c_lflag &= ~ICANON;
+    old.c_lflag &= ~ECHO;
+    old.c_cc[VMIN] = 1;
+    old.c_cc[VTIME] = 0;
+
+    if (tcsetattr(0, TCSANOW, &old) < 0)
+        return -1;
+
+    if (read(0, &buf, 1) < 0)
+        return -1;
+
+    old.c_lflag |= ICANON;
+    old.c_lflag |= ECHO;
+
+    if (tcsetattr(0, TCSADRAIN, &old) < 0)
+        return -1;
+
+    return (buf);
 }
