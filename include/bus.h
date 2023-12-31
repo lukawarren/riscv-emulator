@@ -28,7 +28,7 @@ public:
 
     // Bus layout for emulator
     constexpr static u64 plic_base = 0xc000000;
-    constexpr static u64 plic_end = 0xc200000;
+    constexpr static u64 plic_end = plic_base + 0x3fff004;
     constexpr static u64 clint_base = 0x2000000;
     constexpr static u64 clint_end = 0x2010000;
     constexpr static u64 uart_address_one = 0x3000000;

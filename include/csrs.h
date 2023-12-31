@@ -1,8 +1,6 @@
 #pragma once
 #include "types.h"
-#include "traps.h"
 #include <cstring>
-#include <cassert>
 #include <iostream>
 #include <optional>
 
@@ -425,7 +423,7 @@ struct MIP : CSR
 
     bool write(const u64 value, CPU&) override
     {
-        // WRARL
+        // WARL
         bits = value & 0b0000101010101010;
         return true;
     }
@@ -442,8 +440,12 @@ struct MIP : CSR
     bool msi() const { return ((bits >>  3) & 1) == 1; }
     bool ssi() const { return ((bits >>  1) & 1) == 1; }
 
+    void set_mei()   { bits |=  (1 << 11); }
+    void set_sei()   { bits |=  (1 << 9); }
     void set_mti()   { bits |=  (1 << 7); }
+    void set_sti()   { bits |=  (1 << 5); }
     void set_msi()   { bits |=  (1 << 3); }
+    void set_ssi()   { bits |=  (1 << 1); }
 
     void clear_mei() { bits &= ~(1 << 11); }
     void clear_sei() { bits &= ~(1 <<  9); }

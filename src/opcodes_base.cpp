@@ -1,6 +1,5 @@
 #include "opcodes_base.h"
 #include <stdexcept>
-#include <iostream>
 #include "opcodes_zicsr.h"
 #include "opcodes_m.h"
 
@@ -70,10 +69,11 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
 
                 case OPCODES_SHIFT_RIGHT:
                 {
-                    switch (funct7)
+                    switch (funct7 & 0b11111110)
                     {
                         case SRAI:  srai(cpu, instruction); break;
-                        default:    srli(cpu, instruction); break;
+                        case 0:     srli(cpu, instruction); break;
+                        default:    return false;
                     }
                     break;
                 }
@@ -613,6 +613,7 @@ void ecall(CPU& cpu, const Instruction& instruction)
             break;
 
         case PrivilegeLevel::Machine:
+            throw std::runtime_error("TODO: unsupported ecall from machine mode - possible SBI driver");
             cpu.raise_exception(Exception::EnvironmentCallFromMMode);
             break;
 
@@ -681,7 +682,7 @@ void mret(CPU& cpu, const Instruction& instruction)
     if (cpu.mstatus.fields.mpp != (u64)PrivilegeLevel::Machine)
         cpu.mstatus.fields.mprv = 0;
 
-    cpu.pc = *read_csr(cpu, CSR_MEPC) - 4;
+    cpu.pc = *cpu.mepc.read(cpu) - 4;
     cpu.privilege_level = (PrivilegeLevel)cpu.mstatus.fields.mpp;
     cpu.mstatus.fields.mie = cpu.mstatus.fields.mpie;
     cpu.mstatus.fields.mpie = 1;
@@ -711,13 +712,6 @@ void wfi(CPU& cpu, const Instruction& instruction)
     {
         cpu.raise_exception(Exception::IllegalInstruction);
         return;
-    }
-
-    // HACK
-    if (!cpu.emulating_test)
-    {
-       cpu.waiting_for_interrupts = true;
-       assert(cpu.mstatus.fields.mie == 1);
     }
 }
 

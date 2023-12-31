@@ -78,11 +78,21 @@ public:
     BlankCSR mimpid = {};               // Implementation ID
     BlankCSR mhartid = {};              // ID of hart
 
+    // Can't just deal with exceptions as soon as they occur due to priority issues
+    // Have to delay it and keep track of state first
+    struct PendingTrap
+    {
+        u64 cause;
+        u64 info;
+        bool is_interrupt;
+    };
+    std::optional<PendingTrap> pending_trap = {};
+
     // Exceptions and interrupts
     void raise_exception(const Exception exception);
     void raise_exception(const Exception exception, const u64 info);
-    void raise_interrupt(const Interrupt interrupt);
-    std::optional<Interrupt> get_pending_interrupt();
+    std::optional<PendingTrap> get_pending_trap();
+    void handle_trap(const u64 cause, const u64 info, const bool interrupt);
 
     // Extensions
     static consteval u64 get_supported_extensions()
@@ -102,11 +112,6 @@ public:
     // RISC-V tests require the CPU to terminate when an ECALL occurs
     bool emulating_test = false;
 
-    // Harts can suspend themselves when waiting for interrupts
-    bool waiting_for_interrupts = false;
-
 private:
     u64 get_exception_cause(const Exception exception);
-    void handle_trap(const u64 cause, const u64 info, const bool interrupt);
-    bool trap_did_occur = false;
 };

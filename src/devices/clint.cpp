@@ -1,5 +1,4 @@
 #include "devices/clint.h"
-#include <iostream>
 #include <cassert>
 #include "cpu.h"
 
@@ -78,7 +77,7 @@ bool CLINT::write_byte(const u64 address, const u8 value)
 
     else if (address >= MTIME && address < MTIME_END)
     {
-        switch (address % 4)
+        switch (address % 8)
         {
             case 0: mtime = (mtime & 0xffffffffffffff00) | ((u64)value <<  0); return true;
             case 1: mtime = (mtime & 0xffffffffffff00ff) | ((u64)value <<  8); return true;
@@ -93,7 +92,7 @@ bool CLINT::write_byte(const u64 address, const u8 value)
 
     else if (address >= MTIMECMP && address < MTIMECMP_END)
     {
-        switch (address % 4)
+        switch (address % 8)
         {
             case 0: mtimecmp = (mtimecmp & 0xffffffffffffff00) | ((u64)value <<  0); return true;
             case 1: mtimecmp = (mtimecmp & 0xffffffffffff00ff) | ((u64)value <<  8); return true;

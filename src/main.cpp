@@ -4,19 +4,18 @@ bool does_pass(const std::string& filename)
 {
     try
     {
-        CPU cpu(1 * 1024 * 1024, true);
+        CPU cpu(128 * 1024 * 1024, true);
         cpu.bus.write_file(Bus::programs_base, filename);
+
         while(1)
         {
             cpu.trace();
+            cpu.do_cycle();
             cpu.bus.clock(cpu);
 
-            if (!cpu.waiting_for_interrupts)
-                cpu.do_cycle();
-
-            const std::optional<Interrupt> interrupt = cpu.get_pending_interrupt();
-            if (interrupt.has_value())
-                cpu.raise_interrupt(*interrupt);
+            const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
+            if (trap.has_value())
+                cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
         }
     }
     catch (std::string& s)
@@ -32,14 +31,12 @@ void emulate(const std::string& filename)
 
     while(1)
     {
+        cpu.do_cycle();
         cpu.bus.clock(cpu);
 
-        const std::optional<Interrupt> interrupt = cpu.get_pending_interrupt();
-        if (interrupt.has_value())
-            cpu.raise_interrupt(*interrupt);
-
-        if (!cpu.waiting_for_interrupts)
-            cpu.do_cycle();
+        const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
+        if (trap.has_value())
+            cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
     }
 }
 

@@ -1,5 +1,4 @@
 #include "devices/ram.h"
-#include <cassert>
 #include <iostream>
 
 RAM::RAM(const uint64_t size)

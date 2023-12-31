@@ -5,6 +5,7 @@
 - O3
 - time and hpmcounter* csrs
 - respect interrupt priorities
+- https://github.com/torvalds/linux/blob/master/drivers/tty/hvc/hvc_riscv_sbi.c
 
 The JAL and JALR instructions will generate a misaligned instruction fetch exception if the target
 address is not aligned to a four-byte boundary
@@ -14,4 +15,4 @@ for toolchain:
 sudo dnf install autoconf
 
 # for linux
-sudo dnf install perl-ExtUtils-MakeMaker perl-Thread-Queue
+sudo dnf install perl-ExtUtils-MakeMaker perl-Thread-Queue perl-FindBin

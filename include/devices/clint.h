@@ -1,6 +1,5 @@
 #pragma once
 #include "devices/bus_device.h"
-#include <iostream>
 
 class CPU;
 
