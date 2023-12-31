@@ -4,6 +4,9 @@
 #include <queue>
 #include <thread>
 
+// For stdin
+#include <termios.h>
+
 class UART : public BusDevice
 {
 public:
@@ -27,4 +30,6 @@ private:
     std::thread input_thread;
     static void input_thread_run(UART& uart);
     static int read_character();
+
+    struct termios original_termios;
 };

@@ -3,7 +3,6 @@
 #include <cassert>
 
 // For stdin
-#include <termios.h>
 #include <unistd.h>
 
 #define TX_RX_REG   0
@@ -16,12 +15,17 @@
 
 UART::UART()
 {
+    if (tcgetattr(0, &original_termios) < 0)
+        throw std::runtime_error("failed to get terminal settings");
+
     input_thread = std::thread(input_thread_run, std::ref(*this));
 }
 
 UART::~UART()
 {
+    pthread_cancel(input_thread.native_handle());
     input_thread.join();
+    tcsetattr(0, TCSADRAIN, &original_termios);
 }
 
 std::optional<u64> UART::read_byte(const u64 address)
@@ -127,7 +131,7 @@ int UART::read_character()
     old.c_lflag &= ~ICANON;
     old.c_lflag &= ~ECHO;
     old.c_cc[VMIN] = 1;
-    old.c_cc[VTIME] = 0;
+    old.c_cc[VTIME] = 10; // 0.1 seconds timeout
 
     if (tcsetattr(0, TCSANOW, &old) < 0)
         return -1;
