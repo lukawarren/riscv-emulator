@@ -9,7 +9,7 @@ Bus::Bus(const u64 ram_size) : ram(ram_size) {}
 
 #define READ_X(x) std::optional<u##x> Bus::read_##x(const u64 address)\
 {\
-    std::pair<BusDevice&, u64> device_info = get_bus_device(address);\
+    std::pair<BusDevice&, u64> device_info = get_bus_device(address, x / 8);\
     return device_info.first.read_##x(address - device_info.second);\
 }
 
@@ -20,7 +20,7 @@ READ_X(64)
 
 #define WRITE_X(x) bool Bus::write_##x(const u64 address, const u##x value)\
 {\
-    std::pair<BusDevice&, u64> device_info = get_bus_device(address);\
+    std::pair<BusDevice&, u64> device_info = get_bus_device(address, x / 8);\
     return device_info.first.write_##x(address - device_info.second, value);\
 }
 
@@ -76,8 +76,15 @@ void Bus::clock(CPU& cpu)
     plic.clock(cpu);
 }
 
-std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)
+std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address, const u64 size)
 {
+    // Check RAM first as is by far the most common
+    // We include the size (in bytes) of the fetch to make sure addresses that
+    // eclipse the end of RAM do not succeed. This edge case doesn't need to
+    // be checked for other devices as they do their own checks.
+    if (address >= ram_base && address + (size-1) < ram_base + ram.size)
+        return { ram, ram_base };
+
     if (address == uart_address_one || address == uart_address_two)
         return { uart, uart_address_one };
 
@@ -87,11 +94,10 @@ std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address)
     if (address >= clint_base && address <= clint_end)
         return { clint, clint_base };
 
-    if (address < ram_base)
-        throw std::runtime_error(std::format(
-            "attempt to read unmapped memory address 0x{:0x}",
-            address
-        ));
+    std::cout << std::format(
+        "attempt to read unmapped memory address 0x{:0x}",
+        address
+    );
 
-    return { ram, ram_base };
+    return { error, 0 };
 }

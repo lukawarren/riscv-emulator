@@ -1,5 +1,6 @@
 #include "devices/ram.h"
 #include <iostream>
+#include <cstring>
 
 RAM::RAM(const uint64_t size)
 {
@@ -7,32 +8,38 @@ RAM::RAM(const uint64_t size)
     this->size = size;
 }
 
-void print_warning(const u64 address)
-{
-    std::cout << "warning: failed to access memory location " <<
-        std::hex << (address) + 0x80000000 << std::endl;
-}
-
 std::optional<u64> RAM::read_byte(const u64 address)
 {
-    if (address >= size)
-    {
-        print_warning(address);
-        return std::nullopt;
-    }
     return memory[address];
 }
 
 bool RAM::write_byte(const u64 address, const u8 value)
 {
-    if (address >= size)
-    {
-        print_warning(address);
-        return false;
-    }
     memory[address] = value;
     return true;
 }
+
+template<typename T>
+T RAM::read_fast_path(const u64 address)
+{
+    T ret;
+    memcpy(&ret, memory + address, sizeof(T));
+    return ret;
+}
+
+template<typename T>
+void RAM::write_fast_path(const u64 address, const T value)
+{
+    memcpy(memory + address, &value, sizeof(T));
+}
+
+std::optional<u16> RAM::read_16(const u64 address) { return read_fast_path<u16>(address); }
+std::optional<u32> RAM::read_32(const u64 address) { return read_fast_path<u32>(address); }
+std::optional<u64> RAM::read_64(const u64 address) { return read_fast_path<u64>(address); }
+
+bool RAM::write_16(const u64 address, const u16 value) { write_fast_path<u16>(address, value); return true; }
+bool RAM::write_32(const u64 address, const u32 value) { write_fast_path<u32>(address, value); return true; }
+bool RAM::write_64(const u64 address, const u64 value) { write_fast_path<u64>(address, value); return true; }
 
 RAM::~RAM()
 {

@@ -4,6 +4,7 @@
 #include "devices/uart.h"
 #include "devices/plic.h"
 #include "devices/clint.h"
+#include "devices/error_device.h"
 #include <string>
 #include <unordered_set>
 
@@ -42,11 +43,12 @@ public:
     void clock(CPU& cpu);
 
 private:
-    std::pair<BusDevice&, u64> get_bus_device(const u64 address);
+    std::pair<BusDevice&, u64> get_bus_device(const u64 address, const u64 size);
     RAM ram;
     UART uart;
     PLIC plic;
     CLINT clint;
+    ErrorDevice error;
 
     u64 clock_counter = 0;
 };

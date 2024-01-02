@@ -12,7 +12,7 @@ public:
         return read_byte(address);
     }
 
-    inline std::optional<u16> read_16(const u64 address)
+    virtual inline std::optional<u16> read_16(const u64 address)
     {
         std::array<std::optional<u64>, 2> values =
         {
@@ -28,7 +28,7 @@ public:
             (*values[1] << 8);
     }
 
-    inline std::optional<u32> read_32(const u64 address)
+    virtual inline std::optional<u32> read_32(const u64 address)
     {
         std::array<std::optional<u64>, 4> values =
         {
@@ -48,7 +48,7 @@ public:
                (*values[3] << 24);
     }
 
-    inline std::optional<u64> read_64(const u64 address)
+    virtual inline std::optional<u64> read_64(const u64 address)
     {
         std::array<std::optional<u64>, 8> values =
         {
@@ -76,19 +76,19 @@ public:
             (*values[7] << 56);
     }
 
-    inline bool write_8(const u64 address, const u8 value)
+    virtual inline bool write_8(const u64 address, const u8 value)
     {
         return write_byte(address, value);
     }
 
-    inline bool write_16(const u64 address, const u16 value)
+    virtual inline bool write_16(const u64 address, const u16 value)
     {
         return
             write_byte(address, value) &&
             write_byte(address + 1, (value >> 8) & 0xff);
     }
 
-    inline bool write_32(const u64 address, const u32 value)
+    virtual inline bool write_32(const u64 address, const u32 value)
     {
         return
             write_byte(address, value) &&
@@ -97,7 +97,7 @@ public:
             write_byte(address + 3, (value >> 24) & 0xff);
     }
 
-    inline bool write_64(const u64 address, const u64 value)
+    virtual inline bool write_64(const u64 address, const u64 value)
     {
         return
             write_byte(address, value) &&
