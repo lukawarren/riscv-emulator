@@ -1,9 +1,10 @@
 #include "cpu.h"
-#include "instruction.h"
+#include "compressed_instruction.h"
 #include "opcodes_base.h"
 #include "opcodes_zicsr.h"
 #include "opcodes_m.h"
 #include "opcodes_a.h"
+#include "opcodes_c.h"
 #include "dtb.h"
 #include "traps.h"
 #include <iostream>
@@ -36,9 +37,14 @@ void CPU::do_cycle()
         return;
     }
 
-    // Fetch instruction... if we can!
-    const std::optional<Instruction> instruction = { bus.read_32(pc) };
-    if (!instruction)
+    // Check if instruction is of compressed form
+    const std::optional<CompressedInstruction> half_instruction = { bus.read_16(pc) };
+    const bool is_compressed = (half_instruction.has_value() && (half_instruction->instruction & 0b11) != 0b11);
+
+    // Else fetch regular instruction
+    std::optional<Instruction> instruction;
+    if (!is_compressed) instruction = bus.read_32(pc);
+    if (!is_compressed && !instruction)
     {
         // Exception information needs the vaddr of the portion of the
         // instruction that caused the fault
@@ -53,59 +59,25 @@ void CPU::do_cycle()
     }
 
     // Check it's valid
-    if (instruction->instruction == 0xffffffff ||
-        instruction->instruction == 0)
+    if (!is_compressed &&
+        (instruction->instruction == 0xffffffff ||
+        instruction->instruction == 0))
+    {
+        raise_exception(Exception::IllegalInstruction, instruction->instruction);
+        return;
+    }
+    else if (is_compressed && half_instruction->instruction == 0x0000)
     {
         raise_exception(Exception::IllegalInstruction, instruction->instruction);
         return;
     }
 
-    const u8 opcode = instruction->get_opcode();
-    const u8 funct3 = instruction->get_funct3();
-    const u8 funct7 = instruction->get_funct7();
-
     // Reset x0
     registers[0] = 0;
 
-    // Decode - try base cases first because ECALL and ZICSR overlap
-    bool did_find_opcode = opcodes_base(*this, *instruction);
-    if (!did_find_opcode)
-    {
-        switch(opcode)
-        {
-            case OPCODES_ZICSR:
-                did_find_opcode = opcodes_zicsr(*this, *instruction);
-                break;
-
-            case OPCODES_M:
-            case OPCODES_M_32:
-                // Distinguished from OPCODES_BASE_R_TYPE[_32] by funct7
-                if (funct7 == OPCODES_M_FUNCT_7)
-                    did_find_opcode = opcodes_m(*this, *instruction);
-                break;
-
-            case OPCODES_A:
-                did_find_opcode = opcodes_a(*this, *instruction);
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    if (!did_find_opcode)
-        throw std::runtime_error(std::format(
-            "unknown opcode 0x{:x} with funct3 0x{:x}, funct7 0x{:x}, rs2 0x{:x} - raw = 0x{:x}, pc = 0x{:x}",
-            opcode,
-            funct3,
-            funct7,
-            instruction->get_rs2(),
-            instruction->instruction,
-            pc
-        ));
-
-    if (!pending_trap.has_value())
-        pc += sizeof(u32);
+    // Seems to be a valid instruction - try and execute it
+    if (is_compressed) execute_compressed_instruction(*half_instruction);
+    else execute_instruction(*instruction);
 
     mcycle.increment(*this);
     minstret.increment(*this);
@@ -237,4 +209,66 @@ u64 CPU::get_exception_cause(const Exception exception)
                 "wrong overload used"
             );
     };
+}
+
+void CPU::execute_instruction(const Instruction instruction)
+{
+    const u8 opcode = instruction.get_opcode();
+    const u8 funct3 = instruction.get_funct3();
+    const u8 funct7 = instruction.get_funct7();
+
+    // Decode - try base cases first because ECALL and ZICSR overlap
+    bool did_find_opcode = opcodes_base(*this, instruction);
+    if (!did_find_opcode)
+    {
+        switch(opcode)
+        {
+            case OPCODES_ZICSR:
+                did_find_opcode = opcodes_zicsr(*this, instruction);
+                break;
+
+            case OPCODES_M:
+            case OPCODES_M_32:
+                // Distinguished from OPCODES_BASE_R_TYPE[_32] by funct7
+                if (funct7 == OPCODES_M_FUNCT_7)
+                    did_find_opcode = opcodes_m(*this, instruction);
+                break;
+
+            case OPCODES_A:
+                did_find_opcode = opcodes_a(*this, instruction);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    if (!did_find_opcode)
+        throw std::runtime_error(std::format(
+            "unknown opcode 0x{:x} with funct3 0x{:x}, funct7 0x{:x}, rs2 0x{:x} - raw = 0x{:x}, pc = 0x{:x}",
+            opcode,
+            funct3,
+            funct7,
+            instruction.get_rs2(),
+            instruction.instruction,
+            pc
+        ));
+
+    if (!pending_trap.has_value())
+        pc += sizeof(u32);
+}
+
+void CPU::execute_compressed_instruction(const CompressedInstruction instruction)
+{
+    if (!opcodes_c(*this, instruction))
+        throw std::runtime_error(std::format(
+            "unknown opcode 0x{:x} with funct3 0x{:x} - raw = 0x{:x}, pc = 0x{:x}",
+            instruction.get_opcode(),
+            instruction.get_funct3(),
+            instruction.instruction,
+            pc
+        ));
+
+    if (!pending_trap.has_value())
+        pc += sizeof(u16);
 }

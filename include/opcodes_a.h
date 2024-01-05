@@ -1,7 +1,6 @@
 #pragma once
 #include "cpu.h"
 #include "instruction.h"
-#include "types.h"
 
 #define OPCODES_A           0b0101111
 #define OPCODES_A_FUNCT_3   0b010

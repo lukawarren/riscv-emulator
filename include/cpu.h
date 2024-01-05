@@ -3,6 +3,8 @@
 #include "bus.h"
 #include "csrs.h"
 #include "traps.h"
+#include "instruction.h"
+#include "compressed_instruction.h"
 
 class CPU
 {
@@ -114,5 +116,7 @@ public:
     bool emulating_test = false;
 
 private:
+    void execute_instruction(const Instruction instruction);
+    void execute_compressed_instruction(const CompressedInstruction instruction);
     u64 get_exception_cause(const Exception exception);
 };
