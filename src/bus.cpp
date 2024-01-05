@@ -64,7 +64,6 @@ void Bus::write_file(const u64 address, const std::string& filename)
     file.read(reinterpret_cast<char*>(buffer), fileLen);
     file.close();
 
-    // TODO: memcpy fast-path
     for (u64 i = 0; i < fileLen; ++i)
         std::ignore = write_8(address + i, buffer[i]);
 }

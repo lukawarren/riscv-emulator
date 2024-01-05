@@ -852,7 +852,8 @@ u32 get_wide_shift_amount(const CPU&, const Instruction& instruction)
 
 bool check_branch_alignment(CPU& cpu, const u64 target)
 {
-    if ((target & 0b11) != 0)
+    // Needs to be 16-bit aligned (would be 32 if we didn't support RVC)
+    if ((target & 0b1) != 0)
     {
         cpu.raise_exception(Exception::InstructionAddressMisaligned, 0);
         return false;

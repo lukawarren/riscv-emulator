@@ -29,8 +29,8 @@ CPU::CPU(const u64 ram_size, const bool emulating_test) :
 
 void CPU::do_cycle()
 {
-    // Check is 32-bit aligned (remove when compressed support added)
-    if ((pc & 0b11) != 0)
+    // Check is 16-bit aligned (32 if RVC weren't supported)
+    if ((pc & 0b1) != 0)
     {
         raise_exception(Exception::InstructionAddressMisaligned, pc);
         return;

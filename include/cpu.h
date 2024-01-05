@@ -102,6 +102,7 @@ public:
         // The "I" bit is set for RV64I, etc., and "E" is set for RV64E, etc.
         u64 bits = 0;
         bits |= (1 << 0);  // A
+        bits |= (1 << 2);  // C
         bits |= (1 << 8);  // E
         bits |= (1 << 12); // U
         bits |= (1 << 18); // S

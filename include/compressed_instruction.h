@@ -100,13 +100,13 @@ struct CompressedInstruction
                 const u16 lower = (instruction >> 5) & 0b11;
                 return (upper << 2) | lower;
             }
-            
+
             default:
                 throw std::runtime_error("unspported instruction type");
                 return 0;
         }
     }
-    
+
     u8 get_offset() const
     {
         // Bits 10-12 followed by bits 2-6
