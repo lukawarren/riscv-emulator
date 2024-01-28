@@ -11,7 +11,7 @@ A RISC-V emulator capable of running Linux, written in C++.
 
 ## Running Linux
 The emulator is capable of running a minimal version of Linux without MMU support.
-You can find instructions for building an image [https://github.com/franzflasch/linux_for_riscv_em](here).
+You can find instructions for building an image [here](https://github.com/franzflasch/linux_for_riscv_em).
 
 ## Supported peripherals
 * CLINT
@@ -19,7 +19,7 @@ You can find instructions for building an image [https://github.com/franzflasch/
 * UART (simple-uart driver for the above Linux)
 
 ## Test coverage
-You can find the official RISC-V test suite [https://github.com/riscv-software-src/riscv-tests](here).
+You can find the official RISC-V test suite [here](https://github.com/riscv-software-src/riscv-tests).
 Currently, the emulator is capable of passing all tests for the base instruction set and supported extensions.
 
 ## Building free-standing toolchain
