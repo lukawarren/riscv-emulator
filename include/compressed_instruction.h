@@ -1,6 +1,7 @@
 #pragma once
 #include "types.h"
 #include <stdexcept>
+#include <cassert>
 
 /*
     Compressed instructions differ in that they are 16-bits
@@ -12,6 +13,9 @@
 */
 struct CompressedInstruction
 {
+    // "register 0" actually denotes x8, etc.
+    constexpr static uint8_t register_offset = 8;
+
     enum class Type
     {
         CR,  // Register
@@ -39,7 +43,7 @@ struct CompressedInstruction
     u8 get_rd() const
     {
         // 5 bits; 7-11 inclusive
-        return (instruction >> 7) & 0b11111;
+        return ((instruction >> 7) & 0b11111) + register_offset;
     }
 
     u8 get_rs1() const
@@ -51,19 +55,19 @@ struct CompressedInstruction
     u8 get_rs2() const
     {
         // 5 bits; 2-6 inclusive
-        return (instruction >> 2) & 0b11111;
+        return ((instruction >> 2) & 0b11111) + register_offset;
     }
 
     u8 get_rd_alt() const
     {
         // 3 bits; 2-4 inclusive
-        return (instruction >> 2) & 0b111;
+        return ((instruction >> 2) & 0b111) + register_offset;
     }
 
     u8 get_rs1_alt() const
     {
         // 3 bits; 7-9 inclusive
-        return (instruction >> 7) & 0b111;
+        return ((instruction >> 7) & 0b111) + register_offset;
     }
 
     u8 get_rs2_alt() const
@@ -107,6 +111,53 @@ struct CompressedInstruction
         }
     }
 
+    u64 get_none_zero_imm(const Type type) const
+    {
+        switch (type)
+        {
+            case Type::CI:
+            {
+                u16 nzimm =  ((instruction >> 3) & 0x200)  // nzimm[9]
+                            | ((instruction >> 2) & 0x10)  // nzimm[4]
+                            | ((instruction << 1) & 0x40)  // nzimm[6]
+                            | ((instruction << 4) & 0x180) // nzimm[8:7]
+                            | ((instruction << 3) & 0x20); // nzimm[5]
+
+                // Sign-extend
+                if ((nzimm & 0x200) != 0)
+                    return (u64)(i64)(i32)(i16)(0xfc00 | nzimm);
+                else
+                    return nzimm;
+            }
+
+            default:
+                throw std::runtime_error("unspported instruction type");
+                return 0;
+        }
+    }
+
+    u64 get_none_zero_unsigned_imm(const Type type) const
+    {
+        switch (type)
+        {
+            case Type::CIW:
+            {
+                u16 nzuimm =  ((instruction >> 1) & 0x3c0) // nzuimm[9:6]
+                            | ((instruction >> 7) & 0x30)  // nzuimm[5:4]
+                            | ((instruction >> 2) & 0x8)   // nzuimm[3]
+                            | ((instruction >> 4) & 0x4);  // nzuimm[2]
+
+                // TODO: raise error if zero
+                assert(nzuimm != 0);
+                return nzuimm;
+            }
+
+            default:
+                throw std::runtime_error("unspported instruction type");
+                return 0;
+        }
+    }
+
     u8 get_offset() const
     {
         // Bits 10-12 followed by bits 2-6
@@ -131,5 +182,10 @@ struct CompressedInstruction
     {
         // Bits 12-15
         return (instruction >> 12) & 0b1111;
+    }
+
+    u8 get_shamt() const
+    {
+        return get_imm(Type::CI) & 0b11111;
     }
 };

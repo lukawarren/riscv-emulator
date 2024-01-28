@@ -33,6 +33,8 @@ public:
     u64 pc = 0;
     Bus bus;
 
+    inline u64& sp() { return registers[2]; }
+
     PrivilegeLevel privilege_level = PrivilegeLevel::Machine;
 
     // Supervisor trap setup
