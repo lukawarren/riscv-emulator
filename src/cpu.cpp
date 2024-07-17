@@ -11,7 +11,7 @@
 #include <format>
 
 CPU::CPU(const u64 ram_size, const bool emulating_test) :
-    bus(ram_size), emulating_test(emulating_test)
+    bus(ram_size, emulating_test) , emulating_test(emulating_test)
 {
     // Set x0 to 0, sp to end of memory and pc to start of RAM
     registers[0] = 0;

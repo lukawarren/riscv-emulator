@@ -13,19 +13,25 @@
 #define TXEMPTY_BIT         2
 #define TX_INTERRUPT_BIT    3
 
-UART::UART()
+UART::UART(bool listen_for_input) : listening_to_input(listen_for_input)
 {
-    if (tcgetattr(0, &original_termios) < 0)
-        throw std::runtime_error("failed to get terminal settings");
+    if (listen_for_input)
+    {
+        if (tcgetattr(0, &original_termios) < 0)
+            throw std::runtime_error("failed to get terminal settings");
 
-    input_thread = std::thread(input_thread_run, std::ref(*this));
+        input_thread = std::thread(input_thread_run, std::ref(*this));
+    }
 }
 
 UART::~UART()
 {
-    pthread_cancel(input_thread.native_handle());
-    input_thread.join();
-    tcsetattr(0, TCSADRAIN, &original_termios);
+    if (listening_to_input)
+    {
+        pthread_cancel(input_thread.native_handle());
+        input_thread.join();
+        tcsetattr(0, TCSADRAIN, &original_termios);
+    }
 }
 
 std::optional<u64> UART::read_byte(const u64 address)

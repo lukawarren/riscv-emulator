@@ -5,7 +5,10 @@
 #include <iostream>
 #include <format>
 
-Bus::Bus(const u64 ram_size) : ram(ram_size) {}
+Bus::Bus(const u64 ram_size, const bool is_test_mode) :
+    ram(ram_size),
+    uart(!is_test_mode)
+{}
 
 #define READ_X(x) std::optional<u##x> Bus::read_##x(const u64 address)\
 {\

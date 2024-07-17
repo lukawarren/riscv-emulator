@@ -10,7 +10,7 @@
 class UART : public BusDevice
 {
 public:
-    UART();
+    UART(bool listen_for_input = true);
     ~UART();
 
     std::optional<u64> read_byte(const u64 address) override;
@@ -27,6 +27,7 @@ private:
     std::queue<u8> rx_buffer = {};
     std::queue<u8> tx_buffer = {};
 
+    bool listening_to_input;
     std::thread input_thread;
     static void input_thread_run(UART& uart);
     static int read_character();

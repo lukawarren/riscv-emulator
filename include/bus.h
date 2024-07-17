@@ -13,7 +13,7 @@ class CPU;
 class Bus
 {
 public:
-    Bus(const u64 ram_size);
+    Bus(const u64 ram_size, const bool is_test_mode = false);
 
     [[nodiscard]] std::optional<u8>  read_8 (const u64 address);
     [[nodiscard]] std::optional<u16> read_16(const u64 address);
