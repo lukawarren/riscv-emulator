@@ -52,7 +52,7 @@ make -j 16 rv64ui rv64ua rv64uc rv64um
 rm *-v-*
 
 # convert ELF to bin
-rm *.bin
+rm -f *.bin
 for file in *; do if [[ -x "$file" && ! -d "$file" ]]; then riscv64-unknown-elf-objcopy -O binary "$file" "$file.bin"; fi; done
 ```
 
