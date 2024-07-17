@@ -5,7 +5,7 @@ A RISC-V emulator capable of running Linux, written in C++.
 ## Supported Extensions
 * RV64I
 * A (atomics)
-* C (compressed instructions) - partial support
+* C (compressed instructions)
 * M (multiplication)
 * Zicsr (CSRs)
 

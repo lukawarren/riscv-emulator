@@ -45,6 +45,11 @@ struct CompressedInstruction
         return ((instruction >> 7) & 0b11111);
     }
 
+    u8 get_rd_with_offset() const
+    {
+        return ((instruction >> 7) & 0b111) + register_offset;
+    }
+
     u8 get_rs1() const
     {
         // Same place as rd
@@ -54,7 +59,7 @@ struct CompressedInstruction
     u8 get_rs2() const
     {
         // 5 bits; 2-6 inclusive
-        return ((instruction >> 2) & 0b11111) + register_offset;
+        return ((instruction >> 2) & 0b11111);
     }
 
     u8 get_rd_alt() const
@@ -114,13 +119,22 @@ struct CompressedInstruction
         }
     }
 
-    u64 get_addi_none_zero_imm() const
+    u64 get_none_zero_imm() const
     {
         u64 nzimm = ((instruction >> 7) & 0x20) | ((instruction >> 2) & 0x1f);
 
         // Sign extend
         if ((nzimm & 0x20) == 0) return nzimm;
         else return (u64)(i64)(i8)(0xc0 | nzimm);
+    }
+
+    u64 get_lui_non_zero_imm() const
+    {
+        u64 nzimm = ((instruction << 5) & 0x20000) | ((instruction << 10) & 0x1f000);
+
+        // Sign-extend
+        if ((nzimm & 0x20000) == 0) return nzimm;
+        else return (u64)(i64)(i32)(0xfffc0000 | nzimm);
     }
 
     u64 get_addi16sp_none_zero_imm() const
@@ -150,18 +164,78 @@ struct CompressedInstruction
         return nzuimm;
     }
 
-    u8 get_offset() const
+    u64 get_ld_sd_imm() const
     {
-        // Bits 10-12 followed by bits 2-6
-        const u8 upper = (instruction >> 10) & 0b111;
-        const u8 lower = (instruction >> 2) & 0b11111;
-        return (upper << 5) | lower;
+        return ((instruction << 1) & 0xc0) | // imm[7:6]
+                ((instruction >> 7) & 0x38);
+    }
+
+    u64 get_jump_offset() const
+    {
+        u16 offset =
+              ((instruction >> 1) & 0x800) // offset[11]
+            | ((instruction << 2) & 0x400) // offset[10]
+            | ((instruction >> 1) & 0x300) // offset[9:8]
+            | ((instruction << 1) & 0x80)  // offset[7]
+            | ((instruction >> 1) & 0x40)  // offset[6]
+            | ((instruction << 3) & 0x20)  // offset[5]
+            | ((instruction >> 7) & 0x10)  // offset[4]
+            | ((instruction >> 2) & 0x0e); // offset[3:1]
+
+        // Sign extend
+        if ((offset & 0x800) == 0) return offset;
+        else return (u64)(i64)(i16)(0xf000 | offset);
+    }
+
+    u64 get_branch_offset() const
+    {
+        u16 offset =
+              ((instruction >> 4) & 0x100) // offset[8]
+            | ((instruction << 1) & 0xc0)  // offset[7:6]
+            | ((instruction << 3) & 0x20)  // offset[5]
+            | ((instruction >> 7) & 0x18)  // offset[4:3]
+            | ((instruction >> 2) & 0x6);  // offset[2:1]
+
+        // Sign extend
+        if ((offset & 0x100) == 0) return offset;
+        else return (u64)(i64)(i16)(0xfe00 | offset);
+    }
+
+    u64 get_lwsp_offset() const
+    {
+        return ((instruction << 4) & 0xc0)  // offset[7:6]
+             | ((instruction >> 7) & 0x20)  // offset[5]
+             | ((instruction >> 2) & 0x1c); // offset[4:2]
+    }
+
+    u64 get_ldsp_offset() const
+    {
+        return ((instruction << 4) & 0x1c0) // offset[8:6]
+             | ((instruction >> 7) & 0x20)  // offset[5]
+             | ((instruction >> 2) & 0x18); // offset[4:3]
+    }
+
+    u64 get_swsp_offset() const
+    {
+        return ((instruction >> 1) & 0xc0)  // offset[7:6]
+             | ((instruction >> 7) & 0x3c); // offset[5:2]
+    }
+
+    u64 get_sdsp_offset() const
+    {
+        return ((instruction >> 1) & 0x1c0) // offset[8:6]
+             | ((instruction >> 7) & 0x38); // offset[5:3]
     }
 
     u16 get_jump_target() const
     {
         // Bits 2-12
         return (instruction >> 2) & 0b11111111111;
+    }
+
+    u8 get_funct2() const
+    {
+        return (instruction >> 10) & 0x3;
     }
 
     u8 get_funct3() const
@@ -176,8 +250,8 @@ struct CompressedInstruction
         return (instruction >> 12) & 0b1111;
     }
 
-    u8 get_shamt() const
+    u64 get_shamt() const
     {
-        return get_imm(Type::CI) & 0b11111;
+        return ((instruction >> 7) & 0x20) | ((instruction >> 2) & 0x1f);
     }
 };

@@ -109,8 +109,6 @@ void CPU::trace()
         printf("%016" PRIx64 ":  %s\n", pc, buf);
     }
     else std::cout << "??" << std::endl;
-
-    std::cout << "a2 = " << registers[12] << std::endl;
 }
 
 void CPU::raise_exception(const Exception exception)
