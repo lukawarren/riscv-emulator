@@ -99,7 +99,7 @@ std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address, const u64 size
     std::cout << std::format(
         "attempt to read unmapped memory address 0x{:0x}",
         address
-    );
+    ) << std::endl;
 
     return { error, 0 };
 }

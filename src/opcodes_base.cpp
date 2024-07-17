@@ -495,6 +495,8 @@ void bne(CPU& cpu, const Instruction& instruction)
 {
     const u64 target = instruction.get_imm(Instruction::Type::B);
 
+    std::cout << std::hex << cpu.registers[instruction.get_rs1()] << " vs " << cpu.registers[instruction.get_rs2()] << std::endl;
+
     if (cpu.registers[instruction.get_rs1()] !=
         cpu.registers[instruction.get_rs2()] &&
         check_branch_alignment(cpu, target))

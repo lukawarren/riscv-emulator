@@ -96,13 +96,21 @@ void CPU::trace()
     const bool is_compressed = (half_instruction.has_value() && (half_instruction->instruction & 0b11) != 0b11);
     if (!is_compressed) instruction = bus.read_32(pc);
 
-    if (instruction.has_value())
+    if (instruction.has_value() || half_instruction.has_value())
     {
         char buf[80] = { 0 };
-        disasm_inst(buf, sizeof(buf), rv64, pc, instruction->instruction);
+        disasm_inst(
+            buf,
+            sizeof(buf),
+            rv64,
+            pc,
+            instruction.has_value() ? instruction->instruction : half_instruction->instruction
+        );
         printf("%016" PRIx64 ":  %s\n", pc, buf);
     }
     else std::cout << "??" << std::endl;
+
+    std::cout << "a2 = " << registers[12] << std::endl;
 }
 
 void CPU::raise_exception(const Exception exception)
@@ -116,7 +124,7 @@ void CPU::raise_exception(const Exception exception, const u64 info)
         exception != Exception::EnvironmentCallFromSMode &&
         exception != Exception::EnvironmentCallFromMMode)
     {
-        std::cout << "warning: exception occured with id " << (int)exception <<
+        std::cout << "warning: exception occurred with id " << (int)exception <<
             ", pc = " << std::hex << pc << ", info = " << std::hex << info <<
             std::dec << std::endl;
     }
