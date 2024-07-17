@@ -10,6 +10,10 @@
 #include <iostream>
 #include <format>
 
+extern "C" {
+    #include <riscv-disas.h>
+}
+
 CPU::CPU(const u64 ram_size, const bool emulating_test) :
     bus(ram_size, emulating_test) , emulating_test(emulating_test)
 {
@@ -85,7 +89,20 @@ void CPU::do_cycle()
 
 void CPU::trace()
 {
-    std::cout << std::hex << pc << std::endl;
+    // Get next instruction
+    // TODO: guard against modifying state via extraneous reads
+    std::optional<Instruction> instruction;
+    const std::optional<CompressedInstruction> half_instruction = { bus.read_16(pc) };
+    const bool is_compressed = (half_instruction.has_value() && (half_instruction->instruction & 0b11) != 0b11);
+    if (!is_compressed) instruction = bus.read_32(pc);
+
+    if (instruction.has_value())
+    {
+        char buf[80] = { 0 };
+        disasm_inst(buf, sizeof(buf), rv64, pc, instruction->instruction);
+        printf("%016" PRIx64 ":  %s\n", pc, buf);
+    }
+    else std::cout << "??" << std::endl;
 }
 
 void CPU::raise_exception(const Exception exception)
