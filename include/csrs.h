@@ -5,7 +5,9 @@
 #include <optional>
 
 #define CSR_SSTATUS     0x100
+#define CSR_STVEC       0x105
 #define CSR_SCOUNTER_EN 0x106
+#define CSR_SSCRATCH    0x140
 #define CSR_SEPC        0x141
 #define CSR_SATP        0x180
 #define CSR_MSTATUS     0x300
@@ -190,6 +192,9 @@ struct MTVec : CSR
         else return Mode::Vectored;
     }
 };
+
+// Does not shadow MTVec, but has the same format
+struct STVec : MTVec {};
 
 struct MCounterEnable : DefaultCSR
 {
@@ -457,6 +462,55 @@ struct MIP : CSR
 
 // Same fields as MIP, but meip = meie, seip = seie, etc.
 struct MIE : MIP {};
+
+struct SATP : CSR
+{
+    u64 bits = 0;
+
+    enum class ModeSettings
+    {
+        None = 0,
+        Sv39 = 8,
+        Sv48 = 9,
+        Sv57 = 10,
+        Sv64 = 11
+    };
+
+    bool write(const u64 value, CPU& cpu) override
+    {
+        u64 old_bits = bits;
+        bits = value;
+
+        // "if satp is written with an unsupported MODE, the entire write has no
+        // effect; no fields in satp are modified"
+        if (get_mode() != ModeSettings::None && get_mode() != ModeSettings::Sv39)
+            bits = old_bits;
+
+        return true;
+    }
+
+    std::optional<u64> read(CPU& cpu) override
+    {
+        return bits;
+    }
+
+    ModeSettings get_mode() const
+    {
+        return ModeSettings((bits >> 60) & 0b1111);
+    }
+
+    // ASID = address space identifier
+    u64 get_asid() const
+    {
+        return (bits >> 44) & 0b1111111111111111;
+    }
+
+    // PPN = physical page number
+    u64 get_ppn() const
+    {
+        return bits & 0b1111111111111111111111;
+    }
+};
 
 struct Cycle : CSR
 {

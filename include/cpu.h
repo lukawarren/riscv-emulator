@@ -39,13 +39,15 @@ public:
 
     // Supervisor trap setup
     SStatus sstatus = {};               // Status bits; effective shadow of mstatus
+    STVec stvec = {};                   // Supervisor trap-handler base address
     DefaultCSR scounteren = {};         // Supervisor counter enable
 
     // Supervisor trap handilng
+    DefaultCSR sscratch = {};           // Scratch register for supervisor trap handlers
     SEPC sepc = {};
 
     // Supervisor Protection and Translation
-    UnimplementedCSR satp;              // Supervisor address translation and protection
+    SATP satp = {};                     // Supervisor address translation and protection
 
     // Machine trap setup
     MStatus mstatus = {};               // Status bits
