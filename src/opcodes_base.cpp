@@ -402,10 +402,10 @@ void sltiu(CPU& cpu, const Instruction& instruction)
 
 void lb(CPU& cpu, const Instruction& instruction)
 {
-    std::optional<u8> value = cpu.bus.read_8(get_load_address(cpu, instruction));
+    const auto value = cpu.read_8(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
     cpu.registers[instruction.get_rd()] = (u64)(i64)(i8)*value;
@@ -413,10 +413,10 @@ void lb(CPU& cpu, const Instruction& instruction)
 
 void lh(CPU& cpu, const Instruction& instruction)
 {
-    std::optional<u16> value = cpu.bus.read_16(get_load_address(cpu, instruction));
+    const auto value = cpu.read_16(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
     cpu.registers[instruction.get_rd()] = (u64)(i64)(i16)*value;
@@ -424,10 +424,10 @@ void lh(CPU& cpu, const Instruction& instruction)
 
 void lw(CPU& cpu, const Instruction& instruction)
 {
-    std::optional<u32> value = cpu.bus.read_32(get_load_address(cpu, instruction));
+    const auto value = cpu.read_32(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
     cpu.registers[instruction.get_rd()] = (u64)(i64)(i32)*value;
@@ -435,10 +435,10 @@ void lw(CPU& cpu, const Instruction& instruction)
 
 void lbu(CPU& cpu, const Instruction& instruction)
 {
-    std::optional<u8> value = cpu.bus.read_8(get_load_address(cpu, instruction));
+    const auto value = cpu.read_8(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
     cpu.registers[instruction.get_rd()] = *value;
@@ -446,10 +446,10 @@ void lbu(CPU& cpu, const Instruction& instruction)
 
 void lhu(CPU& cpu, const Instruction& instruction)
 {
-    std::optional<u16> value = cpu.bus.read_16(get_load_address(cpu, instruction));
+    const auto value = cpu.read_16(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
     cpu.registers[instruction.get_rd()] = *value;
@@ -457,29 +457,32 @@ void lhu(CPU& cpu, const Instruction& instruction)
 
 void sb(CPU& cpu, const Instruction& instruction)
 {
-    if (!cpu.bus.write_8(
+    const auto error = cpu.write_8(
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
-    ))
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
+    );
+    if (error.has_value())
+        cpu.raise_exception(*error);
 }
 
 void sh(CPU& cpu, const Instruction& instruction)
 {
-    if (!cpu.bus.write_16(
+    const auto error = cpu.write_16(
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
-    ))
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
+    );
+    if (error.has_value())
+        cpu.raise_exception(*error);
 }
 
 void sw(CPU& cpu, const Instruction& instruction)
 {
-    if (!cpu.bus.write_32(
+    const auto error = cpu.write_32(
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
-    ))
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
+    );
+    if (error.has_value())
+        cpu.raise_exception(*error);
 }
 
 void beq(CPU& cpu, const Instruction& instruction)
@@ -726,10 +729,10 @@ void sfence_vma(CPU& cpu, const Instruction& instruction)
 
 void lwu(CPU& cpu, const Instruction& instruction)
 {
-    std::optional<u32> value = cpu.bus.read_32(get_load_address(cpu, instruction));
+    const auto value = cpu.read_32(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
     cpu.registers[instruction.get_rd()] = *value;
@@ -737,10 +740,10 @@ void lwu(CPU& cpu, const Instruction& instruction)
 
 void ld(CPU& cpu, const Instruction& instruction)
 {
-    std::optional<u64> value = cpu.bus.read_64(get_load_address(cpu, instruction));
+    const auto value = cpu.read_64(get_load_address(cpu, instruction));
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
     cpu.registers[instruction.get_rd()] = (u64)(i64)*value;
@@ -748,11 +751,12 @@ void ld(CPU& cpu, const Instruction& instruction)
 
 void sd(CPU& cpu, const Instruction& instruction)
 {
-    if (!cpu.bus.write_64(
+    const auto error = cpu.write_64(
         get_store_address(cpu, instruction),
         cpu.registers[instruction.get_rs2()]
-    ))
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
+    );
+    if (error.has_value())
+        cpu.raise_exception(*error);
 }
 
 void addiw(CPU& cpu, const Instruction& instruction)

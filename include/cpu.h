@@ -5,6 +5,7 @@
 #include "traps.h"
 #include "instruction.h"
 #include "compressed_instruction.h"
+#include <expected>
 
 class CPU
 {
@@ -100,6 +101,16 @@ public:
     std::optional<PendingTrap> get_pending_trap();
     void handle_trap(const u64 cause, const u64 info, const bool interrupt);
 
+    [[nodiscard]] std::expected<u8,  Exception> read_8 (const u64 address);
+    [[nodiscard]] std::expected<u16, Exception> read_16(const u64 address);
+    [[nodiscard]] std::expected<u32, Exception> read_32(const u64 address);
+    [[nodiscard]] std::expected<u64, Exception> read_64(const u64 address);
+
+    [[nodiscard]] std::optional<Exception>      write_8 (const u64 address, const u8  value);
+    [[nodiscard]] std::optional<Exception>      write_16(const u64 address, const u16 value);
+    [[nodiscard]] std::optional<Exception>      write_32(const u64 address, const u32 value);
+    [[nodiscard]] std::optional<Exception>      write_64(const u64 address, const u64 value);
+
     // Extensions
     static consteval u64 get_supported_extensions()
     {
@@ -123,4 +134,5 @@ private:
     void execute_instruction(const Instruction instruction);
     void execute_compressed_instruction(const CompressedInstruction instruction);
     u64 get_exception_cause(const Exception exception);
+    u64 virtual_address_to_physical(const u64 address) const;
 };

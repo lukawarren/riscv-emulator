@@ -25,7 +25,7 @@ CPU::CPU(const u64 ram_size, const bool emulating_test) :
     // Load DTB into memory
     const u64 dtb_address = Bus::ram_base + ram_size - sizeof(DTB);
     for (size_t i = 0; i < sizeof(DTB); ++i)
-        std::ignore = bus.write_8(dtb_address + i, DTB[i]);
+        std::ignore = write_8(dtb_address + i, DTB[i]);
 
     // Set x11 to DTB pointer and x10 to hart id
     registers[10] = 0;
@@ -42,20 +42,20 @@ void CPU::do_cycle()
     }
 
     // Check if instruction is of compressed form
-    const std::optional<CompressedInstruction> half_instruction = { bus.read_16(pc) };
+    const std::expected<CompressedInstruction, Exception> half_instruction = read_16(pc);
     const bool is_compressed = (half_instruction.has_value() && (half_instruction->instruction & 0b11) != 0b11);
 
     // Else fetch regular instruction
-    std::optional<Instruction> instruction;
-    if (!is_compressed) instruction = bus.read_32(pc);
+    std::expected<Instruction, Exception> instruction = std::unexpected(Exception::IllegalInstruction);
+    if (!is_compressed) instruction = read_32(pc);
     if (!is_compressed && !instruction)
     {
         // Exception information needs the vaddr of the portion of the
         // instruction that caused the fault
         u64 faulty_address = pc;
-        if (!bus.read_8(pc)) faulty_address = pc;
-        else if (!bus.read_8(pc + 1)) faulty_address = pc + 1;
-        else if (!bus.read_8(pc + 1)) faulty_address = pc + 2;
+        if (!read_8(pc)) faulty_address = pc;
+        else if (!read_8(pc + 1)) faulty_address = pc + 1;
+        else if (!read_8(pc + 1)) faulty_address = pc + 2;
         else faulty_address = pc + 3;
 
         raise_exception(Exception::InstructionAccessFault, faulty_address);
@@ -91,10 +91,10 @@ void CPU::trace()
 {
     // Get next instruction
     // TODO: guard against modifying state via extraneous reads
-    std::optional<Instruction> instruction;
-    const std::optional<CompressedInstruction> half_instruction = { bus.read_16(pc) };
+    std::expected<Instruction, Exception> instruction = std::unexpected(Exception::IllegalInstruction);
+    const std::expected<CompressedInstruction, Exception> half_instruction = read_16(pc);
     const bool is_compressed = (half_instruction.has_value() && (half_instruction->instruction & 0b11) != 0b11);
-    if (!is_compressed) instruction = bus.read_32(pc);
+    if (!is_compressed) instruction = read_32(pc);
 
     if (instruction.has_value() || half_instruction.has_value())
     {
@@ -213,7 +213,7 @@ u64 CPU::get_exception_cause(const Exception exception)
     switch (exception)
     {
         case Exception::IllegalInstruction:
-            return *bus.read_32(pc);
+            return *read_32(pc);
 
         case Exception::LoadAccessFault:
             return pc;
@@ -294,4 +294,109 @@ void CPU::execute_compressed_instruction(const CompressedInstruction instruction
 
     if (!pending_trap.has_value())
         pc += sizeof(u16);
+}
+
+std::expected<u8, Exception> CPU::read_8(const u64 address)
+{
+    if (satp.get_mode() == SATP::ModeSettings::None)
+    {
+        const std::optional<u8> value = bus.read_8(address);
+        if (!value) return std::unexpected(Exception::LoadAccessFault);
+        else return *value;
+    }
+
+    return std::unexpected(Exception::LoadPageFault);
+}
+
+std::expected<u16, Exception> CPU::read_16(const u64 address)
+{
+    if (satp.get_mode() == SATP::ModeSettings::None)
+    {
+        const std::optional<u16> value = bus.read_16(address);
+        if (!value) return std::unexpected(Exception::LoadAccessFault);
+        else return *value;
+    }
+
+    return std::unexpected(Exception::LoadPageFault);
+}
+
+std::expected<u32, Exception> CPU::read_32(const u64 address)
+{
+    if (satp.get_mode() == SATP::ModeSettings::None)
+    {
+        const std::optional<u32> value = bus.read_32(address);
+        if (!value) return std::unexpected(Exception::LoadAccessFault);
+        else return *value;
+    }
+
+    return std::unexpected(Exception::LoadPageFault);
+}
+
+std::expected<u64, Exception> CPU::read_64(const u64 address)
+{
+    if (satp.get_mode() == SATP::ModeSettings::None)
+    {
+        const std::optional<u64> value = bus.read_64(address);
+        if (!value) return std::unexpected(Exception::LoadAccessFault);
+        else return *value;
+    }
+
+    return std::unexpected(Exception::LoadPageFault);
+}
+
+std::optional<Exception> CPU::write_8(const u64 address, const u8 value)
+{
+    if (satp.get_mode() == SATP::ModeSettings::None)
+    {
+        if (!bus.write_8(address, value))
+            return Exception::StoreOrAMOAccessFault;
+        else
+            return std::nullopt;
+    }
+
+    return Exception::StoreOrAMOPageFault;
+}
+
+std::optional<Exception> CPU::write_16(const u64 address, const u16 value)
+{
+    if (satp.get_mode() == SATP::ModeSettings::None)
+    {
+        if (!bus.write_16(address, value))
+            return Exception::StoreOrAMOAccessFault;
+        else
+            return std::nullopt;
+    }
+
+    return Exception::StoreOrAMOPageFault;
+}
+
+std::optional<Exception> CPU::write_32(const u64 address, const u32 value)
+{
+    if (satp.get_mode() == SATP::ModeSettings::None)
+    {
+        if (!bus.write_32(address, value))
+            return Exception::StoreOrAMOAccessFault;
+        else
+            return std::nullopt;
+    }
+
+    return Exception::StoreOrAMOPageFault;
+}
+
+std::optional<Exception> CPU::write_64(const u64 address, const u64 value)
+{
+    if (satp.get_mode() == SATP::ModeSettings::None)
+    {
+        if (!bus.write_64(address, value))
+            return Exception::StoreOrAMOAccessFault;
+        else
+            return std::nullopt;
+    }
+
+    return Exception::StoreOrAMOPageFault;
+}
+
+u64 CPU::virtual_address_to_physical(const u64 address) const
+{
+    return address;
 }

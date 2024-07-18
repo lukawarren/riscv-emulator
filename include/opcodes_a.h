@@ -85,31 +85,33 @@ const u64 address = cpu.registers[instruction.get_rs1()];
 }
 
 #define ATTEMPT_LOAD_32()\
-const std::optional<u32> value = cpu.bus.read_32(address);\
+const auto value = cpu.read_32(address);\
 if (!value)\
 {\
-    cpu.raise_exception(Exception::LoadAccessFault);\
+    cpu.raise_exception(value.error());\
     return;\
 }
 
 #define ATTEMPT_LOAD_64()\
-const std::optional<u64> value = cpu.bus.read_64(address);\
+const auto value = cpu.read_64(address);\
 if (!value)\
 {\
-    cpu.raise_exception(Exception::LoadAccessFault);\
+    cpu.raise_exception(value.error());\
     return;\
 }
 
 #define ATTEMPT_WRITE_32(value)\
-if (!cpu.bus.write_32(address, value))\
+const auto error = cpu.write_32(address, value);\
+if (error.has_value())\
 {\
-    cpu.raise_exception(Exception::StoreOrAMOAccessFault);\
+    cpu.raise_exception(*error);\
     return;\
 }
 
 #define ATTEMPT_WRITE_64(value)\
-if (!cpu.bus.write_64(address, value))\
+const auto error = cpu.write_64(address, value);\
+if (error.has_value())\
 {\
-    cpu.raise_exception(Exception::StoreOrAMOAccessFault);\
+    cpu.raise_exception(*error);\
     return;\
 }

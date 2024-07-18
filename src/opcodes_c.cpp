@@ -162,13 +162,13 @@ bool opcodes_c(CPU& cpu, const CompressedInstruction& instruction)
 
 void c_lw(CPU& cpu, const CompressedInstruction& instruction)
 {
-    const std::optional<u32> value = cpu.bus.read_32(
+    const auto value = cpu.read_32(
         cpu.registers[instruction.get_rs1_alt()] +
         instruction.get_imm(CompressedInstruction::Type::CL)
     );
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
     cpu.registers[instruction.get_rd_alt()] = (u64)(i64)(i32)*value;
@@ -176,12 +176,12 @@ void c_lw(CPU& cpu, const CompressedInstruction& instruction)
 
 void c_ld(CPU& cpu, const CompressedInstruction& instruction)
 {
-    const std::optional<u64> value = cpu.bus.read_64(
+    const auto value = cpu.read_64(
         cpu.registers[instruction.get_rs1_alt()] + instruction.get_ld_sd_imm()
     );
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
     cpu.registers[instruction.get_rd_alt()] = *value;
@@ -191,11 +191,11 @@ void c_lwsp(CPU& cpu, const CompressedInstruction& instruction)
 {
     const u8 rd = instruction.get_rd();
     const u64 offset = instruction.get_lwsp_offset();
-    const std::optional<u64> value = cpu.bus.read_32(cpu.registers[2] + offset);
+    const auto value = cpu.read_32(cpu.registers[2] + offset);
 
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
 
@@ -206,11 +206,11 @@ void c_ldsp(CPU& cpu, const CompressedInstruction& instruction)
 {
     const u8 rd = instruction.get_rd();
     const u64 offset = instruction.get_ldsp_offset();
-    const std::optional<u64> value = cpu.bus.read_64(cpu.registers[2] + offset);
+    const auto value = cpu.read_64(cpu.registers[2] + offset);
 
     if (!value)
     {
-        cpu.raise_exception(Exception::LoadAccessFault);
+        cpu.raise_exception(value.error());
         return;
     }
 
@@ -219,28 +219,28 @@ void c_ldsp(CPU& cpu, const CompressedInstruction& instruction)
 
 void c_sw(CPU& cpu, const CompressedInstruction& instruction)
 {
-    const bool value = cpu.bus.write_32(
+    const auto error = cpu.write_32(
         cpu.registers[instruction.get_rs1_alt()] +
         instruction.get_imm(CompressedInstruction::Type::CL),
         cpu.registers[instruction.get_rs2_alt()]
     );
-    if (!value)
+    if (error.has_value())
     {
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
+        cpu.raise_exception(*error);
         return;
     }
 }
 
 void c_sd(CPU& cpu, const CompressedInstruction& instruction)
 {
-    const bool value = cpu.bus.write_64(
+    const auto error = cpu.write_64(
         cpu.registers[instruction.get_rs1_alt()] +
         instruction.get_ld_sd_imm(),
         cpu.registers[instruction.get_rs2_alt()]
     );
-    if (!value)
+    if (error.has_value())
     {
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
+        cpu.raise_exception(*error);
         return;
     }
 }
@@ -249,14 +249,14 @@ void c_swsp(CPU& cpu, const CompressedInstruction& instruction)
 {
     const u8 rs2 = instruction.get_rs2();
     const u64 offset = instruction.get_swsp_offset();
-    const bool value = cpu.bus.write_32(
+    const auto error = cpu.write_32(
         cpu.registers[2] + offset,
         cpu.registers[rs2]
     );
 
-    if (!value)
+    if (error.has_value())
     {
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
+        cpu.raise_exception(*error);
         return;
     }
 }
@@ -265,14 +265,14 @@ void c_sdsp(CPU& cpu, const CompressedInstruction& instruction)
 {
     const u8 rs2 = instruction.get_rs2();
     const u64 offset = instruction.get_sdsp_offset();
-    const bool value = cpu.bus.write_64(
+    const auto error = cpu.write_64(
         cpu.registers[2] + offset,
         cpu.registers[rs2]
     );
 
-    if (!value)
+    if (error.has_value())
     {
-        cpu.raise_exception(Exception::StoreOrAMOAccessFault);
+        cpu.raise_exception(*error);
         return;
     }
 }
