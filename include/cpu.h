@@ -100,15 +100,22 @@ public:
     std::optional<PendingTrap> get_pending_trap();
     void handle_trap(const u64 cause, const u64 info, const bool interrupt);
 
-    [[nodiscard]] std::expected<u8,  Exception> read_8 (const u64 address);
-    [[nodiscard]] std::expected<u16, Exception> read_16(const u64 address);
-    [[nodiscard]] std::expected<u32, Exception> read_32(const u64 address);
-    [[nodiscard]] std::expected<u64, Exception> read_64(const u64 address);
+    enum class AccessType
+    {
+        Instruction,
+        Load,
+        Store
+    };
 
-    [[nodiscard]] std::optional<Exception>      write_8 (const u64 address, const u8  value);
-    [[nodiscard]] std::optional<Exception>      write_16(const u64 address, const u16 value);
-    [[nodiscard]] std::optional<Exception>      write_32(const u64 address, const u32 value);
-    [[nodiscard]] std::optional<Exception>      write_64(const u64 address, const u64 value);
+    [[nodiscard]] std::expected<u8,  Exception> read_8 (const u64 address, const AccessType type = AccessType::Load);
+    [[nodiscard]] std::expected<u16, Exception> read_16(const u64 address, const AccessType type = AccessType::Load);
+    [[nodiscard]] std::expected<u32, Exception> read_32(const u64 address, const AccessType type = AccessType::Load);
+    [[nodiscard]] std::expected<u64, Exception> read_64(const u64 address, const AccessType type = AccessType::Load);
+
+    [[nodiscard]] std::optional<Exception>      write_8 (const u64 address, const u8  value, const AccessType type = AccessType::Store);
+    [[nodiscard]] std::optional<Exception>      write_16(const u64 address, const u16 value, const AccessType type = AccessType::Store);
+    [[nodiscard]] std::optional<Exception>      write_32(const u64 address, const u32 value, const AccessType type = AccessType::Store);
+    [[nodiscard]] std::optional<Exception>      write_64(const u64 address, const u64 value, const AccessType type = AccessType::Store);
 
     // Extensions
     static consteval u64 get_supported_extensions()
@@ -133,5 +140,36 @@ private:
     void execute_instruction(const Instruction instruction);
     void execute_compressed_instruction(const CompressedInstruction instruction);
     u64 get_exception_cause(const Exception exception);
-    u64 virtual_address_to_physical(const u64 address) const;
+
+    std::expected<u64, Exception> virtual_address_to_physical(
+        const u64 address,
+        const AccessType type
+    ) const;
+
+    template<typename T>
+    inline std::expected<T, Exception> read_bytes(const u64 address, const AccessType type)
+    {
+        T value = 0;
+
+        for (size_t i = 0; i < sizeof(T); ++i)
+        {
+            const auto a = read_8(address + i, type);
+            if (!a.has_value()) return a;
+            value |= (T(*a) << (i * 8));
+        }
+
+        return value;
+    }
+
+    template<typename T>
+    inline std::optional<Exception> write_bytes(const u64 address, T value, const AccessType type)
+    {
+        for (size_t i = 0; i < sizeof(T); ++i)
+        {
+            const auto a = write_8(address + i, (value >> (i * 8)) & 0xff, type);
+            if (a.has_value()) return a;
+        }
+
+        return std::nullopt;
+    }
 };

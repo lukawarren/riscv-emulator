@@ -40,12 +40,12 @@ void CPU::do_cycle()
     }
 
     // Check if instruction is of compressed form
-    const std::expected<CompressedInstruction, Exception> half_instruction = read_16(pc);
+    const std::expected<CompressedInstruction, Exception> half_instruction = read_16(pc, AccessType::Instruction);
     const bool is_compressed = (half_instruction.has_value() && (half_instruction->instruction & 0b11) != 0b11);
 
     // Else fetch regular instruction
     std::expected<Instruction, Exception> instruction = std::unexpected(Exception::IllegalInstruction);
-    if (!is_compressed) instruction = read_32(pc);
+    if (!is_compressed) instruction = read_32(pc, AccessType::Instruction);
     if (!is_compressed && !instruction)
     {
         // Exception information needs the vaddr of the portion of the
@@ -294,7 +294,7 @@ void CPU::execute_compressed_instruction(const CompressedInstruction instruction
         pc += sizeof(u16);
 }
 
-std::expected<u8, Exception> CPU::read_8(const u64 address)
+std::expected<u8, Exception> CPU::read_8(const u64 address, const AccessType type)
 {
     if (satp.get_mode() == SATP::ModeSettings::None)
     {
@@ -303,10 +303,17 @@ std::expected<u8, Exception> CPU::read_8(const u64 address)
         else return *value;
     }
 
-    return std::unexpected(Exception::LoadPageFault);
+    std::expected<u64, Exception> physical_address = virtual_address_to_physical(address, type);
+    if (physical_address.has_value())
+    {
+        const std::optional<u8> value = bus.read_8(*physical_address);
+        if (!value) return std::unexpected(Exception::LoadAccessFault);
+        else return *value;
+    }
+    else return physical_address;
 }
 
-std::expected<u16, Exception> CPU::read_16(const u64 address)
+std::expected<u16, Exception> CPU::read_16(const u64 address, const AccessType type)
 {
     if (satp.get_mode() == SATP::ModeSettings::None)
     {
@@ -315,10 +322,10 @@ std::expected<u16, Exception> CPU::read_16(const u64 address)
         else return *value;
     }
 
-    return std::unexpected(Exception::LoadPageFault);
+    return read_bytes<u16>(address, type);
 }
 
-std::expected<u32, Exception> CPU::read_32(const u64 address)
+std::expected<u32, Exception> CPU::read_32(const u64 address, const AccessType type)
 {
     if (satp.get_mode() == SATP::ModeSettings::None)
     {
@@ -327,10 +334,10 @@ std::expected<u32, Exception> CPU::read_32(const u64 address)
         else return *value;
     }
 
-    return std::unexpected(Exception::LoadPageFault);
+    return read_bytes<u32>(address, type);
 }
 
-std::expected<u64, Exception> CPU::read_64(const u64 address)
+std::expected<u64, Exception> CPU::read_64(const u64 address, const AccessType type)
 {
     if (satp.get_mode() == SATP::ModeSettings::None)
     {
@@ -339,10 +346,10 @@ std::expected<u64, Exception> CPU::read_64(const u64 address)
         else return *value;
     }
 
-    return std::unexpected(Exception::LoadPageFault);
+    return read_bytes<u64>(address, type);
 }
 
-std::optional<Exception> CPU::write_8(const u64 address, const u8 value)
+std::optional<Exception> CPU::write_8(const u64 address, const u8 value, const AccessType type)
 {
     if (satp.get_mode() == SATP::ModeSettings::None)
     {
@@ -352,10 +359,18 @@ std::optional<Exception> CPU::write_8(const u64 address, const u8 value)
             return std::nullopt;
     }
 
-    return Exception::StoreOrAMOPageFault;
+    const std::expected<u64, Exception> virtual_address = virtual_address_to_physical(address, type);
+    if (virtual_address.has_value())
+    {
+        if (!bus.write_8(*virtual_address, value))
+            return Exception::StoreOrAMOAccessFault;
+        else
+            return std::nullopt;
+    }
+    else return virtual_address.error();
 }
 
-std::optional<Exception> CPU::write_16(const u64 address, const u16 value)
+std::optional<Exception> CPU::write_16(const u64 address, const u16 value, const AccessType type)
 {
     if (satp.get_mode() == SATP::ModeSettings::None)
     {
@@ -365,10 +380,10 @@ std::optional<Exception> CPU::write_16(const u64 address, const u16 value)
             return std::nullopt;
     }
 
-    return Exception::StoreOrAMOPageFault;
+    return write_bytes(address, value, type);
 }
 
-std::optional<Exception> CPU::write_32(const u64 address, const u32 value)
+std::optional<Exception> CPU::write_32(const u64 address, const u32 value, const AccessType type)
 {
     if (satp.get_mode() == SATP::ModeSettings::None)
     {
@@ -378,10 +393,10 @@ std::optional<Exception> CPU::write_32(const u64 address, const u32 value)
             return std::nullopt;
     }
 
-    return Exception::StoreOrAMOPageFault;
+    return write_bytes(address, value, type);
 }
 
-std::optional<Exception> CPU::write_64(const u64 address, const u64 value)
+std::optional<Exception> CPU::write_64(const u64 address, const u64 value, const AccessType type)
 {
     if (satp.get_mode() == SATP::ModeSettings::None)
     {
@@ -391,10 +406,13 @@ std::optional<Exception> CPU::write_64(const u64 address, const u64 value)
             return std::nullopt;
     }
 
-    return Exception::StoreOrAMOPageFault;
+    return write_bytes(address, value, type);
 }
 
-u64 CPU::virtual_address_to_physical(const u64 address) const
+std::expected<u64, Exception> CPU::virtual_address_to_physical(
+    const u64 address,
+    const AccessType type
+) const
 {
     return address;
 }
