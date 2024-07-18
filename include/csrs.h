@@ -1,8 +1,5 @@
 #pragma once
-#include "types.h"
-#include <cstring>
-#include <iostream>
-#include <optional>
+#include "common.h"
 
 #define CSR_SSTATUS     0x100
 #define CSR_STVEC       0x105

@@ -30,3 +30,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     external/riscv-disassembler/src
 )
+
+# PCH
+target_precompile_headers(${PROJECT_NAME} PRIVATE include/common.h)

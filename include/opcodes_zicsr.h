@@ -1,9 +1,8 @@
 #pragma once
-#include "cpu.h"
+#include "common.h"
 #include "instruction.h"
-#include "types.h"
 #include "csrs.h"
-#include <optional>
+#include "cpu.h"
 
 #define OPCODES_ZICSR   0b1110011
 #define CSRRW           0b001

@@ -1,7 +1,5 @@
 #pragma once
-#include "types.h"
-#include <stdexcept>
-#include <cassert>
+#include "common.h"
 
 /*
     Compressed instructions differ in that they are 16-bits

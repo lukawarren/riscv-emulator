@@ -1,6 +1,4 @@
 #include "opcodes_zicsr.h"
-#include <format>
-#include <iostream>
 
 bool opcodes_zicsr(CPU& cpu, const Instruction& instruction)
 {

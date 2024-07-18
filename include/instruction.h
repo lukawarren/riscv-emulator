@@ -1,6 +1,5 @@
 #pragma once
-#include "types.h"
-#include <stdexcept>
+#include "common.h"
 
 /*
     Instruction types:

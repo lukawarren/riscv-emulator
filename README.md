@@ -36,7 +36,6 @@ Alternatively, on Arch Linux, install the AUR package [riscv64-gnu-toolchain-elf
 Then build the tests as so:
 ```
 # clone and configure
-mkdir -p external
 cd external
 git clone https://github.com/riscv/riscv-tests
 cd riscv-tests

@@ -1,12 +1,10 @@
 #pragma once
-#include "types.h"
+#include "common.h"
 #include "devices/ram.h"
 #include "devices/uart.h"
 #include "devices/plic.h"
 #include "devices/clint.h"
 #include "devices/error_device.h"
-#include <string>
-#include <unordered_set>
 
 class CPU;
 

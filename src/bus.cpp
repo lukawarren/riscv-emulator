@@ -1,9 +1,5 @@
 #include "bus.h"
 #include "cpu.h"
-#include <fstream>
-#include <filesystem>
-#include <iostream>
-#include <format>
 
 Bus::Bus(const u64 ram_size, const bool is_test_mode) :
     ram(ram_size),

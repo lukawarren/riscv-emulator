@@ -1,11 +1,6 @@
 #pragma once
 #include "devices/bus_device.h"
 #include "devices/plic.h"
-#include <queue>
-#include <thread>
-
-// For stdin
-#include <termios.h>
 
 class UART : public BusDevice
 {

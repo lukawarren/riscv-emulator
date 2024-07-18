@@ -7,8 +7,6 @@
 #include "opcodes_c.h"
 #include "dtb.h"
 #include "traps.h"
-#include <iostream>
-#include <format>
 
 extern "C" {
     #include <riscv-disas.h>

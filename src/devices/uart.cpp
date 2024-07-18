@@ -1,9 +1,4 @@
 #include "devices/uart.h"
-#include <iostream>
-#include <cassert>
-
-// For stdin
-#include <unistd.h>
 
 #define TX_RX_REG   0
 #define STATUS_REG  1

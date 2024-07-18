@@ -1,6 +1,4 @@
 #include "devices/plic.h"
-#include <cassert>
-#include <iostream>
 #include "cpu.h"
 #include "csrs.h"
 

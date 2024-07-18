@@ -1,5 +1,4 @@
 #include "opcodes_base.h"
-#include <stdexcept>
 #include "opcodes_zicsr.h"
 #include "opcodes_m.h"
 

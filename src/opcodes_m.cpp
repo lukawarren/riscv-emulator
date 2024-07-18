@@ -1,5 +1,4 @@
 #include "opcodes_m.h"
-#include <limits>
 
 // Helpers
 template<typename T> bool overflow(T dividend, T divisor);

@@ -1,7 +1,6 @@
 #include "csrs.h"
 #include "cpu.h"
 #include "instruction.h"
-#include <format>
 
 /*
     Some CSRs require access to the CPU.

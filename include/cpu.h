@@ -1,11 +1,10 @@
 #pragma once
-#include "types.h"
+#include "common.h"
 #include "bus.h"
 #include "csrs.h"
 #include "traps.h"
 #include "instruction.h"
 #include "compressed_instruction.h"
-#include <expected>
 
 class CPU
 {

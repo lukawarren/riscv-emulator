@@ -1,6 +1,4 @@
 #include "devices/ram.h"
-#include <iostream>
-#include <cstring>
 
 RAM::RAM(const uint64_t size)
 {

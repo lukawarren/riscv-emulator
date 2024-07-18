@@ -1,5 +1,5 @@
 #pragma once
-#include "types.h"
+#include "common.h"
 
 const u8 DTB[] =
 {

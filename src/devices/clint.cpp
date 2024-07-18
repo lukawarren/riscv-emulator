@@ -1,5 +1,4 @@
 #include "devices/clint.h"
-#include <cassert>
 #include "cpu.h"
 
 /*
