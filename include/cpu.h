@@ -45,6 +45,8 @@ public:
     // Supervisor trap handilng
     DefaultCSR sscratch = {};           // Scratch register for supervisor trap handlers
     SEPC sepc = {};
+    DefaultCSR scause = {};             // Supervisor trap cause
+    DefaultCSR stval = {};              // Supervisor bad address or instruction
 
     // Supervisor Protection and Translation
     SATP satp = {};                     // Supervisor address translation and protection
@@ -104,7 +106,8 @@ public:
     {
         Instruction,
         Load,
-        Store
+        Store,
+        Trace // For internal program use
     };
 
     [[nodiscard]] std::expected<u8,  Exception> read_8 (const u64 address, const AccessType type = AccessType::Load);
@@ -144,7 +147,7 @@ private:
     std::expected<u64, Exception> virtual_address_to_physical(
         const u64 address,
         const AccessType type
-    ) const;
+    );
 
     template<typename T>
     inline std::expected<T, Exception> read_bytes(const u64 address, const AccessType type)
@@ -154,7 +157,7 @@ private:
         for (size_t i = 0; i < sizeof(T); ++i)
         {
             const auto a = read_8(address + i, type);
-            if (!a.has_value()) return a;
+            if (!a.has_value()) return std::unexpected(a.error());
             value |= (T(*a) << (i * 8));
         }
 
@@ -171,5 +174,12 @@ private:
         }
 
         return std::nullopt;
+    }
+
+    inline bool paging_disabled() const
+    {
+        // TODO: cache
+        return satp.get_mode() == SATP::ModeSettings::None ||
+            privilege_level == PrivilegeLevel::Machine;
     }
 };

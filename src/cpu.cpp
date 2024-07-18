@@ -5,8 +5,9 @@
 #include "opcodes_m.h"
 #include "opcodes_a.h"
 #include "opcodes_c.h"
-#include "dtb.h"
 #include "traps.h"
+#include "sv39.h"
+#include "dtb.h"
 
 extern "C" {
     #include <riscv-disas.h>
@@ -56,7 +57,7 @@ void CPU::do_cycle()
         else if (!read_8(pc + 1)) faulty_address = pc + 2;
         else faulty_address = pc + 3;
 
-        raise_exception(Exception::InstructionAccessFault, faulty_address);
+        raise_exception(instruction.error(), faulty_address);
         return;
     }
 
@@ -90,9 +91,9 @@ void CPU::trace()
     // Get next instruction
     // TODO: guard against modifying state via extraneous reads
     std::expected<Instruction, Exception> instruction = std::unexpected(Exception::IllegalInstruction);
-    const std::expected<CompressedInstruction, Exception> half_instruction = read_16(pc);
+    const std::expected<CompressedInstruction, Exception> half_instruction = read_16(pc, AccessType::Trace);
     const bool is_compressed = (half_instruction.has_value() && (half_instruction->instruction & 0b11) != 0b11);
-    if (!is_compressed) instruction = read_32(pc);
+    if (!is_compressed) instruction = read_32(pc, AccessType::Trace);
 
     if (instruction.has_value() || half_instruction.has_value())
     {
@@ -175,7 +176,22 @@ void CPU::handle_trap(const u64 cause, const u64 info, const bool interrupt)
 
     if (privilege_level <= PrivilegeLevel::Supervisor && medeleg.should_delegate(cause))
     {
-        throw std::runtime_error("todo");
+        // Handle in supervisor mode
+        privilege_level = PrivilegeLevel::Supervisor;
+        if (stvec.mode == STVec::Mode::Vectored)
+            pc = stvec.address + cause * 4;
+        else
+            pc = stvec.address;
+
+        // As below but in supervisor mode
+        sepc.write(original_pc & !1, *this);
+        scause.write((u64)cause | ((u64)interrupt << 63), *this);
+        stval.write(info, *this);
+        mstatus.fields.spie = mstatus.fields.sie;
+        mstatus.fields.sie = 0;
+
+        // Different from below
+        mstatus.fields.spp = (original_privilege_level == PrivilegeLevel::User) ? 0 : 1;
     }
     else
     {
@@ -187,7 +203,8 @@ void CPU::handle_trap(const u64 cause, const u64 info, const bool interrupt)
             pc = mtvec.address;
 
         // Set mepc to virtual address of instruction that was interrupted
-        mepc.write(original_pc, *this);
+        // The lower bit must be zero
+        mepc.write(original_pc & !1, *this);
 
         // Set mcause to cause - interrupts have MSB set
         mcause.write((u64)cause | ((u64)interrupt << 63), *this);
@@ -227,7 +244,7 @@ u64 CPU::get_exception_cause(const Exception exception)
         default:
             throw std::runtime_error(
                 "unable to determine exception casue - "
-                "wrong overload used"
+                "wrong overload used or TODO"
             );
     };
 }
@@ -296,7 +313,7 @@ void CPU::execute_compressed_instruction(const CompressedInstruction instruction
 
 std::expected<u8, Exception> CPU::read_8(const u64 address, const AccessType type)
 {
-    if (satp.get_mode() == SATP::ModeSettings::None)
+    if (paging_disabled())
     {
         const std::optional<u8> value = bus.read_8(address);
         if (!value) return std::unexpected(Exception::LoadAccessFault);
@@ -315,7 +332,7 @@ std::expected<u8, Exception> CPU::read_8(const u64 address, const AccessType typ
 
 std::expected<u16, Exception> CPU::read_16(const u64 address, const AccessType type)
 {
-    if (satp.get_mode() == SATP::ModeSettings::None)
+    if (paging_disabled())
     {
         const std::optional<u16> value = bus.read_16(address);
         if (!value) return std::unexpected(Exception::LoadAccessFault);
@@ -327,7 +344,7 @@ std::expected<u16, Exception> CPU::read_16(const u64 address, const AccessType t
 
 std::expected<u32, Exception> CPU::read_32(const u64 address, const AccessType type)
 {
-    if (satp.get_mode() == SATP::ModeSettings::None)
+    if (paging_disabled())
     {
         const std::optional<u32> value = bus.read_32(address);
         if (!value) return std::unexpected(Exception::LoadAccessFault);
@@ -339,7 +356,7 @@ std::expected<u32, Exception> CPU::read_32(const u64 address, const AccessType t
 
 std::expected<u64, Exception> CPU::read_64(const u64 address, const AccessType type)
 {
-    if (satp.get_mode() == SATP::ModeSettings::None)
+    if (paging_disabled())
     {
         const std::optional<u64> value = bus.read_64(address);
         if (!value) return std::unexpected(Exception::LoadAccessFault);
@@ -351,7 +368,7 @@ std::expected<u64, Exception> CPU::read_64(const u64 address, const AccessType t
 
 std::optional<Exception> CPU::write_8(const u64 address, const u8 value, const AccessType type)
 {
-    if (satp.get_mode() == SATP::ModeSettings::None)
+    if (paging_disabled())
     {
         if (!bus.write_8(address, value))
             return Exception::StoreOrAMOAccessFault;
@@ -372,7 +389,7 @@ std::optional<Exception> CPU::write_8(const u64 address, const u8 value, const A
 
 std::optional<Exception> CPU::write_16(const u64 address, const u16 value, const AccessType type)
 {
-    if (satp.get_mode() == SATP::ModeSettings::None)
+    if (paging_disabled())
     {
         if (!bus.write_16(address, value))
             return Exception::StoreOrAMOAccessFault;
@@ -385,7 +402,7 @@ std::optional<Exception> CPU::write_16(const u64 address, const u16 value, const
 
 std::optional<Exception> CPU::write_32(const u64 address, const u32 value, const AccessType type)
 {
-    if (satp.get_mode() == SATP::ModeSettings::None)
+    if (paging_disabled())
     {
         if (!bus.write_32(address, value))
             return Exception::StoreOrAMOAccessFault;
@@ -398,7 +415,7 @@ std::optional<Exception> CPU::write_32(const u64 address, const u32 value, const
 
 std::optional<Exception> CPU::write_64(const u64 address, const u64 value, const AccessType type)
 {
-    if (satp.get_mode() == SATP::ModeSettings::None)
+    if (paging_disabled())
     {
         if (!bus.write_64(address, value))
             return Exception::StoreOrAMOAccessFault;
@@ -409,10 +426,142 @@ std::optional<Exception> CPU::write_64(const u64 address, const u64 value, const
     return write_bytes(address, value, type);
 }
 
+// Implements Sv39 paging - see RISC-V Instruction Set Manual Volume II - Privileged Architecture
 std::expected<u64, Exception> CPU::virtual_address_to_physical(
     const u64 address,
     const AccessType type
-) const
+)
 {
-    return address;
+    const u64 page_size = 4096;
+    const u64 levels = 3;
+    const u64 pte_size = 8;
+
+    const VirtualAddress va(address);
+    const auto vpns = va.get_vpns();
+    PageTableEntry pte(0);
+
+    const auto appropriate_exception = [&]()
+    {
+        if (type != AccessType::Trace)
+            std::cout << "warning - MMU exception" << std::endl;
+
+        switch (type)
+        {
+            case AccessType::Instruction: return std::unexpected(Exception::InstructionPageFault);
+            case AccessType::Load:        return std::unexpected(Exception::LoadPageFault);
+            case AccessType::Store:       return std::unexpected(Exception::StoreOrAMOPageFault);
+            case AccessType::Trace:       return std::unexpected(Exception::InternalProgramUse);
+            default: assert(false);
+        }
+    };
+
+    // 1. Let a be satp.ppn × PAGESIZE, and let i = LEVELS − 1.
+    u64 a = satp.get_ppn() * page_size;
+    i64 i = levels - 1;
+
+    while(true)
+    {
+        // 2. Let pte be the value of the PTE at address a+va.vpn[i]×PTESIZE.
+        //    If accessing pte violates a PMA or PMP check, raise an access exception.
+        // TODO: PMA and PMP checks
+        const auto pte_opt = bus.read_64(a + vpns[i] * pte_size);
+        assert(pte_opt.has_value());
+        pte = PageTableEntry(*pte_opt);
+
+        // 3. If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise a page-fault exception.
+        if (pte.get_v() == 0 || (pte.get_r() == 0 && pte.get_w() == 1))
+            return appropriate_exception();
+
+        // 4. Otherwise, the PTE is valid. If pte.r = 1 or pte.x = 1, go to step 5.
+        //    Otherwise, this PTE is a pointer to the next level of the page table.
+        //    Let i = i − 1. If i < 0, stop and raise a page-fault exception. Otherwise,
+        //    let a = pte.ppn × PAGESIZE and go to step 2.
+
+        if (pte.get_r() == 1 || pte.get_x() == 1)
+            break;
+
+        i -= 1;
+        if (i < 0)
+            return appropriate_exception();
+
+        a = pte.get_ppn() * page_size;
+    }
+
+    // 5. A leaf PTE has been found. Determine if the requested memory access is
+    //    allowed by the pte.r, pte.w, pte.x, and pte.u bits, given the current
+    //    privilege mode and the value of the SUM and MXR fields of the mstatus
+    //    register. If not, stop and raise a page-fault exception.
+    //
+    //    3.1.6.3 Memory Privilege in mstatus Register
+    //    "The MXR (Make eXecutable Readable) bit modifies the privilege with which loads access
+    //    virtual memory. When MXR=0, only loads from pages marked readable (R=1 in Figure 4.15)
+    //    will succeed. When MXR=1, loads from pages marked either readable or executable
+    //    (R=1 or X=1) will succeed. MXR has no effect when page-based virtual memory is not in
+    //    effect. MXR is hardwired to 0 if S-mode is not supported."
+    //
+    //    "The SUM (permit Supervisor User Memory access) bit modifies the privilege with which
+    //    S-mode loads and stores access virtual memory. When SUM=0, S-mode memory accesses to
+    //    pages that are accessible by U-mode (U=1 in Figure 4.15) will fault. When SUM=1, these
+    //    accesses are permitted.  SUM has no effect when page-based virtual memory is not in
+    //    effect. Note that, while SUM is ordinarily ignored when not executing in S-mode, it is
+    //    in effect when MPRV=1 and MPP=S. SUM is hardwired to 0 if S-mode is not supported."
+
+    // TODO: step 5
+
+    // 6. If i > 0 and pte.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
+    //    stop and raise a page-fault exception.
+    if (i > 0)
+    {
+        for (int j = i - 1; j >= 0; --j)
+            if (pte.get_ppns()[j] != 0)
+                return appropriate_exception();
+    }
+
+    // 7. If pte.a = 0, or if the memory access is a store and pte.d = 0, either raise
+    //    a page-fault exception or:
+    //    - Set pte.a to 1 and, if the memory access is a store, also set pte.d to 1
+    //    - If this access violates a PMA or PMP check, raise an access exception.
+    //    - This update and the loading of pte in step 2 must be atomic; in particular,
+    //      no intervening store to the PTE may be perceived to have occurred in-between.
+    if (pte.get_a() == 0 || (type == AccessType::Store && pte.get_d() == 0))
+    {
+        if (type != AccessType::Trace)
+        {
+            pte.set_a();
+            if (type == AccessType::Store)
+                pte.set_d();
+
+            // TODO: PMA or PMP check
+            std::cout << "warning - pma or pmp MMU check missed" << std::endl;
+
+            // Update PTE value
+            std::ignore = bus.write_64(a + vpns[i] * pte_size, pte.address);
+        }
+    }
+
+    // 8. The translation is successful. The translated physical address is given as follows:
+    //    pa.pgoff = va.pgoff
+    //    If i > 0, then this is a superpage translation and pa.ppn[i−1:0] = va.vpn[i−1:0].
+    //    pa.ppn[LEVELS−1:i] = pte.ppn[LEVELS−1:i].
+    const u64 offset = va.get_page_offset();
+    switch(i)
+    {
+        case 0:
+        {
+            u64 ppn = pte.get_ppn();
+            return (ppn << 12) | offset;
+        }
+        case 1:
+        {
+            const auto ppns = pte.get_ppns();
+            return (ppns[2] << 30) | (ppns[1] << 21) | (vpns[0] << 12) | offset;
+        }
+        case 2:
+        {
+            const auto ppns = pte.get_ppns();
+            return (ppns[2] << 30) | (vpns[1] << 21) | (vpns[0] << 12) | offset;
+        }
+        default:
+            return appropriate_exception();
+    }
 }

@@ -6,6 +6,8 @@
 #define CSR_SCOUNTER_EN 0x106
 #define CSR_SSCRATCH    0x140
 #define CSR_SEPC        0x141
+#define CSR_SCAUSE      0x142
+#define CSR_STVAL       0x143
 #define CSR_SATP        0x180
 #define CSR_MSTATUS     0x300
 #define CSR_MISA        0x301
@@ -505,7 +507,7 @@ struct SATP : CSR
     // PPN = physical page number
     u64 get_ppn() const
     {
-        return bits & 0b1111111111111111111111;
+        return bits & 0b11111111111111111111111111111111111111111111;
     }
 };
 

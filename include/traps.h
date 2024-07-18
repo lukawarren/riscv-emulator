@@ -15,7 +15,8 @@ enum class Exception
     EnvironmentCallFromMMode = 11,
     InstructionPageFault = 12,
     LoadPageFault = 13,
-    StoreOrAMOPageFault = 15
+    StoreOrAMOPageFault = 15,
+    InternalProgramUse
 };
 
 enum class Interrupt

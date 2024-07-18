@@ -45,9 +45,7 @@ autoconf
 
 # build relevant tests
 cd isa
-make -j 16 rv64ui rv64ua rv64uc rv64um
-
-# for now, ignore virtual memory
+make -j 16 rv64ui rv64ua rv64uc rv64um rv64si
 rm *-v-*
 
 # convert ELF to bin
