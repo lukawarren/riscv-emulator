@@ -178,10 +178,32 @@ private:
         return std::nullopt;
     }
 
-    inline bool paging_disabled() const
+    inline PrivilegeLevel effective_privilege_level(const AccessType type) const
+    {
+        // When MPRV=1, load and store memory addresses are translated and
+        // protected, and endianness is applied, as though the current privilege
+        // mode were set to MPP
+        if ((type == AccessType::Load || type == AccessType::Store) && mstatus.fields.mprv == 1)
+            return (PrivilegeLevel)mstatus.fields.mpp;
+        else
+            return privilege_level;
+    }
+
+    inline bool paging_disabled(AccessType type) const
     {
         // TODO: cache
-        return satp.get_mode() == SATP::ModeSettings::None ||
-            privilege_level == PrivilegeLevel::Machine;
+        if (type == AccessType::Load || type == AccessType::Store)
+        {
+            return satp.get_mode() == SATP::ModeSettings::None ||
+                effective_privilege_level(type) == PrivilegeLevel::Machine;
+        }
+        else
+        {
+            return satp.get_mode() == SATP::ModeSettings::None ||
+                privilege_level == PrivilegeLevel::Machine;
+        }
     }
+
+    // For mcause
+    u64 erroneous_virtual_address;
 };

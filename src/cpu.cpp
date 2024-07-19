@@ -240,6 +240,11 @@ u64 CPU::get_exception_cause(const Exception exception)
         case Exception::StoreOrAMOAccessFault:
             return pc;
 
+        case Exception::StoreOrAMOPageFault:
+        case Exception::LoadPageFault:
+        case Exception::InstructionPageFault:
+            return erroneous_virtual_address;
+
         case Exception::EnvironmentCallFromUMode:
         case Exception::EnvironmentCallFromSMode:
         case Exception::EnvironmentCallFromMMode:
@@ -317,7 +322,7 @@ void CPU::execute_compressed_instruction(const CompressedInstruction instruction
 
 std::expected<u8, Exception> CPU::read_8(const u64 address, const AccessType type)
 {
-    if (paging_disabled())
+    if (paging_disabled(type))
     {
         const std::optional<u8> value = bus.read_8(address);
         if (!value) return std::unexpected(Exception::LoadAccessFault);
@@ -336,7 +341,7 @@ std::expected<u8, Exception> CPU::read_8(const u64 address, const AccessType typ
 
 std::expected<u16, Exception> CPU::read_16(const u64 address, const AccessType type)
 {
-    if (paging_disabled())
+    if (paging_disabled(type))
     {
         const std::optional<u16> value = bus.read_16(address);
         if (!value) return std::unexpected(Exception::LoadAccessFault);
@@ -348,7 +353,7 @@ std::expected<u16, Exception> CPU::read_16(const u64 address, const AccessType t
 
 std::expected<u32, Exception> CPU::read_32(const u64 address, const AccessType type)
 {
-    if (paging_disabled())
+    if (paging_disabled(type))
     {
         const std::optional<u32> value = bus.read_32(address);
         if (!value) return std::unexpected(Exception::LoadAccessFault);
@@ -360,7 +365,7 @@ std::expected<u32, Exception> CPU::read_32(const u64 address, const AccessType t
 
 std::expected<u64, Exception> CPU::read_64(const u64 address, const AccessType type)
 {
-    if (paging_disabled())
+    if (paging_disabled(type))
     {
         const std::optional<u64> value = bus.read_64(address);
         if (!value) return std::unexpected(Exception::LoadAccessFault);
@@ -372,7 +377,7 @@ std::expected<u64, Exception> CPU::read_64(const u64 address, const AccessType t
 
 std::optional<Exception> CPU::write_8(const u64 address, const u8 value, const AccessType type)
 {
-    if (paging_disabled())
+    if (paging_disabled(type))
     {
         if (!bus.write_8(address, value))
             return Exception::StoreOrAMOAccessFault;
@@ -393,7 +398,7 @@ std::optional<Exception> CPU::write_8(const u64 address, const u8 value, const A
 
 std::optional<Exception> CPU::write_16(const u64 address, const u16 value, const AccessType type)
 {
-    if (paging_disabled())
+    if (paging_disabled(type))
     {
         if (!bus.write_16(address, value))
             return Exception::StoreOrAMOAccessFault;
@@ -406,7 +411,7 @@ std::optional<Exception> CPU::write_16(const u64 address, const u16 value, const
 
 std::optional<Exception> CPU::write_32(const u64 address, const u32 value, const AccessType type)
 {
-    if (paging_disabled())
+    if (paging_disabled(type))
     {
         if (!bus.write_32(address, value))
             return Exception::StoreOrAMOAccessFault;
@@ -419,7 +424,7 @@ std::optional<Exception> CPU::write_32(const u64 address, const u32 value, const
 
 std::optional<Exception> CPU::write_64(const u64 address, const u64 value, const AccessType type)
 {
-    if (paging_disabled())
+    if (paging_disabled(type))
     {
         if (!bus.write_64(address, value))
             return Exception::StoreOrAMOAccessFault;
@@ -449,6 +454,8 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
         if (type != AccessType::Trace)
             std::cout << "warning - MMU exception" << std::endl;
 
+        // Store cause
+        erroneous_virtual_address = address;
         switch (type)
         {
             case AccessType::Instruction: return std::unexpected(Exception::InstructionPageFault);
@@ -510,7 +517,36 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
     //    effect. Note that, while SUM is ordinarily ignored when not executing in S-mode, it is
     //    in effect when MPRV=1 and MPP=S. SUM is hardwired to 0 if S-mode is not supported."
 
-    // TODO: step 5
+    // MXR bit
+    if (type == AccessType::Instruction || type == AccessType::Load)
+    {
+        if (mstatus.fields.mxr == 0 && pte.get_r() != 1)
+            return appropriate_exception();
+
+        if (mstatus.fields.mxr == 1 && (pte.get_r() != 1 && pte.get_x() != 1))
+            return appropriate_exception();
+    }
+
+    if (type != AccessType::Trace)
+    {
+        // SUM bit
+        const PrivilegeLevel privilege = effective_privilege_level(type);
+        if (mstatus.fields.sum == 0 && privilege == PrivilegeLevel::Supervisor && pte.get_u() == 1)
+            return appropriate_exception();
+
+        // pte.w
+        if (pte.get_w() != 1 && type == AccessType::Store)
+            return appropriate_exception();
+
+        // pte.x
+        if (pte.get_x() != 1 && type == AccessType::Instruction)
+            return appropriate_exception();
+
+        // pte.u
+        if (pte.get_u() != 1 && privilege == PrivilegeLevel::User)
+            return appropriate_exception();
+    }
+
 
     // 6. If i > 0 and pte.ppn[i − 1 : 0] != 0, this is a misaligned superpage;
     //    stop and raise a page-fault exception.
