@@ -151,33 +151,6 @@ private:
         const AccessType type
     );
 
-    template<typename T>
-    inline std::expected<T, Exception> read_bytes(const u64 address, const AccessType type)
-    {
-        T value = 0;
-
-        for (size_t i = 0; i < sizeof(T); ++i)
-        {
-            const auto a = read_8(address + i, type);
-            if (!a.has_value()) return std::unexpected(a.error());
-            value |= (T(*a) << (i * 8));
-        }
-
-        return value;
-    }
-
-    template<typename T>
-    inline std::optional<Exception> write_bytes(const u64 address, T value, const AccessType type)
-    {
-        for (size_t i = 0; i < sizeof(T); ++i)
-        {
-            const auto a = write_8(address + i, (value >> (i * 8)) & 0xff, type);
-            if (a.has_value()) return a;
-        }
-
-        return std::nullopt;
-    }
-
     inline PrivilegeLevel effective_privilege_level(const AccessType type) const
     {
         // When MPRV=1, load and store memory addresses are translated and
@@ -206,4 +179,81 @@ private:
 
     // For mcause
     u64 erroneous_virtual_address;
+
+private:
+    template<typename T>
+    std::optional<T> fetch_from_bus(const u64 address)
+    {
+        if (sizeof(T) == 1) return bus.read_8(address);
+        if (sizeof(T) == 2) return bus.read_16(address);
+        if (sizeof(T) == 4) return bus.read_32(address);
+        if (sizeof(T) == 8) return bus.read_64(address);
+        return std::nullopt;
+    }
+
+    template<typename T>
+    bool write_to_bus(const u64 address, const T value)
+    {
+        if (sizeof(T) == 1) return bus.write_8 (address, value);
+        if (sizeof(T) == 2) return bus.write_16(address, value);
+        if (sizeof(T) == 4) return bus.write_32(address, value);
+        else                return bus.write_64(address, value);
+    }
+
+    template<typename T>
+    std::expected<T, Exception> read(const u64 address, const AccessType type)
+    {
+        if (paging_disabled(type))
+        {
+            const std::optional<T> value = fetch_from_bus<T>(address);
+            if (!value)
+            {
+                if (type == AccessType::Instruction)
+                    return std::unexpected(Exception::InstructionAccessFault);
+                else
+                    return std::unexpected(Exception::LoadAccessFault);
+            }
+            else return *value;
+        }
+        else
+        {
+            std::expected<u64, Exception> physical_address = virtual_address_to_physical(address, type);
+            if (physical_address.has_value())
+            {
+                const std::optional<T> value = fetch_from_bus<T>(*physical_address);
+                if (!value)
+                {
+                    if (type == AccessType::Instruction)
+                        return std::unexpected(Exception::InstructionAccessFault);
+                    else
+                        return std::unexpected(Exception::LoadAccessFault);
+                }
+                else return *value;
+            }
+            else
+                return physical_address;
+        }
+    }
+
+    template<typename T>
+    std::optional<Exception> write(const u64 address, const T value, const AccessType type)
+    {
+        if (paging_disabled(type))
+        {
+            if (!write_to_bus<T>(address, value))
+                return Exception::StoreOrAMOAccessFault;
+            else
+                return std::nullopt;
+        }
+
+        const std::expected<u64, Exception> virtual_address = virtual_address_to_physical(address, type);
+        if (virtual_address.has_value())
+        {
+            if (!write_to_bus<T>(*virtual_address, value))
+                return Exception::StoreOrAMOAccessFault;
+            else
+                return std::nullopt;
+        }
+        else return virtual_address.error();
+    }
 };
