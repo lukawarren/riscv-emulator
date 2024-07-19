@@ -71,7 +71,7 @@ void CPU::do_cycle()
     }
     else if (is_compressed && half_instruction->instruction == 0x0000)
     {
-        raise_exception(Exception::IllegalInstruction, instruction->instruction);
+        raise_exception(Exception::IllegalInstruction, half_instruction->instruction);
         return;
     }
 
@@ -232,7 +232,7 @@ u64 CPU::get_exception_cause(const Exception exception)
     switch (exception)
     {
         case Exception::IllegalInstruction:
-            return *read_32(pc);
+            return *read_32(pc, AccessType::Trace);
 
         case Exception::LoadAccessFault:
             return pc;
