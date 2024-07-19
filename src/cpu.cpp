@@ -333,7 +333,7 @@ std::expected<u8, Exception> CPU::read_8(const u64 address, const AccessType typ
     if (physical_address.has_value())
     {
         const std::optional<u8> value = bus.read_8(*physical_address);
-        if (!value) return std::unexpected(Exception::LoadAccessFault);
+        if (!value) return std::unexpected(type == AccessType::Instruction ? Exception::InstructionAccessFault : Exception::LoadAccessFault);
         else return *value;
     }
     else return physical_address;
@@ -344,7 +344,7 @@ std::expected<u16, Exception> CPU::read_16(const u64 address, const AccessType t
     if (paging_disabled(type))
     {
         const std::optional<u16> value = bus.read_16(address);
-        if (!value) return std::unexpected(Exception::LoadAccessFault);
+        if (!value) return std::unexpected(type == AccessType::Instruction ? Exception::InstructionAccessFault : Exception::LoadAccessFault);
         else return *value;
     }
 
@@ -356,7 +356,7 @@ std::expected<u32, Exception> CPU::read_32(const u64 address, const AccessType t
     if (paging_disabled(type))
     {
         const std::optional<u32> value = bus.read_32(address);
-        if (!value) return std::unexpected(Exception::LoadAccessFault);
+        if (!value) return std::unexpected(type == AccessType::Instruction ? Exception::InstructionAccessFault : Exception::LoadAccessFault);
         else return *value;
     }
 
@@ -368,7 +368,7 @@ std::expected<u64, Exception> CPU::read_64(const u64 address, const AccessType t
     if (paging_disabled(type))
     {
         const std::optional<u64> value = bus.read_64(address);
-        if (!value) return std::unexpected(Exception::LoadAccessFault);
+        if (!value) return std::unexpected(type == AccessType::Instruction ? Exception::InstructionAccessFault : Exception::LoadAccessFault);
         else return *value;
     }
 
