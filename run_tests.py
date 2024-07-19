@@ -33,7 +33,7 @@ def run_test(file_path, file_name):
         return False
 
 def pad(name):
-    amount = 20
+    amount = 30
     return name + (amount-len(name)) * " "
 
 def main():
@@ -60,8 +60,8 @@ def main():
 
     # Display
     print()
-    print("Test Name\t      Passed")
-    print("-" * 30)
+    print("Test Name\t            Passed")
+    print("-" * 34)
 
     for test in tests:
         status = "✅" if test["passed"] else "❌"
