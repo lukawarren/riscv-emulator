@@ -39,6 +39,7 @@ public:
 
     // Supervisor trap setup
     SStatus sstatus = {};               // Status bits; effective shadow of mstatus
+    SIE sie = {};                       // Supervisor shadow of mie
     STVec stvec = {};                   // Supervisor trap-handler base address
     DefaultCSR scounteren = {};         // Supervisor counter enable
 
@@ -47,6 +48,7 @@ public:
     SEPC sepc = {};
     DefaultCSR scause = {};             // Supervisor trap cause
     DefaultCSR stval = {};              // Supervisor bad address or instruction
+    SIP sip = {};                       // Supervisor shadow of mip
 
     // Supervisor Protection and Translation
     SATP satp = {};                     // Supervisor address translation and protection

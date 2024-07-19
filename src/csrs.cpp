@@ -2,10 +2,53 @@
 #include "cpu.h"
 #include "instruction.h"
 
-/*
-    Some CSRs require access to the CPU.
-    That won't compile unless we have the function implementations in a source file!
-*/
+bool SIE::write(const u64 value, CPU& cpu)
+{
+    MIE old_value = cpu.mie;
+    cpu.mie.bits = (u16)value;
+
+    // Everything is writable except for MEIE, MTIE and MSIE
+    if (old_value.mei()) cpu.mie.set_mei(); else cpu.mie.clear_mei();
+    if (old_value.mti()) cpu.mie.set_mti(); else cpu.mie.clear_mti();
+    if (old_value.msi()) cpu.mie.set_msi(); else cpu.mie.clear_msi();
+
+    return true;
+}
+
+std::optional<u64> SIE::read(CPU& cpu)
+{
+    MIE new_value = cpu.mie;
+
+    //  MEIE, MTIE and MSIE are WPRI and reserved for future use
+    new_value.clear_mei();
+    new_value.clear_mti();
+    new_value.clear_msi();
+
+    return new_value.bits;
+}
+
+bool SIP::write(const u64 value, CPU& cpu)
+{
+    MIP new_value;
+    new_value.bits = value;
+
+    // All bits besides SSIP, USIP, and UEIP in the sip register are read-only
+    if (new_value.ssi()) cpu.mip.set_ssi(); else cpu.mip.clear_ssi();
+    if (new_value.usi()) cpu.mip.set_usi(); else cpu.mip.clear_usi();
+    if (new_value.uei()) cpu.mip.set_uei(); else cpu.mip.clear_uei();
+
+    return true;
+}
+
+std::optional<u64> SIP::read(CPU& cpu)
+{
+    //  MEIE, MTIE and MSIE are WIRI; can do same as with SIE
+    MIP new_value = cpu.mip;
+    new_value.clear_mei();
+    new_value.clear_mti();
+    new_value.clear_msi();
+    return new_value.bits;
+}
 
 bool SStatus::write(const u64 value, CPU& cpu)
 {

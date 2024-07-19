@@ -73,12 +73,14 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
         // TODO: raises exception when mstatus has certain value
 
         case CSR_SSTATUS:       return cpu.sstatus.read(cpu);
+        case CSR_SIE:           return cpu.sie.read(cpu);
         case CSR_STVEC:         return cpu.stvec.read(cpu);
         case CSR_SCOUNTER_EN:   return cpu.scounteren.read(cpu);
         case CSR_SSCRATCH:      return cpu.sscratch.read(cpu);
         case CSR_SEPC:          return cpu.sepc.read(cpu);
         case CSR_SCAUSE:        return cpu.scause.read(cpu);
         case CSR_STVAL:         return cpu.stval.read(cpu);
+        case CSR_SIP:           return cpu.sip.read(cpu);
         case CSR_SATP:          return cpu.satp.read(cpu);
         case CSR_MSTATUS:       return cpu.mstatus.read(cpu);
         case CSR_MISA:          return cpu.misa.read(cpu);
@@ -157,12 +159,14 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
         // TODO: raises exception when mstatus has certain value (maybe? well is for reads idk)
 
         case CSR_SSTATUS:       return cpu.sstatus.write(value, cpu);
+        case CSR_SIE:           return cpu.sie.write(value, cpu);
         case CSR_STVEC:         return cpu.stvec.write(value, cpu);
         case CSR_SCOUNTER_EN:   return cpu.scounteren.write(value, cpu);
         case CSR_SSCRATCH:      return cpu.sscratch.write(value, cpu);
         case CSR_SEPC:          return cpu.sepc.write(value, cpu);
         case CSR_SCAUSE:        return cpu.scause.write(value, cpu);
         case CSR_STVAL:         return cpu.stval.write(value, cpu);
+        case CSR_SIP:           return cpu.sip.write(value, cpu);
         case CSR_SATP:          return cpu.satp.write(value, cpu);
         case CSR_MSTATUS:       return cpu.mstatus.write(value, cpu);
         case CSR_MISA:          return cpu.misa.write(value, cpu);

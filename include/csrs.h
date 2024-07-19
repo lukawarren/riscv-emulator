@@ -2,12 +2,14 @@
 #include "common.h"
 
 #define CSR_SSTATUS     0x100
+#define CSR_SIE         0x104
 #define CSR_STVEC       0x105
 #define CSR_SCOUNTER_EN 0x106
 #define CSR_SSCRATCH    0x140
 #define CSR_SEPC        0x141
 #define CSR_SCAUSE      0x142
 #define CSR_STVAL       0x143
+#define CSR_SIP         0x144
 #define CSR_SATP        0x180
 #define CSR_MSTATUS     0x300
 #define CSR_MISA        0x301
@@ -439,28 +441,48 @@ struct MIP : CSR
 
     bool mei() const { return ((bits >> 11) & 1) == 1; }
     bool sei() const { return ((bits >>  9) & 1) == 1; }
+    bool uei() const { return ((bits >>  8) & 1) == 1; }
     bool mti() const { return ((bits >>  7) & 1) == 1; }
     bool sti() const { return ((bits >>  5) & 1) == 1; }
     bool msi() const { return ((bits >>  3) & 1) == 1; }
     bool ssi() const { return ((bits >>  1) & 1) == 1; }
+    bool usi() const { return ((bits >>  0) & 1) == 1; }
 
     void set_mei()   { bits |=  (1 << 11); }
     void set_sei()   { bits |=  (1 << 9); }
+    void set_uei()   { bits |=  (1 << 8); }
     void set_mti()   { bits |=  (1 << 7); }
     void set_sti()   { bits |=  (1 << 5); }
     void set_msi()   { bits |=  (1 << 3); }
     void set_ssi()   { bits |=  (1 << 1); }
+    void set_usi()   { bits |=  (1 << 0); }
 
     void clear_mei() { bits &= ~(1 << 11); }
     void clear_sei() { bits &= ~(1 <<  9); }
+    void clear_uei() { bits &= ~(1 <<  8); }
     void clear_mti() { bits &= ~(1 <<  7); }
     void clear_sti() { bits &= ~(1 <<  5); }
     void clear_msi() { bits &= ~(1 <<  3); }
     void clear_ssi() { bits &= ~(1 <<  1); }
+    void clear_usi() { bits &= ~(1 <<  0); }
 };
 
 // Same fields as MIP, but meip = meie, seip = seie, etc.
 struct MIE : MIP {};
+
+// Shadows MIE
+struct SIE : CSR
+{
+    bool write(const u64 value, CPU& cpu) override;
+    std::optional<u64> read(CPU& cpu) override;
+};
+
+// Shadows MIP
+struct SIP : CSR
+{
+    bool write(const u64 value, CPU& cpu) override;
+    std::optional<u64> read(CPU& cpu) override;
+};
 
 struct SATP : CSR
 {
