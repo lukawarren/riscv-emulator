@@ -174,7 +174,11 @@ void CPU::handle_trap(const u64 cause, const u64 info, const bool interrupt)
     const u64 original_pc = pc;
     const PrivilegeLevel original_privilege_level = privilege_level;
 
-    if (privilege_level <= PrivilegeLevel::Supervisor && medeleg.should_delegate(cause))
+    const bool should_delegate = interrupt ?
+        mideleg.should_delegate(cause):
+        medeleg.should_delegate(cause);
+
+    if (privilege_level <= PrivilegeLevel::Supervisor && should_delegate)
     {
         // Handle in supervisor mode
         privilege_level = PrivilegeLevel::Supervisor;
@@ -184,7 +188,7 @@ void CPU::handle_trap(const u64 cause, const u64 info, const bool interrupt)
             pc = stvec.address;
 
         // As below but in supervisor mode
-        sepc.write(original_pc & !1, *this);
+        sepc.write(original_pc & (~1), *this);
         scause.write((u64)cause | ((u64)interrupt << 63), *this);
         stval.write(info, *this);
         mstatus.fields.spie = mstatus.fields.sie;
@@ -204,7 +208,7 @@ void CPU::handle_trap(const u64 cause, const u64 info, const bool interrupt)
 
         // Set mepc to virtual address of instruction that was interrupted
         // The lower bit must be zero
-        mepc.write(original_pc & !1, *this);
+        mepc.write(original_pc & (~1), *this);
 
         // Set mcause to cause - interrupts have MSB set
         mcause.write((u64)cause | ((u64)interrupt << 63), *this);

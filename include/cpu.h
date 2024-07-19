@@ -45,7 +45,7 @@ public:
 
     // Supervisor trap handilng
     DefaultCSR sscratch = {};           // Scratch register for supervisor trap handlers
-    SEPC sepc = {};
+    SEPC sepc = {};                     // Supervisor exception program counter
     DefaultCSR scause = {};             // Supervisor trap cause
     DefaultCSR stval = {};              // Supervisor bad address or instruction
     SIP sip = {};                       // Supervisor shadow of mip
