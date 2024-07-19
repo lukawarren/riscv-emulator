@@ -548,10 +548,6 @@ void jal(CPU& cpu, const Instruction& instruction)
     // Add offset to program counter - sign extension done for us
     const i64 offset = instruction.get_imm(Instruction::Type::J);
 
-    // Alignment check (see jalr)
-    if (!check_branch_alignment(cpu, offset))
-        return;
-
     // Target register will contain pc + 4 (*not* for reason below though!)
     cpu.registers[instruction.get_rd()] = cpu.pc + 4;
 
@@ -568,12 +564,6 @@ void jalr(CPU& cpu, const Instruction& instruction)
     i64 offset = instruction.get_imm(Instruction::Type::I);
     offset += cpu.registers[instruction.get_rs1()];
     offset &= 0xfffffffffffffffe;
-
-    // An instruction address misaligned exception is generated on a
-    // taken branch or unconditional jump if the target address is not
-    // four-byte aligned
-    if (!check_branch_alignment(cpu, offset))
-        return;
 
     cpu.registers[instruction.get_rd()] = cpu.pc + 4;
     cpu.pc = (u64)offset - 4;
