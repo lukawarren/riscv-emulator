@@ -132,6 +132,11 @@ bool opcodes_c(CPU& cpu, const CompressedInstruction& instruction)
                             c_jalr(cpu, instruction);
                             return true;
                         }
+                        else
+                        {
+                            c_ebreak(cpu, instruction);
+                            return true;
+                        }
 
                         return false;
                     }
@@ -431,4 +436,9 @@ void c_subw(CPU& cpu, const CompressedInstruction& instruction)
     const u8 rd = instruction.get_rd_with_offset();
     const u8 rs2 = instruction.get_rs2_alt();
     cpu.registers[rd] = (u64)(i64)(i32)(cpu.registers[rd] - cpu.registers[rs2]);
+}
+
+void c_ebreak(CPU& cpu, const CompressedInstruction& instruction)
+{
+    cpu.raise_exception(Exception::Breakpoint, 0);
 }

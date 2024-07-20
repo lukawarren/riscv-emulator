@@ -125,11 +125,7 @@ void CPU::raise_exception(const Exception exception, const u64 info)
     if (exception != Exception::EnvironmentCallFromUMode &&
         exception != Exception::EnvironmentCallFromSMode &&
         exception != Exception::EnvironmentCallFromMMode)
-    {
-        std::cout << "warning: exception occurred with id " << (int)exception <<
-            ", pc = " << std::hex << pc << ", info = " << std::hex << info <<
-            std::dec << std::endl;
-    }
+        dbg("warning: exception occurred", (int)exception, dbg::hex(pc), dbg::hex(info));
 
     pending_trap = PendingTrap { (u64)exception, info, false };
 }

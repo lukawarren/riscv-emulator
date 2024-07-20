@@ -59,3 +59,4 @@ void c_or       (CPU& cpu, const CompressedInstruction& instruction);
 void c_xor      (CPU& cpu, const CompressedInstruction& instruction);
 void c_sub      (CPU& cpu, const CompressedInstruction& instruction);
 void c_subw     (CPU& cpu, const CompressedInstruction& instruction);
+void c_ebreak   (CPU& cpu, const CompressedInstruction& instruction);

@@ -230,18 +230,13 @@ struct MEPC : CSR
     bool write(const u64 value, CPU&) override
     {
         // WARL; lowest bit is always zero, and 2nd lowest is zero if IALIGN
-        // can only be 32 (but we support 16, or will)
+        // can only be 32 (but we support 16)
         address = value & 0xfffffffffffffffe;
         return true;
     }
 
     std::optional<u64> read(CPU&) override
     {
-        // Whenever IALIGN=32, bit mepc[1] is masked on reads so that it appears
-        // to be 0. This masking occurs also for the implicit read by the MRET instruction.
-        // Though masked, mepc[1] remains writable when IALIGN=32.
-        if ((address & 0b10) != 0)
-            dbg("TODO: respect IALIGN when adding C support");
         return address;
     }
 };
