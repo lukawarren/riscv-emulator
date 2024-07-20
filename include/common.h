@@ -20,6 +20,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+// For nice formatting
+#define DBG_MACRO_NO_WARNING
+#include <dbg.h>
+
 extern "C" {
     #include <riscv-disas.h>
 }

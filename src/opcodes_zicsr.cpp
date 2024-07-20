@@ -41,7 +41,7 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
     if ((csr_address >= CSR_PMPCFG0 && csr_address <= CSR_PMPCFG15) ||
         (csr_address >= CSR_PMPADDR0 && csr_address <= CSR_PMPADDR63))
     {
-        std::cout << "TODO: pmpaddr*" << std::endl;
+        dbg("TODO: pmpaddr*");
         return 0;
     }
 
@@ -132,7 +132,7 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
     if ((csr_address >= CSR_PMPCFG0 && csr_address <= CSR_PMPCFG15) ||
         (csr_address >= CSR_PMPADDR0 && csr_address <= CSR_PMPADDR63))
     {
-        std::cout << "TODO: pmp*" << std::endl;
+        dbg("TODO: pmp*");
         return true;
     }
 

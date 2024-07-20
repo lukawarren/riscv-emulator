@@ -241,7 +241,7 @@ struct MEPC : CSR
         // to be 0. This masking occurs also for the implicit read by the MRET instruction.
         // Though masked, mepc[1] remains writable when IALIGN=32.
         if ((address & 0b10) != 0)
-            std::cout << "TODO: respect IALIGN when adding C support" << std::endl;
+            dbg("TODO: respect IALIGN when adding C support");
         return address;
     }
 };

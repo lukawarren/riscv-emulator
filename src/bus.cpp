@@ -92,10 +92,6 @@ std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address, const u64 size
     if (address >= clint_base && address <= clint_end)
         return { clint, clint_base };
 
-    std::cout << std::format(
-        "attempt to read unmapped memory address 0x{:0x}",
-        address
-    ) << std::endl;
-
+    dbg("attempt to read unmapped memory address ", dbg::hex(address));
     return { error, 0 };
 }
