@@ -1,4 +1,6 @@
-external/
+external/riscv-tests
+external/linux/build
+
 build/
 .vscode/
 .cache/
