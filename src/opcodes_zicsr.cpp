@@ -58,6 +58,10 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
         }
     }
 
+    // Performance counters
+    if (csr_address >= CSR_MHPMCOUNTER3 && csr_address <= CSR_MHPMCOUNTER31)
+        return 0;
+
     // Check privilege level
     if (CSR::get_privilege_level(address) > cpu.privilege_level)
     {
@@ -100,6 +104,7 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
         case CSR_MCYCLE:        return cpu.mcycle.read(cpu);
         case CSR_MINSTRET:      return cpu.minstret.read(cpu);
         case CSR_CYCLE:         return cpu.cycle.read(cpu);
+        case CSR_TIME:          return cpu.time.read(cpu);
         case CSR_INSTRET:       return cpu.instret.read(cpu);
         case CSR_MVENDOR_ID:    return cpu.mvendorid.read(cpu);
         case CSR_MARCH_ID:      return cpu.marchid.read(cpu);
@@ -151,6 +156,10 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
         return false;
     }
 
+    // Performance counters
+    if (csr_address >= CSR_MHPMCOUNTER3 && csr_address <= CSR_MHPMCOUNTER31)
+        return true;
+
     if (!check_satp_trap(cpu, csr_address))
         return false;
 
@@ -185,6 +194,7 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
         case CSR_MNSTATUS:      return true; // Part of Smrnmi; needed for riscv-tests
         case CSR_MCYCLE:        return cpu.mcycle.write(value, cpu);
         case CSR_CYCLE:         return cpu.cycle.write(value, cpu);
+        case CSR_TIME:          return cpu.time.write(value, cpu);
         case CSR_MVENDOR_ID:    return cpu.mvendorid.write(value, cpu);
         case CSR_MARCH_ID:      return cpu.marchid.write(value, cpu);
         case CSR_MIMP_ID:       return cpu.mimpid.write(value, cpu);

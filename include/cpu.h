@@ -80,6 +80,7 @@ public:
 
     // Unprivileged counters / timers
     Cycle cycle = {};                   // Cycle counter; shadows mcycle
+    BlankCSR time = {};                 // Timer for RDTIME instruction
     InstRet instret = {};               // Shadows minstret
 
     // Machine information registers

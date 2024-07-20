@@ -13,6 +13,8 @@ extern "C" {
     #include <riscv-disas.h>
 }
 
+#define ADDR_ALIGN_DOWN(n, m) ((n) / (m) * (m))
+
 CPU::CPU(const u64 ram_size, const bool emulating_test) :
     bus(ram_size, emulating_test) , emulating_test(emulating_test)
 {
@@ -21,8 +23,11 @@ CPU::CPU(const u64 ram_size, const bool emulating_test) :
     registers[2] = Bus::ram_base + ram_size;
     pc = Bus::programs_base;
 
+    // Work out DTB address - aligned to nearest page
+    u64 dtb_address = Bus::ram_base + ram_size - sizeof(DTB) - 1;
+    dtb_address = dtb_address / 4096 * 4096;
+
     // Load DTB into memory
-    const u64 dtb_address = Bus::ram_base + ram_size - sizeof(DTB);
     for (size_t i = 0; i < sizeof(DTB); ++i)
         std::ignore = write_8(dtb_address + i, DTB[i]);
 
