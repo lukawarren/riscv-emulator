@@ -10,8 +10,18 @@ A RISC-V emulator capable of running Linux, written in C++.
 * Zicsr (CSRs)
 
 ## Running Linux
-The emulator is capable of running a minimal version of Linux without MMU support.
-You can find instructions for building an image [here](https://github.com/franzflasch/linux_for_riscv_em).
+```
+# Build
+cd external/linux
+chmod +x build.sh
+./build.sh
+
+# Run
+cd -
+cd build
+cmake .. -G Ninja && ninja
+./riscv-emulator ../external/linux/build/opensbi/build/platform/generic/firmware/fw_payload.bin
+```
 
 ## Supported Peripherals
 * CLINT

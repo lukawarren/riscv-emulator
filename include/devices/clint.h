@@ -14,4 +14,7 @@ private:
     u32 msip = 0;
     u64 mtimecmp = 0;
     u64 mtime = 0;
+
+    // Internal counter for slowing down timer
+    u64 i = 0;
 };

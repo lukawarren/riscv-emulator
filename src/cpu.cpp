@@ -89,6 +89,7 @@ void CPU::do_cycle()
 
     mcycle.increment(*this);
     minstret.increment(*this);
+    time.increment(*this);
 }
 
 void CPU::trace()
@@ -335,10 +336,23 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
     const auto vpns = va.get_vpns();
     PageTableEntry pte(0);
 
-    const auto appropriate_exception = [&]()
+    const auto appropriate_exception = [&](int number)
     {
-        if (type != AccessType::Trace)
-            dbg("MMU exception");
+        if (type != AccessType::Trace) {
+            dbg(
+                "MMU exception",
+                dbg::hex(address),
+                number,
+                type,
+                privilege_level,
+                effective_privilege_level(type),
+                (int)mstatus.fields.mpp,
+                (int)mstatus.fields.mprv
+            );
+
+            static int i = 0;
+            if (++i >= 5) exit(-1);
+        }
 
         // Store cause
         erroneous_virtual_address = address;
@@ -367,7 +381,7 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
 
         // 3. If pte.v = 0, or if pte.r = 0 and pte.w = 1, stop and raise a page-fault exception.
         if (pte.get_v() == 0 || (pte.get_r() == 0 && pte.get_w() == 1))
-            return appropriate_exception();
+            return appropriate_exception(1);
 
         // 4. Otherwise, the PTE is valid. If pte.r = 1 or pte.x = 1, go to step 5.
         //    Otherwise, this PTE is a pointer to the next level of the page table.
@@ -379,7 +393,7 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
 
         i -= 1;
         if (i < 0)
-            return appropriate_exception();
+            return appropriate_exception(2);
 
         a = pte.get_ppn() * page_size;
     }
@@ -407,10 +421,10 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
     if (type == AccessType::Instruction || type == AccessType::Load)
     {
         if (mstatus.fields.mxr == 0 && pte.get_r() != 1)
-            return appropriate_exception();
+            return appropriate_exception(3);
 
         if (mstatus.fields.mxr == 1 && (pte.get_r() != 1 && pte.get_x() != 1))
-            return appropriate_exception();
+            return appropriate_exception(4);
     }
 
     if (type != AccessType::Trace)
@@ -418,19 +432,19 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
         // SUM bit
         const PrivilegeLevel privilege = effective_privilege_level(type);
         if (mstatus.fields.sum == 0 && privilege == PrivilegeLevel::Supervisor && pte.get_u() == 1)
-            return appropriate_exception();
+            return appropriate_exception(5);
 
         // pte.w
         if (pte.get_w() != 1 && type == AccessType::Store)
-            return appropriate_exception();
+            return appropriate_exception(6);
 
         // pte.x
         if (pte.get_x() != 1 && type == AccessType::Instruction)
-            return appropriate_exception();
+            return appropriate_exception(7);
 
         // pte.u
         if (pte.get_u() != 1 && privilege == PrivilegeLevel::User)
-            return appropriate_exception();
+            return appropriate_exception(8);
     }
 
 
@@ -440,7 +454,7 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
     {
         for (int j = i - 1; j >= 0; --j)
             if (pte.get_ppns()[j] != 0)
-                return appropriate_exception();
+                return appropriate_exception(9);
     }
 
     // 7. If pte.a = 0, or if the memory access is a store and pte.d = 0, either raise
@@ -488,7 +502,7 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
             return (ppns[2] << 30) | (vpns[1] << 21) | (vpns[0] << 12) | offset;
         }
         default:
-            return appropriate_exception();
+            return appropriate_exception(9);
     }
 }
 

@@ -1,5 +1,6 @@
 external/riscv-tests
 external/linux/build
+external/linux-5.0
 
 build/
 .vscode/

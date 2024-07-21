@@ -126,7 +126,7 @@ void PLIC::clock(CPU& cpu)
             // At least 1 interrupt identified - ignore priority for now and just
             // find the first one (unlikely two interrupts occur at once!)
             // TODO: pick the pending update with the *highest* priority,
-            //       not just the first one that pops up ;)
+            //       not just the first one that pops up...
 
             const u32 threshold = context_priority_threshold[context];
 
