@@ -4,9 +4,10 @@ set -e
 mkdir -p build
 cd build
 
-KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.9.10.tar.xz"
-KERNEL_FILE="linux-6.9.10.tar.xz"
-KERNEL_EXTRACT_DIR="linux-6.9.10"
+KERNEL_VERSION=5.15.163
+KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VERSION.tar.xz"
+KERNEL_FILE="linux-$KERNEL_VERSION.tar.xz"
+KERNEL_EXTRACT_DIR="linux-$KERNEL_VERSION"
 
 # Download Linux tar
 if [ ! -f "$KERNEL_FILE" ]; then

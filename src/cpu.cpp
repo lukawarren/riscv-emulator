@@ -349,9 +349,6 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
                 (int)mstatus.fields.mpp,
                 (int)mstatus.fields.mprv
             );
-
-            static int i = 0;
-            if (++i >= 5) exit(-1);
         }
 
         // Store cause
