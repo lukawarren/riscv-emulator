@@ -9,19 +9,7 @@ A RISC-V emulator capable of running Linux, written in C++.
 * M (multiplication)
 * Zicsr (CSRs)
 
-## Running Linux
-```
-# Build
-cd external/linux
-chmod +x build.sh
-./build.sh
-
-# Run
-cd -
-cd build
-cmake .. -G Ninja && ninja
-./riscv-emulator ../external/linux/build/opensbi/build/platform/generic/firmware/fw_payload.bin
-```
+Sv39 paging is also supported.
 
 ## Supported Peripherals
 * CLINT
@@ -38,10 +26,10 @@ For running the RISC-V test suite, you may wish to build a freestanding toolchai
 export RISCV=/path/to/my/new/toolchain
 git clone https://github.com/riscv/riscv-gnu-toolchain
 cd riscv-gnu-toolchain
-./configure --prefix=$RISCV --with-arch=rv64ima_zicsr_zifencei
+./configure --prefix=$RISCV --with-arch=rv64gc
 make -j 16
 ```
-Alternatively, on Arch Linux, install the AUR package [riscv64-gnu-toolchain-elf-bin](https://aur.archlinux.org/packages/riscv-gnu-toolchain-bin).
+Alternatively, download a pre-built binary from the releases page (riscv64-elf-ubuntu-*-gcc-nightly) or, on Arch Linux, install the AUR package [riscv64-gnu-toolchain-elf-bin](https://aur.archlinux.org/packages/riscv64-gnu-toolchain-elf-bin).
 
 Then build the tests as so:
 ```
@@ -67,4 +55,19 @@ Then run the tests:
 ```
 # in project's root directory
 python run_tests.py
+```
+
+## Running Linux
+Install the Linux toolchain (as opposed to the elf toolchain) by following the instructions above but running `make linux` instead of `make`. If you wish to download a pre-built version instead, follow the same steps as previously described but swap `-elf-` with `-glibc-`. Then:
+```
+# Build
+cd external/linux
+chmod +x build.sh
+./build.sh
+
+# Run
+cd -
+cd build
+cmake .. -G Ninja && ninja
+./riscv-emulator ../external/linux/build/opensbi/build/platform/generic/firmware/fw_payload.bin
 ```
