@@ -1,13 +1,13 @@
 #!/bin/sh
 set -e
 
-mkdir -p build
-cd build
-
 KERNEL_VERSION=5.15.163
 KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VERSION.tar.xz"
 KERNEL_FILE="linux-$KERNEL_VERSION.tar.xz"
 KERNEL_EXTRACT_DIR="linux-$KERNEL_VERSION"
+
+mkdir -p build
+cd build
 
 # Download Linux tar
 if [ ! -f "$KERNEL_FILE" ]; then
