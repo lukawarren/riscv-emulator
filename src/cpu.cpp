@@ -415,7 +415,7 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
     //    in effect when MPRV=1 and MPP=S. SUM is hardwired to 0 if S-mode is not supported."
 
     // MXR bit
-    if (type == AccessType::Instruction || type == AccessType::Load)
+    if (type == AccessType::Load)
     {
         if (mstatus.fields.mxr == 0 && pte.get_r() != 1)
             return appropriate_exception(3);
