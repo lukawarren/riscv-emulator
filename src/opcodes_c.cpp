@@ -372,7 +372,7 @@ void c_srli(CPU& cpu, const CompressedInstruction& instruction)
 void c_srai(CPU& cpu, const CompressedInstruction& instruction)
 {
     const u8 rd = instruction.get_rd_with_offset();
-    cpu.registers[rd] = (u64)(i64)(i32)(cpu.registers[rd] >> instruction.get_shamt());
+    cpu.registers[rd] = i64(cpu.registers[rd]) >> instruction.get_shamt();
 }
 
 void c_andi(CPU& cpu, const CompressedInstruction& instruction)
