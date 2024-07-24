@@ -125,9 +125,11 @@ void CPU::raise_exception(const Exception exception, const u64 info)
 {
     if (exception != Exception::EnvironmentCallFromUMode &&
         exception != Exception::EnvironmentCallFromSMode &&
-        exception != Exception::EnvironmentCallFromMMode)
+        exception != Exception::EnvironmentCallFromMMode &&
+        emulating_test)
         dbg("warning: exception occurred", (int)exception, dbg::hex(pc), dbg::hex(info));
 
+    assert(!pending_trap.has_value());
     pending_trap = PendingTrap { (u64)exception, info, false };
 }
 
@@ -338,7 +340,7 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
 
     const auto appropriate_exception = [&](int number)
     {
-        if (type != AccessType::Trace) {
+        if (type != AccessType::Trace && emulating_test)
             dbg(
                 "MMU exception",
                 dbg::hex(address),
@@ -347,9 +349,9 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
                 privilege_level,
                 effective_privilege_level(type),
                 (int)mstatus.fields.mpp,
-                (int)mstatus.fields.mprv
+                (int)mstatus.fields.mprv,
+                dbg::hex(pc)
             );
-        }
 
         // Store cause
         erroneous_virtual_address = address;
@@ -469,7 +471,7 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
                 pte.set_d();
 
             // TODO: PMA or PMP check
-            dbg("TODO: pma or pmp MMU check missed");
+            // dbg("TODO: pma or pmp MMU check missed");
 
             // Update PTE value
             std::ignore = bus.write_64(a + vpns[i] * pte_size, pte.address);

@@ -117,13 +117,6 @@ void CLINT::increment(CPU& cpu)
         Software interrupts instead manipulate the MSIP register.
      */
 
-    // Artifically slow down clock as otherwise Linux gets stuck with it
-    // constantly firing, causing it to hang. Alternatively, fix the reported
-    // frequencies in the DTB. By default Linux wants the clock to fire at
-    // 250 Hz.
-    if (((i++) % 10000) != 0)
-        return;
-
     mtime +=1;
 
     if ((msip & 1) != 0)

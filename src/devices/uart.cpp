@@ -10,9 +10,7 @@
 
 UART::UART(bool listen_for_input) : listening_to_input(listen_for_input)
 {
-    dbg("remove me");
-    listening_to_input = false;
-    if (listen_for_input && 11==2)
+    if (listen_for_input)
     {
         if (tcgetattr(0, &original_termios) < 0)
             throw std::runtime_error("failed to get terminal settings");
