@@ -141,10 +141,13 @@ void PLIC::clock(CPU& cpu)
                     // Update claim and set external interrupt pending flag!
                     set_interrupt_claimed(id, context);
 
-                    if (context == MACHINE_CONTEXT)
-                        cpu.mip.set_mei();
-                    else
-                        cpu.mip.set_sei();
+                    // NOTE: I am unsure if it should be set_sei() or set_mei().
+                    //       Linux will fail to correctly detect interrupts if
+                    //       it's mei, however, and a few other sources seem to
+                    //       use sei too. To me that doesn't make sense because
+                    //       surely one should check if context == MACHINE_CONTEXT
+                    //       (and raise mei if it is) but hey-ho.
+                    cpu.mip.set_sei();
 
                     return;
                 }

@@ -471,7 +471,8 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
                 pte.set_d();
 
             // TODO: PMA or PMP check
-            // dbg("TODO: pma or pmp MMU check missed");
+            if (emulating_test)
+                dbg("TODO: pma or pmp MMU check missed");
 
             // Update PTE value
             std::ignore = bus.write_64(a + vpns[i] * pte_size, pte.address);

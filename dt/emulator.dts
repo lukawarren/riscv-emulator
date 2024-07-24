@@ -19,7 +19,7 @@
             device_type = "cpu";
             reg = <0>;
             compatible = "riscv";
-            riscv,isa = "rv64imasu";
+            riscv,isa = "rv64gc";
             mmu-type = "riscv,sv39";
             clock-frequency = <10000000>;
             cpu0_intc: interrupt-controller {
@@ -55,7 +55,7 @@
             interrupt-controller;
             compatible = "riscv,plic0";
             reg = <0x0 0xC000000 0x0 0x4000000>;
-            interrupts-extended = <&cpu0_intc 11>, <&cpu0_intc 0xffffffff>;
+            interrupts-extended = <&cpu0_intc 9>, <&cpu0_intc 11>;
             riscv,ndev = <1>;
             riscv,max-priority = <7>;
         };
