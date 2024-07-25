@@ -1,6 +1,6 @@
 # riscv-emulator
 A RISC-V emulator capable of running Linux (6.9.10), written in C++.
-![The emulator running Linux with a buildroot userspace](screenshots/linux 6.9.10 mmu.png)
+![The emulator running Linux with a buildroot userspace](screenshots/linux_6.9.10_mmu.png)
 
 ## Supported Extensions
 * RV64I
