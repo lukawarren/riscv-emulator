@@ -58,11 +58,30 @@ python run_tests.py
 ```
 
 ## Running Linux
-Install the Linux toolchain (as opposed to the elf toolchain) by following the instructions above but running `make linux` instead of `make`. If you wish to download a pre-built version instead, follow the same steps as previously described but swap `-elf-` with `-glibc-`. Then:
+
+### initramfs
+First you must build the initramfs. Currently I use buildroot with support for the following binaries:
+- nano
+- bash
+- micropython
+- busybox
+
+```
+cd external/buildroot
+./build.sh
+```
+
+Building on an i5-7600K takes just under 30 minutes and uses 7 GB of disk space. It will build slightly faster if you modify `buildroot.config` to remove everything except busybox.
+
+Alternatively, you can [download a pre-built version here](https://github.com/lukawarren/riscv-emulator/releases), to be placed under `external/buildroot/rootfs.cpio`.
+
+**You must re-run the kernel's `build.sh` (see below) whenever the initramfs changes.**
+
+### Kernel
+Install the Linux toolchain (as opposed to the elf toolchain) by following the instructions above for building tests but running `make linux` instead of `make`. If you wish to download a pre-built version of the toolchain instead, follow the same steps as previously described but swap `-elf-` with `-glibc-`. Then:
 ```
 # Build
 cd external/linux
-chmod +x build.sh
 ./build.sh
 
 # Run
@@ -71,3 +90,5 @@ cd build
 cmake .. -G Ninja && ninja
 ./riscv-emulator ../external/linux/image.bin
 ```
+
+Alternatively, if you do not wish to build Linux and OpenSBI from source *and* you do not wish to build the initramfs either, you can [download a pre-built final image here](https://github.com/lukawarren/riscv-emulator/releases), so that you can simply run `./riscv-emulator image.bin`.
