@@ -495,23 +495,8 @@ struct SATP : CSR
         Sv64 = 11
     };
 
-    bool write(const u64 value, CPU& cpu) override
-    {
-        u64 old_bits = bits;
-        bits = value;
-
-        // "if satp is written with an unsupported MODE, the entire write has no
-        // effect; no fields in satp are modified"
-        if (get_mode() != ModeSettings::None && get_mode() != ModeSettings::Sv39)
-            bits = old_bits;
-
-        return true;
-    }
-
-    std::optional<u64> read(CPU& cpu) override
-    {
-        return bits;
-    }
+    bool write(const u64 value, CPU& cpu) override;
+    std::optional<u64> read(CPU& cpu) override;
 
     ModeSettings get_mode() const
     {

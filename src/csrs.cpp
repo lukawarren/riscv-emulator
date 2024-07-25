@@ -109,6 +109,26 @@ std::optional<u64> MISA::read(CPU& cpu)
     return (mxl << 62)| extensions;
 }
 
+bool SATP::write(const u64 value, CPU& cpu)
+{
+    u64 old_bits = bits;
+    bits = value;
+
+    // "if satp is written with an unsupported MODE, the entire write has no
+    // effect; no fields in satp are modified"
+    if (get_mode() != ModeSettings::None && get_mode() != ModeSettings::Sv39)
+        bits = old_bits;
+
+    cpu.invalidate_tlb();
+
+    return true;
+}
+
+std::optional<u64> SATP::read(CPU& cpu)
+{
+    return bits;
+}
+
 bool Cycle::write(const u64, CPU&)
 {
     return true;

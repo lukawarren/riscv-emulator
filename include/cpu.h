@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "bus.h"
+#include "sv39.h"
 #include "csrs.h"
 #include "traps.h"
 #include "instruction.h"
@@ -142,10 +143,39 @@ public:
     // RISC-V tests require the CPU to terminate when an ECALL occurs
     bool emulating_test = false;
 
+    void invalidate_tlb();
+
 private:
     void execute_instruction(const Instruction instruction);
     void execute_compressed_instruction(const CompressedInstruction instruction);
     u64 get_exception_cause(const Exception exception);
+
+    struct TLBEntry
+    {
+        u64 virtual_page;
+        u64 physical_page;
+        u64 pte_address;
+        u64 pte;
+        AccessType access_type;
+        bool valid = false;
+    };
+    std::array<TLBEntry, 4> tlb = {};
+    size_t tlb_entries = 0;
+
+    std::expected<u64, Exception> tlb_lookup(
+        const u64 address,
+        const AccessType type
+    );
+
+    void add_tlb_entry(
+        const u64 virtual_page,
+        const u64 physical_page,
+        const PageTableEntry pte,
+        const u64 pte_address,
+        const AccessType access_type
+    );
+
+    void check_for_invalid_tlb();
 
     std::expected<u64, Exception> virtual_address_to_physical(
         const u64 address,
@@ -180,6 +210,10 @@ private:
 
     // For mcause
     u64 erroneous_virtual_address;
+
+    // For TLB
+    PrivilegeLevel last_privilege_level = PrivilegeLevel::Machine;
+    MStatus last_mstatus = {};
 
 private:
     template<typename T>
@@ -218,7 +252,7 @@ private:
         }
         else
         {
-            std::expected<u64, Exception> physical_address = virtual_address_to_physical(address, type);
+            std::expected<u64, Exception> physical_address = tlb_lookup(address, type);
             if (physical_address.has_value())
             {
                 const std::optional<T> value = fetch_from_bus<T>(*physical_address);
@@ -247,7 +281,7 @@ private:
                 return std::nullopt;
         }
 
-        const std::expected<u64, Exception> virtual_address = virtual_address_to_physical(address, type);
+        const std::expected<u64, Exception> virtual_address = tlb_lookup(address, type);
         if (virtual_address.has_value())
         {
             if (!write_to_bus<T>(*virtual_address, value))

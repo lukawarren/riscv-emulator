@@ -710,10 +710,14 @@ void wfi(CPU& cpu, const Instruction& instruction)
 void sfence_vma(CPU& cpu, const Instruction& instruction)
 {
     // Synchronises updates to in-memory memory-management data structres with
-    // current execution. i.e. glorified NOP for us.
+    // current execution.
+
     // Have to trap when TVM = 1.
     if (cpu.mstatus.fields.tvm == 1)
         cpu.raise_exception(Exception::IllegalInstruction);
+
+    // TODO: support local page flushes too
+    cpu.invalidate_tlb();
 }
 
 void lwu(CPU& cpu, const Instruction& instruction)
