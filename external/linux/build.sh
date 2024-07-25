@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-KERNEL_VERSION=5.15.163
-KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$KERNEL_VERSION.tar.xz"
+KERNEL_VERSION=6.9.10
+KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$KERNEL_VERSION.tar.xz"
 KERNEL_FILE="linux-$KERNEL_VERSION.tar.xz"
 KERNEL_EXTRACT_DIR="linux-$KERNEL_VERSION"
 
@@ -56,3 +56,6 @@ fi
 cd opensbi
 echo "building opensbi..."
 make CROSS_COMPILE=riscv64-unknown-linux-gnu- PLATFORM_RISCV_XLEN=64 PLATFORM_RISCV_ISA=rv64imafd_zicsr_zifencei PLATFORM=generic FW_PAYLOAD_PATH=../$KERNEL_EXTRACT_DIR/arch/riscv/boot/Image
+
+# Copy
+cp build/platform/generic/firmware/fw_payload.bin ../../image.bin

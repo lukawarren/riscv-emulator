@@ -1,5 +1,5 @@
 # riscv-emulator
-A RISC-V emulator capable of running Linux, written in C++.
+A RISC-V emulator capable of running Linux (6.9.10), written in C++.
 ![The emulator running Linux with a buildroot userspace](screenshots/linux_screenshot.png)
 
 ## Supported Extensions
@@ -69,5 +69,5 @@ chmod +x build.sh
 cd -
 cd build
 cmake .. -G Ninja && ninja
-./riscv-emulator ../external/linux/build/opensbi/build/platform/generic/firmware/fw_payload.bin
+./riscv-emulator ../external/linux/image.bin
 ```

@@ -1,7 +1,7 @@
 external/riscv-tests
 external/linux/build
 external/linux/rootfs.cpio
-external/linux-5.0
+external/linux/image.bin
 
 build/
 .vscode/
