@@ -40,7 +40,8 @@ public:
         Floating point registers and CSRs
     */
     float float_registers[32] = {};
-    FCSR fcsr;
+    FCSR fcsr;                          // The "actual" CSR register
+    FSFlags fsflags;                    // A "window" for the fflags
 
     PrivilegeLevel privilege_level = PrivilegeLevel::Machine;
 
@@ -139,7 +140,6 @@ public:
         u64 bits = 0;
         bits |= (1 << 0);  // A
         bits |= (1 << 2);  // C
-        bits |= (1 << 3);  // D
         bits |= (1 << 5);  // F
         bits |= (1 << 8);  // E
         bits |= (1 << 12); // U

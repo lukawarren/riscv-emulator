@@ -297,6 +297,7 @@ void CPU::execute_instruction(const Instruction instruction)
             case OPCODES_F_4:
             case OPCODES_F_5:
             case OPCODES_F_6:
+            case OPCODES_F_7:
                 did_find_opcode = opcodes_f(*this, instruction);
                 break;
 

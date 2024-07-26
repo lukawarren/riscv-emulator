@@ -2,6 +2,17 @@
 #include "cpu.h"
 #include "instruction.h"
 
+bool FSFlags::write(const u64 value, CPU& cpu)
+{
+    cpu.fcsr.set_fflags(value);
+    return true;
+}
+
+std::optional<u64> FSFlags::read(CPU& cpu)
+{
+    return cpu.fcsr.get_fflags();
+}
+
 bool SIE::write(const u64 value, CPU& cpu)
 {
     MIE old_value = cpu.mie;

@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 
+#define CSR_FSFLAGS         0x001
 #define CSR_FCSR            0x003
 #define CSR_SSTATUS         0x100
 #define CSR_SIE             0x104
@@ -218,6 +219,18 @@ struct FCSR : CSR
     void clear_nv() { bits &= ~(1 << 4); }
 
     u64 get_fflags() const { return bits & 0b11111; }
+
+    void set_fflags(u64 value)
+    {
+        bits &= 0b11111111111111111111111111100000;
+        bits |= value & 0b11111;
+    }
+};
+
+struct FSFlags : CSR
+{
+    bool write(const u64 value, CPU& cpu) override;
+    std::optional<u64> read(CPU& cpu) override;
 };
 
 struct MTVec : CSR
