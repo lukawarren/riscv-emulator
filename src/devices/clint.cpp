@@ -117,7 +117,7 @@ void CLINT::increment(CPU& cpu)
         Software interrupts instead manipulate the MSIP register.
      */
 
-    mtime +=1;
+    mtime += 1;
 
     if ((msip & 1) != 0)
         cpu.mip.set_msi();
