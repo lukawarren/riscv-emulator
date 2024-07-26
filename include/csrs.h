@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 
+#define CSR_FCSR            0x003
 #define CSR_SSTATUS         0x100
 #define CSR_SIE             0x104
 #define CSR_STVEC           0x105
@@ -157,9 +158,66 @@ struct DefaultCSR: CSR
         return true;
     }
 
-    std::optional<u64> read(CPU&) override {
+    std::optional<u64> read(CPU&) override
+    {
         return value;
     }
+};
+
+struct FCSR : CSR
+{
+    u32 bits = 0;
+
+    enum RoundingMode
+    {
+        RNE = 0,
+        RTZ = 1,
+        RDN = 2,
+        RUP = 3,
+        RMM = 4
+    };
+
+    bool write(const u64 value, CPU&) override
+    {
+        /*
+            Bits 31–8 of the fcsr are reserved for other standard extensions,
+            including the "L" standard extension for decimal floating-point.
+            If these extensions are not present, implementations shall
+            ignore writes to these bits and supply a zero value when read.
+        */
+        bits = value & 00000000000000000000000011111111;
+        return true;
+    }
+
+    std::optional<u64> read(CPU&) override
+    {
+        return bits;
+    }
+
+    RoundingMode rounding_mode() const
+    {
+        return RoundingMode((bits >> 5) & 0b111);
+    }
+
+    u64 get_nx() const { return (bits >> 0) & 0b1; }
+    u64 get_uf() const { return (bits >> 1) & 0b1; }
+    u64 get_of() const { return (bits >> 2) & 0b1; }
+    u64 get_dz() const { return (bits >> 3) & 0b1; }
+    u64 get_nv() const { return (bits >> 4) & 0b1; }
+
+    void set_nx() { bits |=  (1 << 0); }
+    void set_uf() { bits |=  (1 << 1); }
+    void set_of() { bits |=  (1 << 2); }
+    void set_dz() { bits |=  (1 << 3); }
+    void set_nv() { bits |=  (1 << 4); }
+
+    void clear_nx() { bits &= ~(1 << 0); }
+    void clear_uf() { bits &= ~(1 << 1); }
+    void clear_of() { bits &= ~(1 << 2); }
+    void clear_dz() { bits &= ~(1 << 3); }
+    void clear_nv() { bits &= ~(1 << 4); }
+
+    u64 get_fflags() const { return bits & 0b11111; }
 };
 
 struct MTVec : CSR

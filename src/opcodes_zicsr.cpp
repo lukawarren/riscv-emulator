@@ -76,6 +76,7 @@ std::optional<u64> read_csr(CPU& cpu, const u16 address)
     {
         // TODO: raises exception when mstatus has certain value
 
+        case CSR_FCSR:          return cpu.fcsr.read(cpu);
         case CSR_SSTATUS:       return cpu.sstatus.read(cpu);
         case CSR_SIE:           return cpu.sie.read(cpu);
         case CSR_STVEC:         return cpu.stvec.read(cpu);
@@ -167,6 +168,7 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
     {
         // TODO: raises exception when mstatus has certain value (maybe? well is for reads idk)
 
+        case CSR_FCSR:          return cpu.fcsr.write(value, cpu);
         case CSR_SSTATUS:       return cpu.sstatus.write(value, cpu);
         case CSR_SIE:           return cpu.sie.write(value, cpu);
         case CSR_STVEC:         return cpu.stvec.write(value, cpu);

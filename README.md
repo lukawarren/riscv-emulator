@@ -7,7 +7,11 @@ A RISC-V emulator capable of running Linux (6.9.10), written in C++.
 * A (atomics)
 * C (compressed instructions)
 * M (multiplication)
+* F (floating point)
+* D (double)
 * Zicsr (CSRs)
+
+The architecture can hence be considered RV64GC.
 
 Sv39 paging is also supported.
 
@@ -43,7 +47,7 @@ autoconf
 
 # build relevant tests
 cd isa
-make -j 16 rv64ui rv64ua rv64uc rv64um rv64si rv64mi
+make -j 16 rv64ui rv64ua rv64uc rv64um rv64uf rv64ud rv64si rv64mi
 rm *-v-*
 
 # convert ELF to bin
