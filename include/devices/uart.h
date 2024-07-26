@@ -13,12 +13,10 @@ public:
     void clock(PLIC& plic);
 
 private:
-    u8 rx_triggered = 0;
     u8 rx_irq_enabled = 0;
-    u8 tx_triggered = 0;
     u8 tx_irq_enabled = 0;
 
-    constexpr static size_t max_buffers_size = 1;
+    constexpr static size_t max_buffers_size = 1024;
     std::queue<u8> rx_buffer = {};
     std::queue<u8> tx_buffer = {};
 

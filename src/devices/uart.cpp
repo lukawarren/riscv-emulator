@@ -85,7 +85,7 @@ void UART::clock(PLIC& plic)
     bool should_trigger_irq = false;
 
     // Write to stdout
-    if (tx_buffer.size() > max_buffers_size - 1)
+    if (tx_buffer.size() != 0)
     {
         // Print out all characters in "transmitted buffer"
         while (tx_buffer.size() > 0)

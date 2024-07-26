@@ -70,8 +70,18 @@ void Bus::write_file(const u64 address, const std::string& filename)
 void Bus::clock(CPU& cpu)
 {
     clint.increment(cpu);
-    uart.clock(plic);
-    plic.clock(cpu);
+
+    // The CLINT is pretty sensitive to not being called every cycle (Linux
+    // will hang), but UART and the PLIC don't need to be called every clock
+    // cycle to work, and they're actually fairly costly. Only calling them
+    // every so often shaves about 1 second of Linux's (currently) 13 second
+    // boot time.
+
+    if (((++clock_counter) % 1024) == 0)
+    {
+        uart.clock(plic);
+        plic.clock(cpu);
+    }
 }
 
 std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address, const u64 size)
