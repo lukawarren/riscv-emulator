@@ -1,6 +1,6 @@
 #include "opcodes_a.h"
 
-bool opcodes_a(CPU& cpu, const Instruction& instruction)
+bool opcodes_a(CPU& cpu, const Instruction instruction)
 {
     const u64 opcode = instruction.get_opcode();
     const u64 funct3 = instruction.get_funct3();
@@ -56,7 +56,7 @@ bool opcodes_a(CPU& cpu, const Instruction& instruction)
     return true;
 }
 
-void lr_w(CPU& cpu, const Instruction& instruction)
+void lr_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -66,7 +66,7 @@ void lr_w(CPU& cpu, const Instruction& instruction)
     cpu.bus.reservations.insert(address);
 }
 
-void sc_w(CPU& cpu, const Instruction& instruction)
+void sc_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_STORE_ALIGNMENT_32(address);
@@ -81,7 +81,7 @@ void sc_w(CPU& cpu, const Instruction& instruction)
     else cpu.registers[instruction.get_rd()] = 1;
 }
 
-void amoswap_w(CPU& cpu, const Instruction& instruction)
+void amoswap_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -90,7 +90,7 @@ void amoswap_w(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)(i32)*value;
 }
 
-void amoadd_w(CPU& cpu, const Instruction& instruction)
+void amoadd_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -99,7 +99,7 @@ void amoadd_w(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)(i32)*value;
 }
 
-void amoxor_w(CPU& cpu, const Instruction& instruction)
+void amoxor_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -108,7 +108,7 @@ void amoxor_w(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)(i32)*value;
 }
 
-void amoand_w(CPU& cpu, const Instruction& instruction)
+void amoand_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -117,7 +117,7 @@ void amoand_w(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)(i32)*value;
 }
 
-void amoor_w(CPU& cpu, const Instruction& instruction)
+void amoor_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -126,7 +126,7 @@ void amoor_w(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)(i32)*value;
 }
 
-void amomin_w(CPU& cpu, const Instruction& instruction)
+void amomin_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -138,7 +138,7 @@ void amomin_w(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)(i32)*value;
 }
 
-void amomax_w(CPU& cpu, const Instruction& instruction)
+void amomax_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -150,7 +150,7 @@ void amomax_w(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)(i32)*value;
 }
 
-void amominu_w(CPU& cpu, const Instruction& instruction)
+void amominu_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -164,7 +164,7 @@ void amominu_w(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)(i32)*value;
 }
 
-void amomaxu_w(CPU& cpu, const Instruction& instruction)
+void amomaxu_w(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_32(address);
@@ -177,7 +177,7 @@ void amomaxu_w(CPU& cpu, const Instruction& instruction)
 }
 
 
-void lr_d(CPU& cpu, const Instruction& instruction)
+void lr_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);
@@ -187,7 +187,7 @@ void lr_d(CPU& cpu, const Instruction& instruction)
     cpu.bus.reservations.insert(address);
 }
 
-void sc_d(CPU& cpu, const Instruction& instruction)
+void sc_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_STORE_ALIGNMENT_64(address);
@@ -202,7 +202,7 @@ void sc_d(CPU& cpu, const Instruction& instruction)
     else cpu.registers[instruction.get_rd()] = 1;
 }
 
-void amoswap_d(CPU& cpu, const Instruction& instruction)
+void amoswap_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);
@@ -211,7 +211,7 @@ void amoswap_d(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *value;
 }
 
-void amoadd_d(CPU& cpu, const Instruction& instruction)
+void amoadd_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);
@@ -220,7 +220,7 @@ void amoadd_d(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *value;
 }
 
-void amoxor_d(CPU& cpu, const Instruction& instruction)
+void amoxor_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);
@@ -229,7 +229,7 @@ void amoxor_d(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *value;
 }
 
-void amoand_d(CPU& cpu, const Instruction& instruction)
+void amoand_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);
@@ -238,7 +238,7 @@ void amoand_d(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *value;
 }
 
-void amoor_d(CPU& cpu, const Instruction& instruction)
+void amoor_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);
@@ -247,7 +247,7 @@ void amoor_d(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *value;
 }
 
-void amomin_d(CPU& cpu, const Instruction& instruction)
+void amomin_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);
@@ -259,7 +259,7 @@ void amomin_d(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)*value;
 }
 
-void amomax_d(CPU& cpu, const Instruction& instruction)
+void amomax_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);
@@ -271,7 +271,7 @@ void amomax_d(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (i64)*value;
 }
 
-void amominu_d(CPU& cpu, const Instruction& instruction)
+void amominu_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);
@@ -283,7 +283,7 @@ void amominu_d(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *value;
 }
 
-void amomaxu_d(CPU& cpu, const Instruction& instruction)
+void amomaxu_d(CPU& cpu, const Instruction instruction)
 {
     GET_ADDRESS();
     CHECK_LOAD_ALIGNMENT_64(address);

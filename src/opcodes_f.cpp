@@ -15,7 +15,7 @@ void init_opcodes_f()
     std::fesetround(FE_TONEAREST);
 }
 
-bool opcodes_f(CPU& cpu, const Instruction& instruction)
+bool opcodes_f(CPU& cpu, const Instruction instruction)
 {
     const u8 opcode = instruction.get_opcode();
     const u8 funct3 = instruction.get_funct3();
@@ -95,7 +95,7 @@ static inline void update_flags(F&& f, CPU& cpu, const Instruction instruction)
         memcpy(&result, &quiet_nan, sizeof(quiet_nan));
 }
 
-void flw(CPU& cpu, const Instruction& instruction)
+void flw(CPU& cpu, const Instruction instruction)
 {
     const u64 address = instruction.get_imm(Instruction::Type::I) +
         cpu.registers[instruction.get_rs1()];
@@ -110,7 +110,7 @@ void flw(CPU& cpu, const Instruction& instruction)
     cpu.float_registers[instruction.get_rd()] = as_float(*value);
 }
 
-void fadd_s(CPU& cpu, const Instruction& instruction)
+void fadd_s(CPU& cpu, const Instruction instruction)
 {
     update_flags([&](){
         const float a = cpu.float_registers[instruction.get_rs1()];
@@ -119,7 +119,7 @@ void fadd_s(CPU& cpu, const Instruction& instruction)
     }, cpu, instruction);
 }
 
-void fsub_s(CPU& cpu, const Instruction& instruction)
+void fsub_s(CPU& cpu, const Instruction instruction)
 {
     update_flags([&](){
         const float a = cpu.float_registers[instruction.get_rs1()];
@@ -128,7 +128,7 @@ void fsub_s(CPU& cpu, const Instruction& instruction)
     }, cpu, instruction);
 }
 
-void fmul_s(CPU& cpu, const Instruction& instruction)
+void fmul_s(CPU& cpu, const Instruction instruction)
 {
     update_flags([&](){
         const float a = cpu.float_registers[instruction.get_rs1()];
@@ -137,7 +137,7 @@ void fmul_s(CPU& cpu, const Instruction& instruction)
     }, cpu, instruction);
 }
 
-void fdiv_s(CPU& cpu, const Instruction& instruction)
+void fdiv_s(CPU& cpu, const Instruction instruction)
 {
     update_flags([&](){
         const float a = cpu.float_registers[instruction.get_rs1()];
@@ -146,7 +146,7 @@ void fdiv_s(CPU& cpu, const Instruction& instruction)
     }, cpu, instruction);
 }
 
-void fmv_x_w(CPU& cpu, const Instruction& instruction)
+void fmv_x_w(CPU& cpu, const Instruction instruction)
 {
     u32 value = as_u32(cpu.float_registers[instruction.get_rs1()]);
     cpu.registers[instruction.get_rd()] = (i64)(i32)value;

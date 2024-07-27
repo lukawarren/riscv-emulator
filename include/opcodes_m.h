@@ -21,19 +21,19 @@
 #define REMW                0b110
 #define REMUW               0b111
 
-bool opcodes_m(CPU& cpu, const Instruction& instruction);
+bool opcodes_m(CPU& cpu, const Instruction instruction);
 
-void mul    (CPU& cpu, const Instruction& instruction);
-void mulh   (CPU& cpu, const Instruction& instruction);
-void mulhsu (CPU& cpu, const Instruction& instruction);
-void mulhu  (CPU& cpu, const Instruction& instruction);
-void div    (CPU& cpu, const Instruction& instruction);
-void divu   (CPU& cpu, const Instruction& instruction);
-void rem    (CPU& cpu, const Instruction& instruction);
-void remu   (CPU& cpu, const Instruction& instruction);
+void mul    (CPU& cpu, const Instruction instruction);
+void mulh   (CPU& cpu, const Instruction instruction);
+void mulhsu (CPU& cpu, const Instruction instruction);
+void mulhu  (CPU& cpu, const Instruction instruction);
+void div    (CPU& cpu, const Instruction instruction);
+void divu   (CPU& cpu, const Instruction instruction);
+void rem    (CPU& cpu, const Instruction instruction);
+void remu   (CPU& cpu, const Instruction instruction);
 
-void mulw   (CPU& cpu, const Instruction& instruction);
-void divw   (CPU& cpu, const Instruction& instruction);
-void divuw  (CPU& cpu, const Instruction& instruction);
-void remw   (CPU& cpu, const Instruction& instruction);
-void remuw  (CPU& cpu, const Instruction& instruction);
+void mulw   (CPU& cpu, const Instruction instruction);
+void divw   (CPU& cpu, const Instruction instruction);
+void divuw  (CPU& cpu, const Instruction instruction);
+void remw   (CPU& cpu, const Instruction instruction);
+void remuw  (CPU& cpu, const Instruction instruction);

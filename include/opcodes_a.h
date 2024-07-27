@@ -29,31 +29,31 @@
 #define AMOMINU_D           0b11000
 #define AMOMAXU_D           0b11100
 
-bool opcodes_a(CPU& cpu, const Instruction& instruction);
+bool opcodes_a(CPU& cpu, const Instruction instruction);
 
-void lr_w       (CPU& cpu, const Instruction& instruction);
-void sc_w       (CPU& cpu, const Instruction& instruction);
-void amoswap_w  (CPU& cpu, const Instruction& instruction);
-void amoadd_w   (CPU& cpu, const Instruction& instruction);
-void amoxor_w   (CPU& cpu, const Instruction& instruction);
-void amoand_w   (CPU& cpu, const Instruction& instruction);
-void amoor_w    (CPU& cpu, const Instruction& instruction);
-void amomin_w   (CPU& cpu, const Instruction& instruction);
-void amomax_w   (CPU& cpu, const Instruction& instruction);
-void amominu_w  (CPU& cpu, const Instruction& instruction);
-void amomaxu_w  (CPU& cpu, const Instruction& instruction);
+void lr_w       (CPU& cpu, const Instruction instruction);
+void sc_w       (CPU& cpu, const Instruction instruction);
+void amoswap_w  (CPU& cpu, const Instruction instruction);
+void amoadd_w   (CPU& cpu, const Instruction instruction);
+void amoxor_w   (CPU& cpu, const Instruction instruction);
+void amoand_w   (CPU& cpu, const Instruction instruction);
+void amoor_w    (CPU& cpu, const Instruction instruction);
+void amomin_w   (CPU& cpu, const Instruction instruction);
+void amomax_w   (CPU& cpu, const Instruction instruction);
+void amominu_w  (CPU& cpu, const Instruction instruction);
+void amomaxu_w  (CPU& cpu, const Instruction instruction);
 
-void lr_d       (CPU& cpu, const Instruction& instruction);
-void sc_d       (CPU& cpu, const Instruction& instruction);
-void amoswap_d  (CPU& cpu, const Instruction& instruction);
-void amoadd_d   (CPU& cpu, const Instruction& instruction);
-void amoxor_d   (CPU& cpu, const Instruction& instruction);
-void amoand_d   (CPU& cpu, const Instruction& instruction);
-void amoor_d    (CPU& cpu, const Instruction& instruction);
-void amomin_d   (CPU& cpu, const Instruction& instruction);
-void amomax_d   (CPU& cpu, const Instruction& instruction);
-void amominu_d  (CPU& cpu, const Instruction& instruction);
-void amomaxu_d  (CPU& cpu, const Instruction& instruction);
+void lr_d       (CPU& cpu, const Instruction instruction);
+void sc_d       (CPU& cpu, const Instruction instruction);
+void amoswap_d  (CPU& cpu, const Instruction instruction);
+void amoadd_d   (CPU& cpu, const Instruction instruction);
+void amoxor_d   (CPU& cpu, const Instruction instruction);
+void amoand_d   (CPU& cpu, const Instruction instruction);
+void amoor_d    (CPU& cpu, const Instruction instruction);
+void amomin_d   (CPU& cpu, const Instruction instruction);
+void amomax_d   (CPU& cpu, const Instruction instruction);
+void amominu_d  (CPU& cpu, const Instruction instruction);
+void amomaxu_d  (CPU& cpu, const Instruction instruction);
 
 // --- Helpers macros, mostly to return early from opcodes in-case of errors ---
 

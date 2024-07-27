@@ -3,12 +3,12 @@
 #include "opcodes_m.h"
 
 // Helpers
-u64 get_load_address(const CPU& cpu, const Instruction& instruction);
-u64 get_store_address(const CPU& cpu, const Instruction& instruction);
-u32 get_wide_shift_amount(const CPU& cpu, const Instruction& instruction);
+u64 get_load_address(const CPU& cpu, const Instruction instruction);
+u64 get_store_address(const CPU& cpu, const Instruction instruction);
+u32 get_wide_shift_amount(const CPU& cpu, const Instruction instruction);
 bool check_branch_alignment(CPU& cpu, const u64 target);
 
-bool opcodes_base(CPU& cpu, const Instruction& instruction)
+bool opcodes_base(CPU& cpu, const Instruction instruction)
 {
     const u8 opcode = instruction.get_opcode();
     const u8 funct3 = instruction.get_funct3();
@@ -264,42 +264,42 @@ bool opcodes_base(CPU& cpu, const Instruction& instruction)
     return true;
 }
 
-void add(CPU& cpu, const Instruction& instruction)
+void add(CPU& cpu, const Instruction instruction)
 {
     cpu.registers[instruction.get_rd()] =
         cpu.registers[instruction.get_rs1()] +
         cpu.registers[instruction.get_rs2()];
 }
 
-void sub(CPU& cpu, const Instruction& instruction)
+void sub(CPU& cpu, const Instruction instruction)
 {
     cpu.registers[instruction.get_rd()] =
         cpu.registers[instruction.get_rs1()] -
         cpu.registers[instruction.get_rs2()];
 }
 
-void _xor(CPU& cpu, const Instruction& instruction)
+void _xor(CPU& cpu, const Instruction instruction)
 {
     cpu.registers[instruction.get_rd()] =
         cpu.registers[instruction.get_rs1()] ^
         cpu.registers[instruction.get_rs2()];
 }
 
-void _or(CPU& cpu, const Instruction& instruction)
+void _or(CPU& cpu, const Instruction instruction)
 {
     cpu.registers[instruction.get_rd()] =
         cpu.registers[instruction.get_rs1()] |
         cpu.registers[instruction.get_rs2()];
 }
 
-void _and(CPU& cpu, const Instruction& instruction)
+void _and(CPU& cpu, const Instruction instruction)
 {
     cpu.registers[instruction.get_rd()] =
         cpu.registers[instruction.get_rs1()] &
         cpu.registers[instruction.get_rs2()];
 }
 
-void sll(CPU& cpu, const Instruction& instruction)
+void sll(CPU& cpu, const Instruction instruction)
 {
     // For RV64I, 6 bits are used (RV32I = 5)!,
     cpu.registers[instruction.get_rd()] =
@@ -307,7 +307,7 @@ void sll(CPU& cpu, const Instruction& instruction)
         cpu.registers[instruction.get_rs2_6_bits()];
 }
 
-void srl(CPU& cpu, const Instruction& instruction)
+void srl(CPU& cpu, const Instruction instruction)
 {
     // For RV64I, 6 bits are used (RV32I = 5)!,
     cpu.registers[instruction.get_rd()] =
@@ -315,7 +315,7 @@ void srl(CPU& cpu, const Instruction& instruction)
         cpu.registers[instruction.get_rs2_6_bits()];
 }
 
-void sra(CPU& cpu, const Instruction& instruction)
+void sra(CPU& cpu, const Instruction instruction)
 {
     // For RV64I, 6 bits are used (RV32I = 5)!,
     cpu.registers[instruction.get_rd()] =
@@ -323,7 +323,7 @@ void sra(CPU& cpu, const Instruction& instruction)
         cpu.registers[instruction.get_rs2_6_bits()];
 }
 
-void slt(CPU& cpu, const Instruction& instruction)
+void slt(CPU& cpu, const Instruction instruction)
 {
     // Signed comparison between rs1 and rs2
     const i64 rs1 = cpu.registers[instruction.get_rs1()];
@@ -331,7 +331,7 @@ void slt(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (rs1 < rs2) ? 1 : 0;
 }
 
-void sltu(CPU& cpu, const Instruction& instruction)
+void sltu(CPU& cpu, const Instruction instruction)
 {
     // Unsigned comparison between rs1 and rs2 (i.e. zero extends)
     const u64 rs1 = cpu.registers[instruction.get_rs1()];
@@ -339,51 +339,51 @@ void sltu(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (rs1 < rs2) ? 1 : 0;
 }
 
-void addi(CPU& cpu, const Instruction& instruction)
+void addi(CPU& cpu, const Instruction instruction)
 {
     // No need for overflow checks
     const i64 imm = instruction.get_imm(Instruction::Type::I);
     cpu.registers[instruction.get_rd()] = cpu.registers[instruction.get_rs1()] + imm;
 }
 
-void xori(CPU& cpu, const Instruction& instruction)
+void xori(CPU& cpu, const Instruction instruction)
 {
     const i64 imm = instruction.get_imm(Instruction::Type::I);
     cpu.registers[instruction.get_rd()] = cpu.registers[instruction.get_rs1()] ^ imm;
 }
 
-void ori(CPU& cpu, const Instruction& instruction)
+void ori(CPU& cpu, const Instruction instruction)
 {
     const i64 imm = instruction.get_imm(Instruction::Type::I);
     cpu.registers[instruction.get_rd()] = cpu.registers[instruction.get_rs1()] | imm;
 }
 
-void andi(CPU& cpu, const Instruction& instruction)
+void andi(CPU& cpu, const Instruction instruction)
 {
     cpu.registers[instruction.get_rd()] =
         cpu.registers[instruction.get_rs1()] &
         instruction.get_imm(Instruction::Type::I);
 }
 
-void slli(CPU& cpu, const Instruction& instruction)
+void slli(CPU& cpu, const Instruction instruction)
 {
     cpu.registers[instruction.get_rd()] =
         cpu.registers[instruction.get_rs1()] << instruction.get_shamt();
 }
 
-void srli(CPU& cpu, const Instruction& instruction)
+void srli(CPU& cpu, const Instruction instruction)
 {
     cpu.registers[instruction.get_rd()] =
         cpu.registers[instruction.get_rs1()] >> instruction.get_shamt();
 }
 
-void srai(CPU& cpu, const Instruction& instruction)
+void srai(CPU& cpu, const Instruction instruction)
 {
     cpu.registers[instruction.get_rd()] =
         (i64)(cpu.registers[instruction.get_rs1()]) >> instruction.get_shamt();
 }
 
-void slti(CPU& cpu, const Instruction& instruction)
+void slti(CPU& cpu, const Instruction instruction)
 {
     // Signed comparison between rs1 and imm
     const i64 rs1 = cpu.registers[instruction.get_rs1()];
@@ -391,7 +391,7 @@ void slti(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (rs1 < rs2) ? 1 : 0;
 }
 
-void sltiu(CPU& cpu, const Instruction& instruction)
+void sltiu(CPU& cpu, const Instruction instruction)
 {
     // Unsigned comparison between rs1 and imm
     const u64 rs1 = cpu.registers[instruction.get_rs1()];
@@ -399,7 +399,7 @@ void sltiu(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (rs1 < rs2) ? 1 : 0;
 }
 
-void lb(CPU& cpu, const Instruction& instruction)
+void lb(CPU& cpu, const Instruction instruction)
 {
     const auto value = cpu.read_8(get_load_address(cpu, instruction));
     if (!value)
@@ -410,7 +410,7 @@ void lb(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (u64)(i64)(i8)*value;
 }
 
-void lh(CPU& cpu, const Instruction& instruction)
+void lh(CPU& cpu, const Instruction instruction)
 {
     const auto value = cpu.read_16(get_load_address(cpu, instruction));
     if (!value)
@@ -421,7 +421,7 @@ void lh(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (u64)(i64)(i16)*value;
 }
 
-void lw(CPU& cpu, const Instruction& instruction)
+void lw(CPU& cpu, const Instruction instruction)
 {
     const auto value = cpu.read_32(get_load_address(cpu, instruction));
     if (!value)
@@ -432,7 +432,7 @@ void lw(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (u64)(i64)(i32)*value;
 }
 
-void lbu(CPU& cpu, const Instruction& instruction)
+void lbu(CPU& cpu, const Instruction instruction)
 {
     const auto value = cpu.read_8(get_load_address(cpu, instruction));
     if (!value)
@@ -443,7 +443,7 @@ void lbu(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *value;
 }
 
-void lhu(CPU& cpu, const Instruction& instruction)
+void lhu(CPU& cpu, const Instruction instruction)
 {
     const auto value = cpu.read_16(get_load_address(cpu, instruction));
     if (!value)
@@ -454,7 +454,7 @@ void lhu(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *value;
 }
 
-void sb(CPU& cpu, const Instruction& instruction)
+void sb(CPU& cpu, const Instruction instruction)
 {
     const auto error = cpu.write_8(
         get_store_address(cpu, instruction),
@@ -464,7 +464,7 @@ void sb(CPU& cpu, const Instruction& instruction)
         cpu.raise_exception(*error);
 }
 
-void sh(CPU& cpu, const Instruction& instruction)
+void sh(CPU& cpu, const Instruction instruction)
 {
     const auto error = cpu.write_16(
         get_store_address(cpu, instruction),
@@ -474,7 +474,7 @@ void sh(CPU& cpu, const Instruction& instruction)
         cpu.raise_exception(*error);
 }
 
-void sw(CPU& cpu, const Instruction& instruction)
+void sw(CPU& cpu, const Instruction instruction)
 {
     const auto error = cpu.write_32(
         get_store_address(cpu, instruction),
@@ -484,7 +484,7 @@ void sw(CPU& cpu, const Instruction& instruction)
         cpu.raise_exception(*error);
 }
 
-void beq(CPU& cpu, const Instruction& instruction)
+void beq(CPU& cpu, const Instruction instruction)
 {
     const u64 target = instruction.get_imm(Instruction::Type::B);
 
@@ -493,7 +493,7 @@ void beq(CPU& cpu, const Instruction& instruction)
         cpu.pc += target - 4;
 }
 
-void bne(CPU& cpu, const Instruction& instruction)
+void bne(CPU& cpu, const Instruction instruction)
 {
     const u64 target = instruction.get_imm(Instruction::Type::B);
 
@@ -503,7 +503,7 @@ void bne(CPU& cpu, const Instruction& instruction)
         cpu.pc += target - 4;
 }
 
-void blt(CPU& cpu, const Instruction& instruction)
+void blt(CPU& cpu, const Instruction instruction)
 {
     const u64 target = instruction.get_imm(Instruction::Type::B);
 
@@ -513,7 +513,7 @@ void blt(CPU& cpu, const Instruction& instruction)
         cpu.pc += target - 4;
 }
 
-void bge(CPU& cpu, const Instruction& instruction)
+void bge(CPU& cpu, const Instruction instruction)
 {
     const u64 target = instruction.get_imm(Instruction::Type::B);
 
@@ -523,7 +523,7 @@ void bge(CPU& cpu, const Instruction& instruction)
         cpu.pc += target - 4;
 }
 
-void bltu(CPU& cpu, const Instruction& instruction)
+void bltu(CPU& cpu, const Instruction instruction)
 {
     const u64 target = instruction.get_imm(Instruction::Type::B);
 
@@ -533,7 +533,7 @@ void bltu(CPU& cpu, const Instruction& instruction)
         cpu.pc += target - 4;
 }
 
-void bgeu(CPU& cpu, const Instruction& instruction)
+void bgeu(CPU& cpu, const Instruction instruction)
 {
     const u64 target = instruction.get_imm(Instruction::Type::B);
 
@@ -543,7 +543,7 @@ void bgeu(CPU& cpu, const Instruction& instruction)
         cpu.pc += target - 4;
 }
 
-void jal(CPU& cpu, const Instruction& instruction)
+void jal(CPU& cpu, const Instruction instruction)
 {
     // Add offset to program counter - sign extension done for us
     const i64 offset = instruction.get_imm(Instruction::Type::J);
@@ -555,7 +555,7 @@ void jal(CPU& cpu, const Instruction& instruction)
     cpu.pc += offset - 4;
 }
 
-void jalr(CPU& cpu, const Instruction& instruction)
+void jalr(CPU& cpu, const Instruction instruction)
 {
     // Same as JAL but don't add (just set), and use register as well
     // as immediate value. Note the I-type encoding! The LSB is always
@@ -569,19 +569,19 @@ void jalr(CPU& cpu, const Instruction& instruction)
     cpu.pc = (u64)offset - 4;
 }
 
-void lui(CPU& cpu, const Instruction& instruction)
+void lui(CPU& cpu, const Instruction instruction)
 {
     const u64 offset = instruction.get_imm(Instruction::Type::U);
     cpu.registers[instruction.get_rd()] = offset;
 }
 
-void auipc(CPU& cpu, const Instruction& instruction)
+void auipc(CPU& cpu, const Instruction instruction)
 {
     const u64 offset = instruction.get_imm(Instruction::Type::U);
     cpu.registers[instruction.get_rd()] = cpu.pc + offset;
 }
 
-void ecall(CPU& cpu, const Instruction& instruction)
+void ecall(CPU& cpu, const Instruction instruction)
 {
     if (cpu.emulating_test)
     {
@@ -615,18 +615,18 @@ void ecall(CPU& cpu, const Instruction& instruction)
     }
 }
 
-void ebreak(CPU& cpu, const Instruction& instruction)
+void ebreak(CPU& cpu, const Instruction instruction)
 {
     // Used for syscalls, etc.
     cpu.raise_exception(Exception::Breakpoint, 0);
 }
 
-void uret(CPU& cpu, const Instruction& instruction)
+void uret(CPU& cpu, const Instruction instruction)
 {
     throw std::runtime_error("uret unsupported");
 }
 
-void sret(CPU& cpu, const Instruction& instruction)
+void sret(CPU& cpu, const Instruction instruction)
 {
     // When TSR=1, attempts to execute SRET while executing in S-mode
     // will raise an illegal instruction exception.
@@ -654,7 +654,7 @@ void sret(CPU& cpu, const Instruction& instruction)
     cpu.mstatus.fields.spp = 0;
 }
 
-void mret(CPU& cpu, const Instruction& instruction)
+void mret(CPU& cpu, const Instruction instruction)
 {
     /*
         "Returns from a machine-mode exception handler. Sets the pc to
@@ -681,7 +681,7 @@ void mret(CPU& cpu, const Instruction& instruction)
     cpu.mstatus.fields.mpp = 0;
 }
 
-void wfi(CPU& cpu, const Instruction& instruction)
+void wfi(CPU& cpu, const Instruction instruction)
 {
     /*
         The Wait for Interrupt instruction (WFI) provides a hint to the
@@ -707,7 +707,7 @@ void wfi(CPU& cpu, const Instruction& instruction)
     }
 }
 
-void sfence_vma(CPU& cpu, const Instruction& instruction)
+void sfence_vma(CPU& cpu, const Instruction instruction)
 {
     // Synchronises updates to in-memory memory-management data structres with
     // current execution.
@@ -720,7 +720,7 @@ void sfence_vma(CPU& cpu, const Instruction& instruction)
     cpu.invalidate_tlb();
 }
 
-void lwu(CPU& cpu, const Instruction& instruction)
+void lwu(CPU& cpu, const Instruction instruction)
 {
     const auto value = cpu.read_32(get_load_address(cpu, instruction));
     if (!value)
@@ -731,7 +731,7 @@ void lwu(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *value;
 }
 
-void ld(CPU& cpu, const Instruction& instruction)
+void ld(CPU& cpu, const Instruction instruction)
 {
     const auto value = cpu.read_64(get_load_address(cpu, instruction));
     if (!value)
@@ -742,7 +742,7 @@ void ld(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = (u64)(i64)*value;
 }
 
-void sd(CPU& cpu, const Instruction& instruction)
+void sd(CPU& cpu, const Instruction instruction)
 {
     const auto error = cpu.write_64(
         get_store_address(cpu, instruction),
@@ -752,7 +752,7 @@ void sd(CPU& cpu, const Instruction& instruction)
         cpu.raise_exception(*error);
 }
 
-void addiw(CPU& cpu, const Instruction& instruction)
+void addiw(CPU& cpu, const Instruction instruction)
 {
     const u64 result = cpu.registers[instruction.get_rs1()] +
         instruction.get_imm(Instruction::Type::I);
@@ -762,28 +762,28 @@ void addiw(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = extended;
 }
 
-void slliw(CPU& cpu, const Instruction& instruction)
+void slliw(CPU& cpu, const Instruction instruction)
 {
     const u32 shift_amount = get_wide_shift_amount(cpu, instruction);
     cpu.registers[instruction.get_rd()] =
         (i64)(i32)(cpu.registers[instruction.get_rs1()] << shift_amount);
 }
 
-void srliw(CPU& cpu, const Instruction& instruction)
+void srliw(CPU& cpu, const Instruction instruction)
 {
     const u32 shift_amount = get_wide_shift_amount(cpu, instruction);
     const u32 rs1 = (u32)cpu.registers[instruction.get_rs1()];
     cpu.registers[instruction.get_rd()] = (i64)(i32)(rs1 >> shift_amount);
 }
 
-void sraiw(CPU& cpu, const Instruction& instruction)
+void sraiw(CPU& cpu, const Instruction instruction)
 {
     const u32 shift_amount = get_wide_shift_amount(cpu, instruction);
     const i32 rs1 = (i32)cpu.registers[instruction.get_rs1()];
     cpu.registers[instruction.get_rd()] = (u64)(i64)(rs1 >> shift_amount);
 }
 
-void addw(CPU& cpu, const Instruction& instruction)
+void addw(CPU& cpu, const Instruction instruction)
 {
     const u64 result =
         cpu.registers[instruction.get_rs1()] +
@@ -794,7 +794,7 @@ void addw(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = extended;
 }
 
-void subw(CPU& cpu, const Instruction& instruction)
+void subw(CPU& cpu, const Instruction instruction)
 {
     const u64 result =
         cpu.registers[instruction.get_rs1()] -
@@ -805,21 +805,21 @@ void subw(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = extended;
 }
 
-void sllw(CPU& cpu, const Instruction& instruction)
+void sllw(CPU& cpu, const Instruction instruction)
 {
     const u8 shift_amount = cpu.registers[instruction.get_rs2()] & 0b11111;
     cpu.registers[instruction.get_rd()] =
         (i64)(i32)(cpu.registers[instruction.get_rs1()] << shift_amount);
 }
 
-void srlw(CPU& cpu, const Instruction& instruction)
+void srlw(CPU& cpu, const Instruction instruction)
 {
     const u8 shift_amount = cpu.registers[instruction.get_rs2()] & 0b11111;
     const u32 rs1 = (u32)cpu.registers[instruction.get_rs1()];
     cpu.registers[instruction.get_rd()] = (i64)(i32)(rs1 >> shift_amount);
 }
 
-void sraw(CPU& cpu, const Instruction& instruction)
+void sraw(CPU& cpu, const Instruction instruction)
 {
     const u8 shift_amount = cpu.registers[instruction.get_rs2()] & 0b11111;
     const i32 rs1 = (i32)cpu.registers[instruction.get_rs1()];
@@ -828,19 +828,19 @@ void sraw(CPU& cpu, const Instruction& instruction)
 
 // -- Helpers --
 
-u64 get_load_address(const CPU& cpu, const Instruction& instruction)
+u64 get_load_address(const CPU& cpu, const Instruction instruction)
 {
     return instruction.get_imm(Instruction::Type::I) +
         cpu.registers[instruction.get_rs1()];
 }
 
-u64 get_store_address(const CPU& cpu, const Instruction& instruction)
+u64 get_store_address(const CPU& cpu, const Instruction instruction)
 {
     return instruction.get_imm(Instruction::Type::S) +
         cpu.registers[instruction.get_rs1()];
 }
 
-u32 get_wide_shift_amount(const CPU&, const Instruction& instruction)
+u32 get_wide_shift_amount(const CPU&, const Instruction instruction)
 {
     // SLLIW, SRLIW and SRAIW generate an illegal instruction exception
     // if imm[5] != 0. TODO: emulate!

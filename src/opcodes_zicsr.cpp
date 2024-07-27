@@ -1,6 +1,6 @@
 #include "opcodes_zicsr.h"
 
-bool opcodes_zicsr(CPU& cpu, const Instruction& instruction)
+bool opcodes_zicsr(CPU& cpu, const Instruction instruction)
 {
     u8 funct3 = instruction.get_funct3();
 
@@ -209,7 +209,7 @@ bool write_csr(CPU& cpu, const u64 value, const u16 address)
     }
 }
 
-void csrrw(CPU& cpu, const Instruction& instruction)
+void csrrw(CPU& cpu, const Instruction instruction)
 {
     /*
         If rd=x0, then the instruction shall not read the CSR and shall not
@@ -229,7 +229,7 @@ void csrrw(CPU& cpu, const Instruction& instruction)
         cpu.registers[instruction.get_rd()] = *value;
 }
 
-void csrrs(CPU& cpu, const Instruction& instruction)
+void csrrs(CPU& cpu, const Instruction instruction)
 {
     // Write CSR to rd
     const u64 address = instruction.get_imm(Instruction::Type::I);
@@ -251,7 +251,7 @@ void csrrs(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *csr;
 }
 
-void csrrc(CPU& cpu, const Instruction& instruction)
+void csrrc(CPU& cpu, const Instruction instruction)
 {
     // Write CSR to rd
     const u64 address = instruction.get_imm(Instruction::Type::I);
@@ -270,7 +270,7 @@ void csrrc(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *csr;
 }
 
-void csrrwi(CPU& cpu, const Instruction& instruction)
+void csrrwi(CPU& cpu, const Instruction instruction)
 {
     /*
         If rd=x0, then the instruction shall not read the CSR and shall not
@@ -290,7 +290,7 @@ void csrrwi(CPU& cpu, const Instruction& instruction)
         cpu.registers[instruction.get_rd()] = *csr;
 }
 
-void csrrsi(CPU& cpu, const Instruction& instruction)
+void csrrsi(CPU& cpu, const Instruction instruction)
 {
     // Read CSR
     const u64 address = instruction.get_imm(Instruction::Type::I);
@@ -305,7 +305,7 @@ void csrrsi(CPU& cpu, const Instruction& instruction)
     cpu.registers[instruction.get_rd()] = *csr;
 }
 
-void csrrci(CPU& cpu, const Instruction& instruction)
+void csrrci(CPU& cpu, const Instruction instruction)
 {
     // Read CSR
     const u64 address = instruction.get_imm(Instruction::Type::I);
