@@ -44,6 +44,11 @@ struct Instruction
         return (instruction >> 7) & 0b11111;
     }
 
+    u8 get_funct2() const
+    {
+        return (instruction & 0x03000000) >> 25;
+    }
+
     u8 get_funct3() const
     {
         return (instruction >> 12) & 0b111;

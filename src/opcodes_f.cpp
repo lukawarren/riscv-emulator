@@ -18,6 +18,7 @@ void init_opcodes_f()
 bool opcodes_f(CPU& cpu, const Instruction instruction)
 {
     const u8 opcode = instruction.get_opcode();
+    const u8 funct2 = instruction.get_funct2();
     const u8 funct3 = instruction.get_funct3();
     const u8 funct7 = instruction.get_funct7();
 
@@ -32,8 +33,55 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
             }
         }
 
+        case OPCODES_F_2:
+        {
+            switch (funct3)
+            {
+                case FSW: fsw(cpu, instruction); return true;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_3:
+        {
+            switch (funct2)
+            {
+                case FMADD_S: fmadd_s(cpu, instruction); return true;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_4:
+        {
+            switch (funct2)
+            {
+                case FMSUB_S: fmsub_s(cpu, instruction); return true;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_5:
+        {
+            switch (funct2)
+            {
+                case FNMADD_S: fnmadd_s(cpu, instruction); return true;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_6:
+        {
+            switch (funct2)
+            {
+                case FNMSUB_S: fnmsub_s(cpu, instruction); return true;
+                default: return false;
+            }
+        }
+
         case OPCODES_F_7:
         {
+            dbg("todo: check frm field is valid");
+
             switch (funct7)
             {
                 case FADD_S: fadd_s(cpu, instruction); return true;
@@ -41,16 +89,72 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                 case FMUL_S: fmul_s(cpu, instruction); return true;
                 case FDIV_S: fdiv_s(cpu, instruction); return true;
 
-                case 0x70:
+                case 0x10:
                 {
                     switch (funct3)
                     {
-                        case FMV_X_W: fmv_x_w(cpu, instruction); return true;
+                        case FSGNJ_S:  fsgnj_s(cpu, instruction);  return true;
+                        case FSGNJN_S: fsgnjn_s(cpu, instruction); return true;
+                        case FSGNJX_S: fsgnjx_s(cpu, instruction); return true;
                         default: return false;
                     }
                 }
 
-                default:                                    return false;
+                case 0x14:
+                {
+                    switch (funct3)
+                    {
+                        case FMIN_S: fmin_s(cpu, instruction); return true;
+                        case FMAX_S: fmax_s(cpu, instruction); return true;
+                        default: return false;
+                    }
+                }
+
+                case 0x50:
+                {
+                    switch (funct3)
+                    {
+                        case FEQ_S: feq_s(cpu, instruction); return true;
+                        case FLT_S: flt_s(cpu, instruction); return true;
+                        case FLE_S: fle_s(cpu, instruction); return true;
+                        default: return false;
+                    }
+                }
+
+                case 0x60:
+                {
+                    switch (instruction.get_rs2())
+                    {
+                        case FCVT_W_S:  fcvt_w_s(cpu, instruction);  return true;
+                        case FCVT_WU_S: fcvt_wu_s(cpu, instruction); return true;
+                        default: return false;
+                    }
+                }
+
+                case 0x68:
+                {
+                    switch (instruction.get_rs2())
+                    {
+                        case FCVT_S_W:  fcvt_s_w(cpu, instruction);  return true;
+                        case FCVT_S_WU: fcvt_s_wu(cpu, instruction); return true;
+                        default: return false;
+                    }
+                }
+
+                case 0x70:
+                {
+                    switch (funct3)
+                    {
+                        case FMV_X_W:  fmv_x_w(cpu, instruction);  return true;
+                        case FCLASS_S: fclass_s(cpu, instruction); return true;
+                        default: return false;
+                    }
+                }
+
+                case FMV_W_X:     fmv_w_x(cpu, instruction); return true;
+                case FDIV_SQRT_S: fsqrt_s(cpu, instruction); return true;
+
+                default: return false;
             }
         }
 
@@ -143,6 +247,14 @@ void fdiv_s(CPU& cpu, const Instruction instruction)
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
         cpu.float_registers[instruction.get_rd()] = a / b;
+    }, cpu, instruction);
+}
+
+void fsqrt_s(CPU& cpu, const Instruction instruction)
+{
+    update_flags([&](){
+        const float a = cpu.float_registers[instruction.get_rs1()];
+        cpu.float_registers[instruction.get_rd()] = sqrtf(a);
     }, cpu, instruction);
 }
 
