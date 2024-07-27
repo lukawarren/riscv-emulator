@@ -97,7 +97,7 @@ void UART::clock(PLIC& plic)
         fflush(stdout);
     }
 
-    if (rx_irq_enabled && rx_buffer.size() >= max_buffers_size)
+    if (rx_irq_enabled && rx_buffer.size() != 0)
         should_trigger_irq = true;
 
     if (tx_irq_enabled && tx_buffer.size() == 0)
