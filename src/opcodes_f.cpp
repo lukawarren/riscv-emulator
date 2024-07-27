@@ -9,6 +9,9 @@
 */
 static_assert(std::numeric_limits<float>::is_iec559);
 
+constexpr u32 qNaN_float = 0x7fc00000; // a.k.a. "canconical" NaN
+constexpr u32 sNaN_float = 0x7f800001;
+
 void init_opcodes_f()
 {
     // Default RISC-V rounding mode (0 = RNE)
@@ -193,17 +196,10 @@ static inline void update_flags(F&& f, CPU& cpu, const Instruction instruction, 
     if (std::fetestexcept(FE_UNDERFLOW)) cpu.fcsr.set_uf();
     if (std::fetestexcept(FE_INEXACT)) cpu.fcsr.set_nx();
 
-    if (std::fetestexcept(FE_INVALID)) dbg("nv");
-    if (std::fetestexcept(FE_DIVBYZERO)) dbg("nz");
-    if (std::fetestexcept(FE_OVERFLOW)) dbg("of");
-    if (std::fetestexcept(FE_UNDERFLOW)) dbg("uf");
-    if (std::fetestexcept(FE_INEXACT)) dbg("nx");
-
     // Deal with NaN
-    u32 quiet_nan = 0x7fc00000;
     auto& result = cpu.float_registers[use_rs1 ? instruction.get_rs1() : instruction.get_rd()];
     if (std::isnan(result))
-        memcpy(&result, &quiet_nan, sizeof(quiet_nan));
+        memcpy(&result, &qNaN_float, sizeof(qNaN_float));
 }
 
 static inline void set_rounding_mode(const CPU& cpu, const Instruction instruction)
@@ -440,7 +436,20 @@ void fmin_s(CPU& cpu, const Instruction instruction)
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
-        cpu.float_registers[instruction.get_rd()] = std::fmin(a, b);
+
+        const auto get_min = [&]()
+        {
+            // fmin(+0, -0) = -0
+            if (a == 0.0f && b == 0.0f)
+            {
+                if (std::signbit(a) || std::signbit(b)) return -0.0f;
+                else return 0.0f;
+            }
+
+            return std::fmin(a, b);
+        };
+
+        cpu.float_registers[instruction.get_rd()] = get_min();
     }, cpu, instruction);
 }
 
@@ -450,7 +459,24 @@ void fmax_s(CPU& cpu, const Instruction instruction)
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
-        cpu.float_registers[instruction.get_rd()] = std::fmax(a, b);
+
+        const auto get_max = [&]()
+        {
+            // fmax(+0, -0) = +0
+            if (a == 0.0f && b == 0.0f)
+            {
+                if (std::signbit(a) && std::signbit(b)) return -0.0f;
+                else return 0.0f;
+            }
+
+            // fmax(sNaN, x) = x
+            if (as_u32(a) == sNaN_float) { cpu.fcsr.set_nv(); return b; }
+            if (as_u32(b) == sNaN_float) { cpu.fcsr.set_nv(); return a; }
+
+            return std::fmax(a, b);
+        };
+
+        cpu.float_registers[instruction.get_rd()] = get_max();
     }, cpu, instruction);
 }
 
