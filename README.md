@@ -8,7 +8,10 @@ A RISC-V emulator capable of running Linux (6.9.10), written in C++.
 * C (compressed instructions)
 * M (multiplication)
 * F (floating point)
+* D (doubles)
 * Zicsr (CSRs)
+
+(i.e. RV64GC)
 
 Sv39 paging is also supported.
 

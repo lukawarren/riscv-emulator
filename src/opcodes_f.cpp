@@ -228,10 +228,14 @@ static inline void update_flags(F&& f, CPU& cpu, const Instruction instruction, 
     if (std::fetestexcept(FE_UNDERFLOW)) cpu.fcsr.set_uf(cpu);
     if (std::fetestexcept(FE_INEXACT))   cpu.fcsr.set_nx(cpu);
 
-    // Deal with NaN
-    auto& result = cpu.float_registers[use_rs1 ? instruction.get_rs1() : instruction.get_rd()];
-    if (std::isnan(result))
-        memcpy(&result, &qNaN_float, sizeof(qNaN_float));
+    // Deal with NaN by overwriting result of f() with NaN
+    const size_t index = use_rs1 ? instruction.get_rs1() : instruction.get_rd();
+    if (std::isnan(cpu.float_registers[index]))
+    {
+        float qNaN;
+        memcpy(&qNaN, &qNaN_float, sizeof(qNaN));
+        cpu.float_registers[index] = qNaN;
+    }
 }
 
 static inline void set_rounding_mode(const CPU& cpu, const Instruction instruction)

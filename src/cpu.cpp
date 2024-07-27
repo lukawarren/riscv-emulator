@@ -35,6 +35,7 @@ CPU::CPU(const u64 ram_size, const bool emulating_test) :
     registers[10] = 0;
     registers[11] = dtb_address;
 
+    float_registers = FloatRegisters(this);
     init_opcodes_f();
 }
 

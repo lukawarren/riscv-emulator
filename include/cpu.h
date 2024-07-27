@@ -38,8 +38,64 @@ public:
 
     /*
         Floating point registers and CSRs
+
+        NOTE: Each register is a 64-bit wide double, but the floating point
+              opcodes expect them to be 32-bit wide. To solve this, "float
+              writes" to floating point registers are NaN-boxed - i.e. the
+              upper 32 bits are set to 1 so that, when read as a double, the
+              value becomes a NaN, and when read as a float the value is
+              "normal".
     */
-    float float_registers[32] = {};
+    double double_registers[32] = {};
+    struct FloatRegisters
+    {
+        CPU* cpu;
+        FloatRegisters() {}
+        FloatRegisters(CPU* cpu) : cpu(cpu) {}
+
+        void set(size_t index, float value)
+        {
+            // Perform NaN-boxing by setting all the "double bits" to 1
+            u32* u = (u32*)&value;
+            u64 boxed = 0xffffffff00000000 | (u64)*u;
+            memcpy(&cpu->double_registers[index], &boxed, sizeof(double));
+        }
+
+        float get(size_t index)
+        {
+            // Perform NaN-boxing by chopping off all the 1's from above
+            u64* u = (u64*)&cpu->double_registers[index];
+            u32 boxed = 0xffffffff & *u;
+            float f;
+            memcpy(&f, &boxed, sizeof(float));
+            return f;
+        }
+
+        struct Proxy
+        {
+            FloatRegisters& parent;
+            size_t index;
+
+            Proxy(FloatRegisters& parent, size_t index) : parent(parent), index(index) {}
+
+            operator float() const
+            {
+                return parent.get(index);
+            }
+
+            Proxy& operator=(float value)
+            {
+                parent.set(index, value);
+                return *this;
+            }
+        };
+
+        Proxy operator[](size_t index)
+        {
+            return Proxy(*this, index);
+        }
+    };
+    FloatRegisters float_registers;     // For NaN-boxing
     FCSR fcsr = {};                     // The "actual" CSR register
     FRM frm = {};                       // A "window" for the rounding mode
     FSFlags fsflags = {};               // A "window" for the fflags
@@ -141,6 +197,7 @@ public:
         u64 bits = 0;
         bits |= (1 << 0);  // A
         bits |= (1 << 2);  // C
+        bits |= (1 << 3);  // C
         bits |= (1 << 5);  // F
         bits |= (1 << 8);  // E
         bits |= (1 << 12); // U
