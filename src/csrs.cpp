@@ -13,6 +13,17 @@ std::optional<u64> FSFlags::read(CPU& cpu)
     return cpu.fcsr.get_fflags();
 }
 
+bool FRM::write(const u64 value, CPU& cpu)
+{
+    cpu.fcsr.set_rounding_mode(value);
+    return true;
+}
+
+std::optional<u64> FRM::read(CPU& cpu)
+{
+    return cpu.fcsr.get_rounding_mode();
+}
+
 bool SIE::write(const u64 value, CPU& cpu)
 {
     MIE old_value = cpu.mie;

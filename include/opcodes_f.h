@@ -27,9 +27,13 @@
 #define FMIN_S      0x0
 #define FMAX_S      0x1
 #define FCVT_S_W    0x0
+#define FCVT_S_L    0x2
 #define FCVT_S_WU   0x1
+#define FCVT_S_LU   0x3
 #define FCVT_W_S    0x0
+#define FCVT_L_S    0x2
 #define FCVT_WU_S   0x1
+#define FCVT_LU_S   0x3
 #define FMV_X_W     0x0
 #define FMV_W_X     0x78
 #define FCLASS_S    0x1
@@ -58,9 +62,13 @@ void fsgnjx_s   (CPU& cpu, const Instruction instruction);
 void fmin_s     (CPU& cpu, const Instruction instruction);
 void fmax_s     (CPU& cpu, const Instruction instruction);
 void fcvt_s_w   (CPU& cpu, const Instruction instruction);
+void fcvt_s_l   (CPU& cpu, const Instruction instruction);
 void fcvt_s_wu  (CPU& cpu, const Instruction instruction);
+void fcvt_s_lu  (CPU& cpu, const Instruction instruction);
 void fcvt_w_s   (CPU& cpu, const Instruction instruction);
+void fcvt_l_s   (CPU& cpu, const Instruction instruction);
 void fcvt_wu_s  (CPU& cpu, const Instruction instruction);
+void fcvt_lu_s  (CPU& cpu, const Instruction instruction);
 void fmv_x_w    (CPU& cpu, const Instruction instruction);
 void fmv_w_x    (CPU& cpu, const Instruction instruction);
 void feq_s      (CPU& cpu, const Instruction instruction);

@@ -2,6 +2,7 @@
 #include "common.h"
 
 #define CSR_FSFLAGS         0x001
+#define CSR_FRM             0x002
 #define CSR_FCSR            0x003
 #define CSR_SSTATUS         0x100
 #define CSR_SIE             0x104
@@ -171,11 +172,12 @@ struct FCSR : CSR
 
     enum RoundingMode
     {
-        RNE = 0,
-        RTZ = 1,
-        RDN = 2,
-        RUP = 3,
-        RMM = 4
+        RNE = 0,    // Round to nearest, ties to even
+        RTZ = 1,    // Round towards zero
+        RDN = 2,    // Round down
+        RUP = 3,    // Round up
+        RMM = 4,    // Round to nearest, ties to max magnitude
+        DYNAMIC = 7 // Dynamic rounding (i.e. use the CSR value, not the instruction's)
     };
 
     bool write(const u64 value, CPU&) override
@@ -186,7 +188,7 @@ struct FCSR : CSR
             If these extensions are not present, implementations shall
             ignore writes to these bits and supply a zero value when read.
         */
-        bits = value & 00000000000000000000000011111111;
+        bits = value & 0b00000000000000000000000011111111;
         return true;
     }
 
@@ -195,9 +197,23 @@ struct FCSR : CSR
         return bits;
     }
 
-    RoundingMode rounding_mode() const
+    RoundingMode get_rounding_mode() const
     {
         return RoundingMode((bits >> 5) & 0b111);
+    }
+
+    void set_rounding_mode(u64 value)
+    {
+        bits &= 0b11111111111111111111111100011111;
+        bits |= ((value & 0b111) << 5);
+    }
+
+    u64 get_fflags() const { return bits & 0b11111; }
+
+    void set_fflags(u64 value)
+    {
+        bits &= 0b11111111111111111111111111100000;
+        bits |= (value & 0b11111);
     }
 
     u64 get_nx() const { return (bits >> 0) & 0b1; }
@@ -217,14 +233,12 @@ struct FCSR : CSR
     void clear_of() { bits &= ~(1 << 2); }
     void clear_dz() { bits &= ~(1 << 3); }
     void clear_nv() { bits &= ~(1 << 4); }
+};
 
-    u64 get_fflags() const { return bits & 0b11111; }
-
-    void set_fflags(u64 value)
-    {
-        bits &= 0b11111111111111111111111111100000;
-        bits |= value & 0b11111;
-    }
+struct FRM : CSR
+{
+    bool write(const u64 value, CPU& cpu) override;
+    std::optional<u64> read(CPU& cpu) override;
 };
 
 struct FSFlags : CSR

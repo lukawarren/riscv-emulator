@@ -69,6 +69,16 @@ struct Instruction
         return (instruction >> 20) & 0b11111;
     }
 
+    u8 get_rs3() const
+    {
+        return (instruction >> 27) & 0b11111;
+    }
+
+    u8 get_rounding_mode() const
+    {
+        return (instruction >> 12) & 0b111;
+    }
+
     u8 get_rs2_6_bits() const
     {
         return (instruction >> 20) & 0b111111;

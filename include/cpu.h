@@ -40,8 +40,9 @@ public:
         Floating point registers and CSRs
     */
     float float_registers[32] = {};
-    FCSR fcsr;                          // The "actual" CSR register
-    FSFlags fsflags;                    // A "window" for the fflags
+    FCSR fcsr = {};                     // The "actual" CSR register
+    FRM frm = {};                       // A "window" for the rounding mode
+    FSFlags fsflags = {};               // A "window" for the fflags
 
     PrivilegeLevel privilege_level = PrivilegeLevel::Machine;
 
