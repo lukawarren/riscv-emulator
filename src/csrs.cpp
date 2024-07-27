@@ -1,26 +1,73 @@
 #include "csrs.h"
 #include "cpu.h"
 #include "instruction.h"
+#include "opcodes_f.h"
+
+bool FCSR::write(const u64 value, CPU& cpu)
+{
+    if (!check_fs_field(cpu, true))
+        return true;
+
+    /*
+        Bits 31–8 of the fcsr are reserved for other standard extensions,
+        including the "L" standard extension for decimal floating-point.
+        If these extensions are not present, implementations shall
+        ignore writes to these bits and supply a zero value when read.
+    */
+    bits = value & 0b00000000000000000000000011111111;
+    return true;
+}
+
+std::optional<u64> FCSR::read(CPU& cpu)
+{
+    if (!check_fs_field(cpu, false))
+        return true;
+
+    return bits;
+}
+
+/*
+    For the below there is no need to do the full check (like above)
+    because we already know RV64F is already enabled (as these are only
+    called by opcodes), so there can't possible be an exception.
+*/
+void FCSR::set_nx(CPU& cpu) { bits |=  (1 << 0); cpu.mstatus.fields.fs = 3; }
+void FCSR::set_uf(CPU& cpu) { bits |=  (1 << 1); cpu.mstatus.fields.fs = 3; }
+void FCSR::set_of(CPU& cpu) { bits |=  (1 << 2); cpu.mstatus.fields.fs = 3; }
+void FCSR::set_dz(CPU& cpu) { bits |=  (1 << 3); cpu.mstatus.fields.fs = 3; }
+void FCSR::set_nv(CPU& cpu) { bits |=  (1 << 4); cpu.mstatus.fields.fs = 3; }
 
 bool FSFlags::write(const u64 value, CPU& cpu)
 {
+    if (!check_fs_field(cpu, true))
+        return true;
+
     cpu.fcsr.set_fflags(value);
     return true;
 }
 
 std::optional<u64> FSFlags::read(CPU& cpu)
 {
+    if (!check_fs_field(cpu, false))
+        return true;
+
     return cpu.fcsr.get_fflags();
 }
 
 bool FRM::write(const u64 value, CPU& cpu)
 {
+    if (!check_fs_field(cpu, true))
+        return true;
+
     cpu.fcsr.set_rounding_mode(value);
     return true;
 }
 
 std::optional<u64> FRM::read(CPU& cpu)
 {
+    if (!check_fs_field(cpu, false))
+        return true;
+
     return cpu.fcsr.get_rounding_mode();
 }
 
@@ -74,13 +121,12 @@ std::optional<u64> SIP::read(CPU& cpu)
 
 bool SStatus::write(const u64 value, CPU& cpu)
 {
-    // Don't set the wpri fields; keep them zero
+    // Don't set the wpri fields; keep them zero (including XS)
     MStatus::Fields& fields = cpu.mstatus.fields;
     fields.sd = (value >> 63) & 0x1;
     fields.uxl = (value >> 32) & 0x3;
     fields.mxr = (value >> 19) & 0x1;
     fields.sum = (value >> 18) & 0x1;
-    fields.xs = (value >> 15) & 0x3;
     fields.fs = (value >> 13) & 0x3;
     fields.vs = (value >> 9) & 0x3;
     fields.spp = (value >> 8) & 0x1;

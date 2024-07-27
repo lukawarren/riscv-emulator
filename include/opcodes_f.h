@@ -20,7 +20,7 @@
 #define FSUB_S      0x4
 #define FMUL_S      0x8
 #define FDIV_S      0xc
-#define FDIV_SQRT_S 0x2c
+#define FSQRT_S     0x2c
 #define FSGNJ_S     0x0
 #define FSGNJN_S    0x1
 #define FSGNJX_S    0x2
@@ -42,7 +42,7 @@
 #define FLE_S       0x0
 
 void init_opcodes_f();
-
+bool check_fs_field(CPU& cpu, bool is_write);
 bool opcodes_f(CPU& cpu, const Instruction instruction);
 
 void flw        (CPU& cpu, const Instruction instruction);

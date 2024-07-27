@@ -12,10 +12,39 @@ static_assert(std::numeric_limits<float>::is_iec559);
 constexpr u32 qNaN_float = 0x7fc00000; // a.k.a. "canconical" NaN
 constexpr u32 sNaN_float = 0x7f800001;
 
+#define ATTEMPTED_READ() \
+    if (!check_fs_field(cpu, false)) return true;
+
+#define ATTEMPTED_WRITE() \
+    if (!check_fs_field(cpu, true)) return true;
+
+#define CSR_CHANGED() cpu.mstatus.fields.fs = 3; dbg("changed");
+
 void init_opcodes_f()
 {
     // Default RISC-V rounding mode (0 = RNE)
     std::fesetround(FE_TONEAREST);
+}
+
+bool check_fs_field(CPU& cpu, bool is_write)
+{
+    // When an extension's status is set to off, any instruction that attempts
+    // to read or write the corresponding state will cause an exception.
+    if (cpu.mstatus.fields.fs == 0)
+    {
+        dbg("warning: attempt to use RV64F with mstatus.fs disabled");
+        cpu.raise_exception(Exception::IllegalInstruction);
+        return false;
+    }
+
+    // If we got this far, the floating-point extension is enabled, but there's
+    // been some sort of attempt to modify its state.
+    // See Table 3.4 of the privileged spec ("FS and XS state transitions")
+    // In short, if it's a write we become "dirty".
+    if (is_write)
+        cpu.mstatus.fields.fs = 3;
+
+    return true;
 }
 
 bool opcodes_f(CPU& cpu, const Instruction instruction)
@@ -31,7 +60,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
         {
             switch (funct3)
             {
-                case FLW: flw(cpu, instruction); return true;
+                case FLW: { ATTEMPTED_WRITE(); flw(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -40,7 +69,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
         {
             switch (funct3)
             {
-                case FSW: fsw(cpu, instruction); return true;
+                case FSW: { ATTEMPTED_READ(); fsw(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -49,7 +78,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
         {
             switch (funct2)
             {
-                case FMADD_S: fmadd_s(cpu, instruction); return true;
+                case FMADD_S: { ATTEMPTED_WRITE(); fmadd_s(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -58,7 +87,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
         {
             switch (funct2)
             {
-                case FMSUB_S: fmsub_s(cpu, instruction); return true;
+                case FMSUB_S: { ATTEMPTED_WRITE(); fmsub_s(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -67,7 +96,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
         {
             switch (funct2)
             {
-                case FNMADD_S: fnmadd_s(cpu, instruction); return true;
+                case FNMADD_S: { ATTEMPTED_WRITE(); fnmadd_s(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -76,7 +105,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
         {
             switch (funct2)
             {
-                case FNMSUB_S: fnmsub_s(cpu, instruction); return true;
+                case FNMSUB_S: { ATTEMPTED_WRITE(); fnmsub_s(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -85,18 +114,18 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
         {
             switch (funct7)
             {
-                case FADD_S: fadd_s(cpu, instruction); return true;
-                case FSUB_S: fsub_s(cpu, instruction); return true;
-                case FMUL_S: fmul_s(cpu, instruction); return true;
-                case FDIV_S: fdiv_s(cpu, instruction); return true;
+                case FADD_S: { ATTEMPTED_WRITE(); fadd_s(cpu, instruction); return true; }
+                case FSUB_S: { ATTEMPTED_WRITE(); fsub_s(cpu, instruction); return true; }
+                case FMUL_S: { ATTEMPTED_WRITE(); fmul_s(cpu, instruction); return true; }
+                case FDIV_S: { ATTEMPTED_WRITE(); fdiv_s(cpu, instruction); return true; }
 
                 case 0x10:
                 {
                     switch (funct3)
                     {
-                        case FSGNJ_S:  fsgnj_s(cpu, instruction);  return true;
-                        case FSGNJN_S: fsgnjn_s(cpu, instruction); return true;
-                        case FSGNJX_S: fsgnjx_s(cpu, instruction); return true;
+                        case FSGNJ_S:  { ATTEMPTED_WRITE(); fsgnj_s(cpu, instruction);  return true; }
+                        case FSGNJN_S: { ATTEMPTED_WRITE(); fsgnjn_s(cpu, instruction); return true; }
+                        case FSGNJX_S: { ATTEMPTED_WRITE(); fsgnjx_s(cpu, instruction); return true; }
                         default: return false;
                     }
                 }
@@ -105,8 +134,8 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                 {
                     switch (funct3)
                     {
-                        case FMIN_S: fmin_s(cpu, instruction); return true;
-                        case FMAX_S: fmax_s(cpu, instruction); return true;
+                        case FMIN_S: { ATTEMPTED_WRITE(); fmin_s(cpu, instruction); return true; }
+                        case FMAX_S: { ATTEMPTED_WRITE(); fmax_s(cpu, instruction); return true; }
                         default: return false;
                     }
                 }
@@ -115,9 +144,9 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                 {
                     switch (funct3)
                     {
-                        case FEQ_S: feq_s(cpu, instruction); return true;
-                        case FLT_S: flt_s(cpu, instruction); return true;
-                        case FLE_S: fle_s(cpu, instruction); return true;
+                        case FEQ_S: { ATTEMPTED_READ(); feq_s(cpu, instruction); return true; }
+                        case FLT_S: { ATTEMPTED_READ(); flt_s(cpu, instruction); return true; }
+                        case FLE_S: { ATTEMPTED_READ(); fle_s(cpu, instruction); return true; }
                         default: return false;
                     }
                 }
@@ -126,39 +155,42 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                 {
                     switch (instruction.get_rs2())
                     {
-                        case FCVT_W_S:  fcvt_w_s(cpu, instruction);  return true;
-                        case FCVT_L_S:  fcvt_l_s(cpu, instruction);  return true;
-                        case FCVT_WU_S: fcvt_wu_s(cpu, instruction); return true;
-                        case FCVT_LU_S: fcvt_lu_s(cpu, instruction); return true;
+                        case FCVT_W_S:  { ATTEMPTED_READ(); fcvt_w_s(cpu, instruction);  return true; }
+                        case FCVT_L_S:  { ATTEMPTED_READ(); fcvt_l_s(cpu, instruction);  return true; }
+                        case FCVT_WU_S: { ATTEMPTED_READ(); fcvt_wu_s(cpu, instruction); return true; }
+                        case FCVT_LU_S: { ATTEMPTED_READ(); fcvt_lu_s(cpu, instruction); return true; }
                         default: return false;
                     }
                 }
 
                 case 0x68:
                 {
+                    if (!check_fs_field(cpu, true)) return true;
+
                     switch (instruction.get_rs2())
                     {
-                        case FCVT_S_W:  fcvt_s_w(cpu, instruction);  return true;
-                        case FCVT_S_L:  fcvt_s_l(cpu, instruction);  return true;
-                        case FCVT_S_WU: fcvt_s_wu(cpu, instruction); return true;
-                        case FCVT_S_LU: fcvt_s_lu(cpu, instruction); return true;
+                        case FCVT_S_W:  { ATTEMPTED_WRITE(); fcvt_s_w(cpu, instruction);  return true; }
+                        case FCVT_S_L:  { ATTEMPTED_WRITE(); fcvt_s_l(cpu, instruction);  return true; }
+                        case FCVT_S_WU: { ATTEMPTED_WRITE(); fcvt_s_wu(cpu, instruction); return true; }
+                        case FCVT_S_LU: { ATTEMPTED_WRITE(); fcvt_s_lu(cpu, instruction); return true; }
                         default: return false;
                     }
                 }
 
                 case 0x70:
                 {
+                    if (!check_fs_field(cpu, false)) return true;
+
                     switch (funct3)
                     {
-                        case FMV_X_W:  fmv_x_w(cpu, instruction);  return true;
-                        case FCLASS_S: fclass_s(cpu, instruction); return true;
+                        case FMV_X_W:  { ATTEMPTED_READ(); fmv_x_w(cpu, instruction);  return true; }
+                        case FCLASS_S: { ATTEMPTED_READ(); fclass_s(cpu, instruction); return true; }
                         default: return false;
                     }
                 }
 
-                case FMV_W_X:     fmv_w_x(cpu, instruction); return true;
-                case FDIV_SQRT_S: fsqrt_s(cpu, instruction); return true;
-
+                case FMV_W_X: { ATTEMPTED_WRITE(); fmv_w_x(cpu, instruction); return true; }
+                case FSQRT_S: { ATTEMPTED_READ(); fsqrt_s(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -190,11 +222,11 @@ static inline void update_flags(F&& f, CPU& cpu, const Instruction instruction, 
     f();
 
     // Query exceptions and update CSR accordingly
-    if (std::fetestexcept(FE_INVALID)) cpu.fcsr.set_nv();
-    if (std::fetestexcept(FE_DIVBYZERO)) cpu.fcsr.set_dz();
-    if (std::fetestexcept(FE_OVERFLOW)) cpu.fcsr.set_of();
-    if (std::fetestexcept(FE_UNDERFLOW)) cpu.fcsr.set_uf();
-    if (std::fetestexcept(FE_INEXACT)) cpu.fcsr.set_nx();
+    if (std::fetestexcept(FE_INVALID))   cpu.fcsr.set_nv(cpu);
+    if (std::fetestexcept(FE_DIVBYZERO)) cpu.fcsr.set_dz(cpu);
+    if (std::fetestexcept(FE_OVERFLOW))  cpu.fcsr.set_of(cpu);
+    if (std::fetestexcept(FE_UNDERFLOW)) cpu.fcsr.set_uf(cpu);
+    if (std::fetestexcept(FE_INEXACT))   cpu.fcsr.set_nx(cpu);
 
     // Deal with NaN
     auto& result = cpu.float_registers[use_rs1 ? instruction.get_rs1() : instruction.get_rd()];
@@ -236,7 +268,7 @@ static inline void set_rounding_mode(const CPU& cpu, const Instruction instructi
 }
 
 template<typename T, typename U>
-static inline void round_float(CPU& cpu, const Instruction instruction)
+static void round_float(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
 
@@ -251,17 +283,17 @@ static inline void round_float(CPU& cpu, const Instruction instruction)
 
     // If the rounded result is not representable in the destination
     // format, it is clipped to the nearest value and the invalid flag
-    // is set. NaN is always treateda as positive.
+    // is set. NaN is always treated as positive.
     if (result > std::numeric_limits<T>::max() || std::isnan(result))
     {
         result = std::numeric_limits<T>::max();
-        cpu.fcsr.set_nv();
+        cpu.fcsr.set_nv(cpu);
     }
 
     else if (result < std::numeric_limits<T>::min())
     {
         result = std::numeric_limits<T>::min();
-        cpu.fcsr.set_nv();
+        cpu.fcsr.set_nv(cpu);
     }
 
     cpu.registers[instruction.get_rs1()] = (U)(T)result;
@@ -470,8 +502,8 @@ void fmax_s(CPU& cpu, const Instruction instruction)
             }
 
             // fmax(sNaN, x) = x
-            if (as_u32(a) == sNaN_float) { cpu.fcsr.set_nv(); return b; }
-            if (as_u32(b) == sNaN_float) { cpu.fcsr.set_nv(); return a; }
+            if (as_u32(a) == sNaN_float) { cpu.fcsr.set_nv(cpu); return b; }
+            if (as_u32(b) == sNaN_float) { cpu.fcsr.set_nv(cpu); return a; }
 
             return std::fmax(a, b);
         };
@@ -504,11 +536,8 @@ void fcvt_s_wu(CPU& cpu, const Instruction instruction)
 void fcvt_s_lu(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
-    {
-        cpu.float_registers[instruction.get_rd()] =
-            (double)(float)cpu.registers[instruction.get_rs1()];
-    }, cpu, instruction);
+    cpu.float_registers[instruction.get_rd()] =
+        (double)(float)cpu.registers[instruction.get_rs1()];
 }
 
 void fcvt_w_s(CPU& cpu, const Instruction instruction)
@@ -610,10 +639,8 @@ void fclass_s(CPU& cpu, const Instruction instruction)
 
         case FP_NAN:
         {
-            // Quiet NaN - I have no idea if this is correct but the spec says
-            // this is *the* "canonical NaN" (i.e. there's only one) and riscv-tests
-            // only checks for this value
-            if (as_u32(value) == 0x7fc00000)
+            // Quiet NaN
+            if (as_u32(value) == qNaN_float)
                 rd = 0b1000000000;
 
             // Signaling NaN (we hope)

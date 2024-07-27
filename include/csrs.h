@@ -180,22 +180,33 @@ struct FCSR : CSR
         DYNAMIC = 7 // Dynamic rounding (i.e. use the CSR value, not the instruction's)
     };
 
-    bool write(const u64 value, CPU&) override
-    {
-        /*
-            Bits 31–8 of the fcsr are reserved for other standard extensions,
-            including the "L" standard extension for decimal floating-point.
-            If these extensions are not present, implementations shall
-            ignore writes to these bits and supply a zero value when read.
-        */
-        bits = value & 0b00000000000000000000000011111111;
-        return true;
-    }
+    bool write(const u64 value, CPU&) override;
+    std::optional<u64> read(CPU&) override;
 
-    std::optional<u64> read(CPU&) override
-    {
-        return bits;
-    }
+    u64 get_nx() const { return (bits >> 0) & 0b1; }
+    u64 get_uf() const { return (bits >> 1) & 0b1; }
+    u64 get_of() const { return (bits >> 2) & 0b1; }
+    u64 get_dz() const { return (bits >> 3) & 0b1; }
+    u64 get_nv() const { return (bits >> 4) & 0b1; }
+
+    /*
+        NOTE: As per section 3.1.11 of the privileged spec
+              ("Extension Context Status in mstatus Register"),
+              any time these values are changed, the FS and SD
+              bits must be updated accordingly (dw; handled by
+              the functions themselved).
+    */
+    void set_nx(CPU& cpu);
+    void set_uf(CPU& cpu);
+    void set_of(CPU& cpu);
+    void set_dz(CPU& cpu);
+    void set_nv(CPU& cpu);
+
+    /*
+        NOTE: Section 3.1.11 "doesn't apply" for the below functions as
+              they're only used "internally" by other CSRs, who do their
+              own checks.
+    */
 
     RoundingMode get_rounding_mode() const
     {
@@ -208,31 +219,16 @@ struct FCSR : CSR
         bits |= ((value & 0b111) << 5);
     }
 
-    u64 get_fflags() const { return bits & 0b11111; }
+    u64 get_fflags() const
+    {
+        return bits & 0b11111;
+    }
 
     void set_fflags(u64 value)
     {
         bits &= 0b11111111111111111111111111100000;
         bits |= (value & 0b11111);
     }
-
-    u64 get_nx() const { return (bits >> 0) & 0b1; }
-    u64 get_uf() const { return (bits >> 1) & 0b1; }
-    u64 get_of() const { return (bits >> 2) & 0b1; }
-    u64 get_dz() const { return (bits >> 3) & 0b1; }
-    u64 get_nv() const { return (bits >> 4) & 0b1; }
-
-    void set_nx() { bits |=  (1 << 0); }
-    void set_uf() { bits |=  (1 << 1); }
-    void set_of() { bits |=  (1 << 2); }
-    void set_dz() { bits |=  (1 << 3); }
-    void set_nv() { bits |=  (1 << 4); }
-
-    void clear_nx() { bits &= ~(1 << 0); }
-    void clear_uf() { bits &= ~(1 << 1); }
-    void clear_of() { bits &= ~(1 << 2); }
-    void clear_dz() { bits &= ~(1 << 3); }
-    void clear_nv() { bits &= ~(1 << 4); }
 };
 
 struct FRM : CSR
@@ -367,8 +363,7 @@ struct MStatus : CSR
 
     bool write(const u64 value, CPU&) override
     {
-        // Don't set the wpri fields; keep them zero
-        fields.sd = (value >> 63) & 0x1;
+        // Don't set the wpri fields; keep them zero (including XS)
         fields.mbe = (value >> 37) & 0x1;
         fields.sbe = (value >> 36) & 0x1;
         fields.sxl = (value >> 34) & 0x3;
@@ -379,7 +374,6 @@ struct MStatus : CSR
         fields.mxr = (value >> 19) & 0x1;
         fields.sum = (value >> 18) & 0x1;
         fields.mprv = (value >> 17) & 0x1;
-        fields.xs = (value >> 15) & 0x3;
         fields.fs = (value >> 13) & 0x3;
         fields.mpp = (value >> 11) & 0x3;
         fields.vs = (value >> 9) & 0x3;
@@ -394,11 +388,17 @@ struct MStatus : CSR
         fields.sxl = 2; // xlen = 64
         fields.uxl = 2; // xlen = 64
 
+        // SD
+        fields.sd = (fields.fs == 0b11) || (fields.xs == 0b11);
+
         return true;
     }
 
     std::optional<u64> read(CPU&) override
     {
+        // SD
+        fields.sd = (fields.fs == 0b11) || (fields.xs == 0b11);
+
         u64 value = 0;
         value |= ((u64)(fields.sd) << 63);
         value |= ((u64)(fields.wpri_1) << 38);
