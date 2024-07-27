@@ -15,10 +15,11 @@ file(GLOB_RECURSE HEADERS "include/*.h")
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
 # Enable warnings, flags, etc.
+# Must have -ffloat-store (or /fp:precise) for RV64F's IEEE 754
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+    target_compile_options(${PROJECT_NAME} PRIVATE /fp:precise /W4)
 else()
-    target_compile_options(${PROJECT_NAME} PRIVATE -Werror -Wall -Wextra -pedantic -Wno-unused-parameter -O3 -g -fdiagnostics-color=always)
+    target_compile_options(${PROJECT_NAME} PRIVATE -ffloat-store -Werror -Wall -Wextra -pedantic -Wno-unused-parameter -O3 -g -fdiagnostics-color=always)
 endif()
 
 # Dependencies

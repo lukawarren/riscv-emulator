@@ -12,10 +12,18 @@
 
 #define FLW         0x2
 #define FADD_S      0x0
+#define FSUB_S      0x4
+#define FMUL_S      0x8
+#define FDIV_S      0xc
 #define FMV_X_W     0x0
+
+void init_opcodes_f();
 
 bool opcodes_f(CPU& cpu, const Instruction& instruction);
 
 void flw        (CPU& cpu, const Instruction& instruction);
 void fadd_s     (CPU& cpu, const Instruction& instruction);
+void fsub_s     (CPU& cpu, const Instruction& instruction);
+void fmul_s     (CPU& cpu, const Instruction& instruction);
+void fdiv_s     (CPU& cpu, const Instruction& instruction);
 void fmv_x_w    (CPU& cpu, const Instruction& instruction);

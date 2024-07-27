@@ -34,6 +34,8 @@ CPU::CPU(const u64 ram_size, const bool emulating_test) :
     // Set x11 to DTB pointer and x10 to hart id
     registers[10] = 0;
     registers[11] = dtb_address;
+
+    init_opcodes_f();
 }
 
 void CPU::do_cycle()
