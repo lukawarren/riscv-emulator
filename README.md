@@ -47,7 +47,7 @@ autoconf
 
 # build relevant tests
 cd isa
-make -j 16 rv64ui rv64ua rv64uc rv64um rv64uf rv64si rv64mi
+make -j 16 rv64ui rv64ua rv64uc rv64um rv64uf rv64ud rv64si rv64mi
 rm *-v-*
 
 # convert ELF to bin
