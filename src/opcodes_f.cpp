@@ -9,16 +9,16 @@
 */
 static_assert(std::numeric_limits<float>::is_iec559);
 
-constexpr u32 qNaN_float = 0x7fc00000; // a.k.a. "canconical" NaN
-constexpr u32 sNaN_float = 0x7f800001;
+constexpr u32 qNaN_float  = 0x7fc00000;         // a.k.a. "canconical" NaN
+constexpr u64 qNaN_double = 0x7ff8000000000000; // a.k.a. "canconical" NaN
+constexpr u32 sNaN_float  = 0x7f800001;
+constexpr u64 sNaN_double = 0x7ff0000000000001;
 
 #define ATTEMPTED_READ() \
     if (!check_fs_field(cpu, false)) return true;
 
 #define ATTEMPTED_WRITE() \
     if (!check_fs_field(cpu, true)) return true;
-
-#define CSR_CHANGED() cpu.mstatus.fields.fs = 3; dbg("changed");
 
 void init_opcodes_f()
 {
@@ -61,6 +61,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
             switch (funct3)
             {
                 case FLW: { ATTEMPTED_WRITE(); flw(cpu, instruction); return true; }
+                case FLD: { ATTEMPTED_WRITE(); fld(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -70,6 +71,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
             switch (funct3)
             {
                 case FSW: { ATTEMPTED_READ(); fsw(cpu, instruction); return true; }
+                case FSD: { ATTEMPTED_READ(); fsd(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -79,6 +81,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
             switch (funct2)
             {
                 case FMADD_S: { ATTEMPTED_WRITE(); fmadd_s(cpu, instruction); return true; }
+                case FMADD_D: { ATTEMPTED_WRITE(); fmadd_d(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -88,6 +91,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
             switch (funct2)
             {
                 case FMSUB_S: { ATTEMPTED_WRITE(); fmsub_s(cpu, instruction); return true; }
+                case FMSUB_D: { ATTEMPTED_WRITE(); fmsub_d(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -97,6 +101,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
             switch (funct2)
             {
                 case FNMADD_S: { ATTEMPTED_WRITE(); fnmadd_s(cpu, instruction); return true; }
+                case FNMADD_D: { ATTEMPTED_WRITE(); fnmadd_d(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -106,6 +111,7 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
             switch (funct2)
             {
                 case FNMSUB_S: { ATTEMPTED_WRITE(); fnmsub_s(cpu, instruction); return true; }
+                case FNMSUB_D: { ATTEMPTED_WRITE(); fnmsub_d(cpu, instruction); return true; }
                 default: return false;
             }
         }
@@ -115,9 +121,13 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
             switch (funct7)
             {
                 case FADD_S: { ATTEMPTED_WRITE(); fadd_s(cpu, instruction); return true; }
+                case FADD_D: { ATTEMPTED_WRITE(); fadd_d(cpu, instruction); return true; }
                 case FSUB_S: { ATTEMPTED_WRITE(); fsub_s(cpu, instruction); return true; }
+                case FSUB_D: { ATTEMPTED_WRITE(); fsub_d(cpu, instruction); return true; }
                 case FMUL_S: { ATTEMPTED_WRITE(); fmul_s(cpu, instruction); return true; }
+                case FMUL_D: { ATTEMPTED_WRITE(); fmul_d(cpu, instruction); return true; }
                 case FDIV_S: { ATTEMPTED_WRITE(); fdiv_s(cpu, instruction); return true; }
+                case FDIV_D: { ATTEMPTED_WRITE(); fdiv_d(cpu, instruction); return true; }
 
                 case 0x10:
                 {
@@ -126,6 +136,17 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                         case FSGNJ_S:  { ATTEMPTED_WRITE(); fsgnj_s(cpu, instruction);  return true; }
                         case FSGNJN_S: { ATTEMPTED_WRITE(); fsgnjn_s(cpu, instruction); return true; }
                         case FSGNJX_S: { ATTEMPTED_WRITE(); fsgnjx_s(cpu, instruction); return true; }
+                        default: return false;
+                    }
+                }
+
+                case 0x11:
+                {
+                    switch (funct3)
+                    {
+                        case FSGNJ_D:  { ATTEMPTED_WRITE(); fsgnj_d(cpu, instruction);  return true; }
+                        case FSGNJN_D: { ATTEMPTED_WRITE(); fsgnjn_d(cpu, instruction); return true; }
+                        case FSGNJX_D: { ATTEMPTED_WRITE(); fsgnjx_d(cpu, instruction); return true; }
                         default: return false;
                     }
                 }
@@ -140,6 +161,16 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                     }
                 }
 
+                case 0x15:
+                {
+                    switch (funct3)
+                    {
+                        case FMIN_D: { ATTEMPTED_WRITE(); fmin_d(cpu, instruction); return true; }
+                        case FMAX_D: { ATTEMPTED_WRITE(); fmax_d(cpu, instruction); return true; }
+                        default: return false;
+                    }
+                }
+
                 case 0x50:
                 {
                     switch (funct3)
@@ -147,6 +178,17 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                         case FEQ_S: { ATTEMPTED_READ(); feq_s(cpu, instruction); return true; }
                         case FLT_S: { ATTEMPTED_READ(); flt_s(cpu, instruction); return true; }
                         case FLE_S: { ATTEMPTED_READ(); fle_s(cpu, instruction); return true; }
+                        default: return false;
+                    }
+                }
+
+                case 0x51:
+                {
+                    switch (funct3)
+                    {
+                        case FEQ_D: { ATTEMPTED_READ(); feq_d(cpu, instruction); return true; }
+                        case FLT_D: { ATTEMPTED_READ(); flt_d(cpu, instruction); return true; }
+                        case FLE_D: { ATTEMPTED_READ(); fle_d(cpu, instruction); return true; }
                         default: return false;
                     }
                 }
@@ -163,10 +205,20 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                     }
                 }
 
+                case 0x61:
+                {
+                    switch (instruction.get_rs2())
+                    {
+                        case FCVT_W_D:  { ATTEMPTED_READ(); fcvt_w_d(cpu, instruction);  return true; }
+                        case FCVT_L_D:  { ATTEMPTED_READ(); fcvt_l_d(cpu, instruction);  return true; }
+                        case FCVT_WU_D: { ATTEMPTED_READ(); fcvt_wu_d(cpu, instruction); return true; }
+                        case FCVT_LU_D: { ATTEMPTED_READ(); fcvt_lu_d(cpu, instruction); return true; }
+                        default: return false;
+                    }
+                }
+
                 case 0x68:
                 {
-                    if (!check_fs_field(cpu, true)) return true;
-
                     switch (instruction.get_rs2())
                     {
                         case FCVT_S_W:  { ATTEMPTED_WRITE(); fcvt_s_w(cpu, instruction);  return true; }
@@ -177,10 +229,20 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                     }
                 }
 
+                case 0x69:
+                {
+                    switch (instruction.get_rs2())
+                    {
+                        case FCVT_D_W:  { ATTEMPTED_WRITE(); fcvt_d_w(cpu, instruction);  return true; }
+                        case FCVT_D_L:  { ATTEMPTED_WRITE(); fcvt_d_l(cpu, instruction);  return true; }
+                        case FCVT_D_WU: { ATTEMPTED_WRITE(); fcvt_d_wu(cpu, instruction); return true; }
+                        case FCVT_D_LU: { ATTEMPTED_WRITE(); fcvt_d_lu(cpu, instruction); return true; }
+                        default: return false;
+                    }
+                }
+
                 case 0x70:
                 {
-                    if (!check_fs_field(cpu, false)) return true;
-
                     switch (funct3)
                     {
                         case FMV_X_W:  { ATTEMPTED_READ(); fmv_x_w(cpu, instruction);  return true; }
@@ -189,8 +251,22 @@ bool opcodes_f(CPU& cpu, const Instruction instruction)
                     }
                 }
 
-                case FMV_W_X: { ATTEMPTED_WRITE(); fmv_w_x(cpu, instruction); return true; }
-                case FSQRT_S: { ATTEMPTED_READ(); fsqrt_s(cpu, instruction); return true; }
+                case 0x71:
+                {
+                    switch (funct3)
+                    {
+                        case FMV_X_D:  { ATTEMPTED_READ(); fmv_x_d(cpu, instruction);  return true; }
+                        case FCLASS_D: { ATTEMPTED_READ(); fclass_d(cpu, instruction); return true; }
+                        default: return false;
+                    }
+                }
+
+                case FCVT_S_D: { ATTEMPTED_WRITE(); fcvt_s_d(cpu, instruction); return true; }
+                case FCVT_D_S: { ATTEMPTED_WRITE(); fcvt_d_s(cpu, instruction); return true; }
+                case FSQRT_S:  { ATTEMPTED_WRITE(); fsqrt_s(cpu, instruction);  return true; }
+                case FSQRT_D:  { ATTEMPTED_WRITE(); fsqrt_d(cpu, instruction);  return true; }
+                case FMV_W_X:  { ATTEMPTED_WRITE(); fmv_w_x(cpu, instruction);  return true; }
+                case FMV_D_X:  { ATTEMPTED_WRITE(); fmv_d_x(cpu, instruction);  return true; }
                 default: return false;
             }
         }
@@ -207,13 +283,25 @@ static inline float as_float(const u32 bits)
     return *f;
 }
 
+static inline double as_double(const u64 bits)
+{
+    double* f = (double*)&bits;
+    return *f;
+}
+
 static inline u32 as_u32(const float f)
 {
     u32* u = (u32*)&f;
     return *u;
 }
 
-template<typename F>
+static inline u64 as_u64(const double f)
+{
+    u64* u = (u64*)&f;
+    return *u;
+}
+
+template<typename W, typename F>
 static inline void update_flags(F&& f, CPU& cpu, const Instruction instruction, const bool use_rs1 = false)
 {
     // Clear host-CPU floating-point exceptions
@@ -230,11 +318,23 @@ static inline void update_flags(F&& f, CPU& cpu, const Instruction instruction, 
 
     // Deal with NaN by overwriting result of f() with NaN
     const size_t index = use_rs1 ? instruction.get_rs1() : instruction.get_rd();
-    if (std::isnan(cpu.float_registers[index]))
+    if constexpr (sizeof(W) == sizeof(float))
     {
-        float qNaN;
-        memcpy(&qNaN, &qNaN_float, sizeof(qNaN));
-        cpu.float_registers[index] = qNaN;
+        if (std::isnan(cpu.float_registers[index]))
+        {
+            float qNaN;
+            memcpy(&qNaN, &qNaN_float, sizeof(qNaN));
+            cpu.float_registers[index] = qNaN;
+        }
+    }
+    else
+    {
+        if (std::isnan(cpu.double_registers[index]))
+        {
+            double qNaN;
+            memcpy(&qNaN, &qNaN_double, sizeof(qNaN));
+            cpu.double_registers[index] = qNaN;
+        }
     }
 }
 
@@ -271,18 +371,21 @@ static inline void set_rounding_mode(const CPU& cpu, const Instruction instructi
     }
 }
 
-template<typename T, typename U>
-static void round_float(CPU& cpu, const Instruction instruction)
+template<typename T, typename U, typename W>
+static void round_result(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
 
-    float result;
-    update_flags([&]()
+    W result;
+    update_flags<W>([&]()
     {
         // NOTE: Using std::rintf is required to respect the rounding mode.
         //       It is preferable to std::nearbyint as it will raise FE_INEXACT
         //       for us.
-        result = std::rintf(cpu.float_registers[instruction.get_rs1()]);
+        if constexpr (sizeof(W) == sizeof(double))
+            result = std::rint(cpu.double_registers[instruction.get_rs1()]);
+        else
+            result = std::rintf(cpu.float_registers[instruction.get_rs1()]);
     }, cpu, instruction, true);
 
     // If the rounded result is not representable in the destination
@@ -318,6 +421,21 @@ void flw(CPU& cpu, const Instruction instruction)
     cpu.float_registers[instruction.get_rd()] = as_float(*value);
 }
 
+void fld(CPU& cpu, const Instruction instruction)
+{
+    const u64 address = instruction.get_imm(Instruction::Type::I) +
+        cpu.registers[instruction.get_rs1()];
+
+    const auto value = cpu.read_64(address);
+    if (!value)
+    {
+        cpu.raise_exception(value.error());
+        return;
+    }
+
+    cpu.double_registers[instruction.get_rd()] = as_double(*value);
+}
+
 void fsw(CPU& cpu, const Instruction instruction)
 {
     const u64 address = instruction.get_imm(Instruction::Type::S) +
@@ -330,10 +448,22 @@ void fsw(CPU& cpu, const Instruction instruction)
         cpu.raise_exception(*error);
 }
 
+void fsd(CPU& cpu, const Instruction instruction)
+{
+    const u64 address = instruction.get_imm(Instruction::Type::S) +
+        cpu.registers[instruction.get_rs1()];
+
+    const double value = cpu.double_registers[instruction.get_rs2()];
+
+    const auto error = cpu.write_64(address, as_u64(value));
+    if (error.has_value())
+        cpu.raise_exception(*error);
+}
+
 void fmadd_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -342,10 +472,22 @@ void fmadd_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void fmadd_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        const double c = cpu.double_registers[instruction.get_rs3()];
+        cpu.double_registers[instruction.get_rd()] = a * b + c;
+    }, cpu, instruction);
+}
+
 void fmsub_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -354,10 +496,22 @@ void fmsub_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void fmsub_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        const double c = cpu.double_registers[instruction.get_rs3()];
+        cpu.double_registers[instruction.get_rd()] = a * b - c;
+    }, cpu, instruction);
+}
+
 void fnmadd_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -366,10 +520,22 @@ void fnmadd_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void fnmadd_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        const double c = cpu.double_registers[instruction.get_rs3()];
+        cpu.double_registers[instruction.get_rd()] = -a * b + c;
+    }, cpu, instruction);
+}
+
 void fnmsub_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -378,10 +544,22 @@ void fnmsub_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void fnmsub_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        const double c = cpu.double_registers[instruction.get_rs3()];
+        cpu.double_registers[instruction.get_rd()] = -a * b - c;
+    }, cpu, instruction);
+}
+
 void fadd_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -389,10 +567,21 @@ void fadd_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void fadd_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        cpu.double_registers[instruction.get_rd()] = a + b;
+    }, cpu, instruction);
+}
+
 void fsub_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -400,10 +589,21 @@ void fsub_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void fsub_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        cpu.double_registers[instruction.get_rd()] = a - b;
+    }, cpu, instruction);
+}
+
 void fmul_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -411,10 +611,21 @@ void fmul_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void fmul_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        cpu.double_registers[instruction.get_rd()] = a * b;
+    }, cpu, instruction);
+}
+
 void fdiv_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -422,13 +633,34 @@ void fdiv_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void fdiv_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        cpu.double_registers[instruction.get_rd()] = a / b;
+    }, cpu, instruction);
+}
+
 void fsqrt_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         cpu.float_registers[instruction.get_rd()] = std::sqrtf(a);
+    }, cpu, instruction);
+}
+
+void fsqrt_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        cpu.double_registers[instruction.get_rd()] = std::sqrt(a);
     }, cpu, instruction);
 }
 
@@ -442,6 +674,16 @@ void fsgnj_s(CPU& cpu, const Instruction instruction)
     cpu.float_registers[instruction.get_rd()] = std::copysignf(std::fabs(a), b);
 }
 
+void fsgnj_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+
+    // Copy all bits (except the sign bit) from rs1, and use the sign bit of rs2
+    const double a = cpu.double_registers[instruction.get_rs1()];
+    const double b = cpu.double_registers[instruction.get_rs2()];
+    cpu.double_registers[instruction.get_rd()] = std::copysign(std::abs(a), b);
+}
+
 void fsgnjn_s(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
@@ -450,6 +692,16 @@ void fsgnjn_s(CPU& cpu, const Instruction instruction)
     const float a = cpu.float_registers[instruction.get_rs1()];
     const float b = cpu.float_registers[instruction.get_rs2()];
     cpu.float_registers[instruction.get_rd()] = std::copysignf(std::fabs(a), -b);
+}
+
+void fsgnjn_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+
+    // As above but rs2's sign is inverted
+    const double a = cpu.double_registers[instruction.get_rs1()];
+    const double b = cpu.double_registers[instruction.get_rs2()];
+    cpu.double_registers[instruction.get_rd()] = std::copysign(std::abs(a), -b);
 }
 
 void fsgnjx_s(CPU& cpu, const Instruction instruction)
@@ -466,9 +718,23 @@ void fsgnjx_s(CPU& cpu, const Instruction instruction)
     cpu.float_registers[instruction.get_rd()] = as_float(result);
 }
 
+void fsgnjx_d(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+
+    // The sign bit is the XOR of the two sign bits
+    const u64 a = as_u64(cpu.double_registers[instruction.get_rs1()]);
+    const u64 b = as_u64(cpu.double_registers[instruction.get_rs2()]);
+    const u64 sign_a = a & 0x8000000000000000;
+    const u64 sign_b = b & 0x8000000000000000;
+    const u64 abs_a = a & 0x7fffffffffffffff;
+    const u64 result = (sign_a ^ sign_b) | abs_a;
+    cpu.double_registers[instruction.get_rd()] = as_double(result);
+}
+
 void fmin_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -482,16 +748,39 @@ void fmin_s(CPU& cpu, const Instruction instruction)
                 else return 0.0f;
             }
 
-            return std::fmin(a, b);
+            return std::fminf(a, b);
         };
 
         cpu.float_registers[instruction.get_rd()] = get_min();
     }, cpu, instruction);
 }
 
+void fmin_d(CPU& cpu, const Instruction instruction)
+{
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+
+        const auto get_min = [&]()
+        {
+            // fmin(+0, -0) = -0
+            if (a == 0.0 && b == 0.0)
+            {
+                if (std::signbit(a) || std::signbit(b)) return -0.0;
+                else return 0.0;
+            }
+
+            return std::fmin(a, b);
+        };
+
+        cpu.double_registers[instruction.get_rd()] = get_min();
+    }, cpu, instruction);
+}
+
 void fmax_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -509,10 +798,37 @@ void fmax_s(CPU& cpu, const Instruction instruction)
             if (as_u32(a) == sNaN_float) { cpu.fcsr.set_nv(cpu); return b; }
             if (as_u32(b) == sNaN_float) { cpu.fcsr.set_nv(cpu); return a; }
 
-            return std::fmax(a, b);
+            return std::fmaxf(a, b);
         };
 
         cpu.float_registers[instruction.get_rd()] = get_max();
+    }, cpu, instruction);
+}
+
+void fmax_d(CPU& cpu, const Instruction instruction)
+{
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+
+        const auto get_max = [&]()
+        {
+            // fmax(+0, -0) = +0
+            if (a == 0.0 && b == 0.0)
+            {
+                if (std::signbit(a) && std::signbit(b)) return -0.0;
+                else return 0.0;
+            }
+
+            // fmax(sNaN, x) = x
+            if (as_u64(a) == sNaN_double) { cpu.fcsr.set_nv(cpu); return b; }
+            if (as_u64(b) == sNaN_double) { cpu.fcsr.set_nv(cpu); return a; }
+
+            return std::fmax(a, b);
+        };
+
+        cpu.double_registers[instruction.get_rd()] = get_max();
     }, cpu, instruction);
 }
 
@@ -523,11 +839,39 @@ void fcvt_s_w(CPU& cpu, const Instruction instruction)
         (float)(i32)cpu.registers[instruction.get_rs1()];
 }
 
+void fcvt_s_d(CPU& cpu, const Instruction instruction)
+{
+    dbg(cpu.double_registers[instruction.get_rs1()]);
+    set_rounding_mode(cpu, instruction);
+    cpu.float_registers[instruction.get_rd()] = cpu.double_registers[instruction.get_rs1()];
+}
+
+void fcvt_d_s(CPU& cpu, const Instruction instruction)
+{
+    dbg(cpu.float_registers[instruction.get_rs1()]);
+    set_rounding_mode(cpu, instruction);
+    cpu.double_registers[instruction.get_rd()] = (double)cpu.float_registers[instruction.get_rs1()];
+}
+
+void fcvt_d_w(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    cpu.double_registers[instruction.get_rd()] =
+        (double)(i32)cpu.registers[instruction.get_rs1()];
+}
+
 void fcvt_s_l(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
     cpu.float_registers[instruction.get_rd()] =
-        (double)(float)(i32)cpu.registers[instruction.get_rs1()];
+        (float)(i32)cpu.registers[instruction.get_rs1()];
+}
+
+void fcvt_d_l(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    cpu.double_registers[instruction.get_rd()] =
+        (double)(i64)cpu.registers[instruction.get_rs1()];
 }
 
 void fcvt_s_wu(CPU& cpu, const Instruction instruction)
@@ -537,38 +881,48 @@ void fcvt_s_wu(CPU& cpu, const Instruction instruction)
         (float)(u32)cpu.registers[instruction.get_rs1()];
 }
 
+void fcvt_d_wu(CPU& cpu, const Instruction instruction)
+{
+    set_rounding_mode(cpu, instruction);
+    cpu.double_registers[instruction.get_rd()] =
+        (double)(u32)cpu.registers[instruction.get_rs1()];
+}
+
 void fcvt_s_lu(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
     cpu.float_registers[instruction.get_rd()] =
-        (double)(float)cpu.registers[instruction.get_rs1()];
+        (float)cpu.registers[instruction.get_rs1()];
 }
 
-void fcvt_w_s(CPU& cpu, const Instruction instruction)
+void fcvt_d_lu(CPU& cpu, const Instruction instruction)
 {
-    round_float<i32, i32>(cpu, instruction);
+    set_rounding_mode(cpu, instruction);
+    cpu.double_registers[instruction.get_rd()] =
+        (double)cpu.registers[instruction.get_rs1()];
 }
 
-void fcvt_l_s(CPU& cpu, const Instruction instruction)
-{
-    round_float<i64, i64>(cpu, instruction);
-}
-
-void fcvt_wu_s(CPU& cpu, const Instruction instruction)
-{
-    round_float<u32, i32>(cpu, instruction);
-}
-
-void fcvt_lu_s(CPU& cpu, const Instruction instruction)
-{
-    round_float<u64, u64>(cpu, instruction);
-}
+void fcvt_w_s (CPU& cpu, const Instruction instruction) { round_result<i32, i32, float> (cpu, instruction); }
+void fcvt_w_d (CPU& cpu, const Instruction instruction) { round_result<i32, i32, double>(cpu, instruction); }
+void fcvt_l_s (CPU& cpu, const Instruction instruction) { round_result<i64, i64, float> (cpu, instruction); }
+void fcvt_l_d (CPU& cpu, const Instruction instruction) { round_result<i64, i64, double>(cpu, instruction); }
+void fcvt_wu_s(CPU& cpu, const Instruction instruction) { round_result<u32, i32, float> (cpu, instruction); }
+void fcvt_wu_d(CPU& cpu, const Instruction instruction) { round_result<u32, i32, double>(cpu, instruction); }
+void fcvt_lu_s(CPU& cpu, const Instruction instruction) { round_result<u64, u64, float> (cpu, instruction); }
+void fcvt_lu_d(CPU& cpu, const Instruction instruction) { round_result<u64, u64, double>(cpu, instruction); }
 
 void fmv_x_w(CPU& cpu, const Instruction instruction)
 {
     // Unaffected by rounding mode despite having RM field
     u32 value = as_u32(cpu.float_registers[instruction.get_rs1()]);
     cpu.registers[instruction.get_rd()] = (i64)(i32)value;
+}
+
+void fmv_x_d(CPU& cpu, const Instruction instruction)
+{
+    // Unaffected by rounding mode despite having RM field
+    u64 value = as_u64(cpu.double_registers[instruction.get_rs1()]);
+    cpu.registers[instruction.get_rd()] = value;
 }
 
 void fmv_w_x(CPU& cpu, const Instruction instruction)
@@ -578,9 +932,16 @@ void fmv_w_x(CPU& cpu, const Instruction instruction)
     cpu.float_registers[instruction.get_rd()] = value;
 }
 
+void fmv_d_x(CPU& cpu, const Instruction instruction)
+{
+    // Unaffected by rounding mode despite having RM field
+    double value = as_double(cpu.registers[instruction.get_rs1()]);
+    cpu.double_registers[instruction.get_rd()] = value;
+}
+
 void feq_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -588,9 +949,19 @@ void feq_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void feq_d(CPU& cpu, const Instruction instruction)
+{
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        cpu.registers[instruction.get_rd()] = (a == b) ? 1 : 0;
+    }, cpu, instruction);
+}
+
 void flt_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -598,12 +969,32 @@ void flt_s(CPU& cpu, const Instruction instruction)
     }, cpu, instruction);
 }
 
+void flt_d(CPU& cpu, const Instruction instruction)
+{
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
+        cpu.registers[instruction.get_rd()] = (a < b) ? 1 : 0;
+    }, cpu, instruction);
+}
+
 void fle_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags([&]()
+    update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
+        cpu.registers[instruction.get_rd()] = (a <= b) ? 1 : 0;
+    }, cpu, instruction);
+}
+
+void fle_d(CPU& cpu, const Instruction instruction)
+{
+    update_flags<double>([&]()
+    {
+        const double a = cpu.double_registers[instruction.get_rs1()];
+        const double b = cpu.double_registers[instruction.get_rs2()];
         cpu.registers[instruction.get_rd()] = (a <= b) ? 1 : 0;
     }, cpu, instruction);
 }
@@ -645,6 +1036,80 @@ void fclass_s(CPU& cpu, const Instruction instruction)
         {
             // Quiet NaN
             if (as_u32(value) == qNaN_float)
+                rd = 0b1000000000;
+
+            // Signaling NaN (we hope)
+            else
+                rd = 0b100000000;
+
+            break;
+        }
+
+        case FP_SUBNORMAL:
+        {
+            // Negative subnormal
+            if (std::signbit(value))
+                rd = 0b100;
+
+            // Positive subnormal
+            else
+                rd = 0b100000;
+
+            break;
+        }
+
+        default:
+        {
+            // Negative normal
+            if (std::signbit(value))
+                rd = 0b10;
+
+            // Positive normal
+            else
+                rd = 0b1000000;
+
+            break;
+        }
+    }
+}
+
+void fclass_d(CPU& cpu, const Instruction instruction)
+{
+    const double value = cpu.double_registers[instruction.get_rs1()];
+    u64& rd = cpu.registers[instruction.get_rd()];
+
+    switch (std::fpclassify(value))
+    {
+        case FP_INFINITE:
+        {
+            // Negative infinity
+            if (value == -std::numeric_limits<double>::infinity())
+                rd = 0b1;
+
+            // Positive infinity
+            else if (value == std::numeric_limits<double>::infinity())
+                rd = 0b10000000;
+
+            break;
+        }
+
+        case FP_ZERO:
+        {
+            // Minus zero
+            if (std::signbit(value))
+                rd = 0b1000;
+
+            // Plus zero
+            else
+                rd = 0b10000;
+
+            break;
+        }
+
+        case FP_NAN:
+        {
+            // Quiet NaN
+            if (as_u64(value) == qNaN_double)
                 rd = 0b1000000000;
 
             // Signaling NaN (we hope)

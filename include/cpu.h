@@ -285,20 +285,20 @@ private:
     template<typename T>
     std::optional<T> fetch_from_bus(const u64 address)
     {
-        if (sizeof(T) == 1) return bus.read_8(address);
-        if (sizeof(T) == 2) return bus.read_16(address);
-        if (sizeof(T) == 4) return bus.read_32(address);
-        if (sizeof(T) == 8) return bus.read_64(address);
+        if constexpr (sizeof(T) == 1) return bus.read_8(address);
+        if constexpr (sizeof(T) == 2) return bus.read_16(address);
+        if constexpr (sizeof(T) == 4) return bus.read_32(address);
+        if constexpr (sizeof(T) == 8) return bus.read_64(address);
         return std::nullopt;
     }
 
     template<typename T>
     bool write_to_bus(const u64 address, const T value)
     {
-        if (sizeof(T) == 1) return bus.write_8 (address, value);
-        if (sizeof(T) == 2) return bus.write_16(address, value);
-        if (sizeof(T) == 4) return bus.write_32(address, value);
-        else                return bus.write_64(address, value);
+        if constexpr (sizeof(T) == 1) return bus.write_8 (address, value);
+        if constexpr (sizeof(T) == 2) return bus.write_16(address, value);
+        if constexpr (sizeof(T) == 4) return bus.write_32(address, value);
+        else                          return bus.write_64(address, value);
     }
 
     template<typename T>

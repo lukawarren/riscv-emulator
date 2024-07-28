@@ -11,7 +11,7 @@ def run_test(file_path, file_name):
     global passed
     global failed
 
-    print(" " * 30, end='\r')
+    print(" " * 40, end='\r')
     print(f"Running {file_name}", end='\r')
 
     # Emulate test
@@ -22,7 +22,7 @@ def run_test(file_path, file_name):
             print("Running " + file_name)
             exit()
 
-    print(" " * 30, end='\r')
+    print(" " * 40, end='\r')
 
     # Check the return status
     if result.returncode == 1:
