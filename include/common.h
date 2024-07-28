@@ -24,6 +24,10 @@
 #define DBG_MACRO_NO_WARNING
 #include <dbg.h>
 
+// For RV64FD
+#include <cfenv>
+#include <cmath>
+
 extern "C" {
     #include <riscv-disas.h>
 }

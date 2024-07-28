@@ -6,6 +6,7 @@
 #include "traps.h"
 #include "instruction.h"
 #include "compressed_instruction.h"
+#include "opcodes_f.h"
 
 class CPU
 {
@@ -56,6 +57,7 @@ public:
         void set(size_t index, float value)
         {
             // Perform NaN-boxing by setting all the "double bits" to 1
+            // NaNs are canonicalised
             u32* u = (u32*)&value;
             u64 boxed = 0xffffffff00000000 | (u64)*u;
             memcpy(&cpu->double_registers[index], &boxed, sizeof(double));
@@ -68,7 +70,7 @@ public:
             u64* u = (u64*)&cpu->double_registers[index];
             u32 new_bits;
             if((*u & 0xffffffff00000000) != 0xffffffff00000000)
-                new_bits = 0x7fc00000;
+                new_bits = qNaN_float;
             else
                 new_bits = 0xffffffff & *u;
             float f;

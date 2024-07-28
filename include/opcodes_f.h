@@ -1,5 +1,4 @@
 #pragma once
-#include "cpu.h"
 #include "instruction.h"
 
 #define OPCODES_F_1 0x07
@@ -73,6 +72,13 @@
 #define FLT_D       0x1
 #define FLE_S       0x0
 #define FLE_D       0x0
+
+extern u32 qNaN_float;  // a.k.a. "canconical" NaN
+extern u64 qNaN_double; // a.k.a. "canconical" NaN
+extern u32 sNaN_float;
+extern u64 sNaN_double;
+
+class CPU;
 
 void init_opcodes_f();
 bool check_fs_field(CPU& cpu, bool is_write);

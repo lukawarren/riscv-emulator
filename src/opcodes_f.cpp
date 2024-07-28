@@ -1,6 +1,5 @@
 #include "opcodes_f.h"
-#include <cfenv>
-#include <cmath>
+#include "cpu.h"
 
 /*
     Complying with IEEE 754 requires the following:
@@ -9,10 +8,10 @@
 */
 static_assert(std::numeric_limits<float>::is_iec559);
 
-constexpr u32 qNaN_float  = 0x7fc00000;         // a.k.a. "canconical" NaN
-constexpr u64 qNaN_double = 0x7ff8000000000000; // a.k.a. "canconical" NaN
-constexpr u32 sNaN_float  = 0x7f800001;
-constexpr u64 sNaN_double = 0x7ff0000000000001;
+u32 qNaN_float  = 0x7fc00000;
+u64 qNaN_double = 0x7ff8000000000000;
+u32 sNaN_float  = 0x7f800001;
+u64 sNaN_double = 0x7ff0000000000001;
 
 #define ATTEMPTED_READ() \
     if (!check_fs_field(cpu, false)) return true;
@@ -301,43 +300,6 @@ static inline u64 as_u64(const double f)
     return *u;
 }
 
-template<typename W, typename F>
-static inline void update_flags(F&& f, CPU& cpu, const Instruction instruction, const bool use_rs1 = false)
-{
-    // Clear host-CPU floating-point exceptions
-    std::feclearexcept(FE_ALL_EXCEPT);
-
-    f();
-
-    // Query exceptions and update CSR accordingly
-    if (std::fetestexcept(FE_INVALID))   cpu.fcsr.set_nv(cpu);
-    if (std::fetestexcept(FE_DIVBYZERO)) cpu.fcsr.set_dz(cpu);
-    if (std::fetestexcept(FE_OVERFLOW))  cpu.fcsr.set_of(cpu);
-    if (std::fetestexcept(FE_UNDERFLOW)) cpu.fcsr.set_uf(cpu);
-    if (std::fetestexcept(FE_INEXACT))   cpu.fcsr.set_nx(cpu);
-
-    // Deal with NaN by overwriting result of f() with NaN
-    const size_t index = use_rs1 ? instruction.get_rs1() : instruction.get_rd();
-    if constexpr (sizeof(W) == sizeof(float))
-    {
-        if (std::isnan(cpu.float_registers[index]))
-        {
-            float qNaN;
-            memcpy(&qNaN, &qNaN_float, sizeof(qNaN));
-            cpu.float_registers[index] = qNaN;
-        }
-    }
-    else
-    {
-        if (std::isnan(cpu.double_registers[index]))
-        {
-            double qNaN;
-            memcpy(&qNaN, &qNaN_double, sizeof(qNaN));
-            cpu.double_registers[index] = qNaN;
-        }
-    }
-}
-
 static inline void set_rounding_mode(const CPU& cpu, const Instruction instruction)
 {
     FCSR::RoundingMode mode = (FCSR::RoundingMode)instruction.get_rounding_mode();
@@ -371,13 +333,57 @@ static inline void set_rounding_mode(const CPU& cpu, const Instruction instructi
     }
 }
 
+/*
+    Monitors host FPU exception flags so as to update FCSR.
+    Also canonicalises NaNs, so required for all computations
+    save for sign-injection instructions (FSGNJ, FSGNJN, etc.)
+
+    TODO: not all instructions require setting the rounding mode
+          (though it can't hurt).
+*/
+template<typename W, typename F>
+static inline void compute(F&& f, CPU& cpu, const Instruction instruction, const bool rs1_output = false)
+{
+    // Setup host-CPU FPU
+    set_rounding_mode(cpu, instruction);
+    std::feclearexcept(FE_ALL_EXCEPT);
+
+    f();
+
+    // Query exceptions and update CSR accordingly
+    if (std::fetestexcept(FE_INVALID))   cpu.fcsr.set_nv(cpu);
+    if (std::fetestexcept(FE_DIVBYZERO)) cpu.fcsr.set_dz(cpu);
+    if (std::fetestexcept(FE_OVERFLOW))  cpu.fcsr.set_of(cpu);
+    if (std::fetestexcept(FE_UNDERFLOW)) cpu.fcsr.set_uf(cpu);
+    if (std::fetestexcept(FE_INEXACT))   cpu.fcsr.set_nx(cpu);
+
+    // Canonicalise NaNs
+    const size_t index = rs1_output ? instruction.get_rs1() : instruction.get_rd();
+    if constexpr (sizeof(W) == sizeof(float))
+    {
+        if (std::isnan(cpu.float_registers[index])) [[unlikely]]
+        {
+            float qNaN;
+            memcpy(&qNaN, &qNaN_float, sizeof(qNaN));
+            cpu.float_registers[index] = qNaN;
+        }
+    }
+    else
+    {
+        if (std::isnan(cpu.double_registers[index])) [[unlikely]]
+        {
+            double qNaN;
+            memcpy(&qNaN, &qNaN_double, sizeof(qNaN));
+            cpu.double_registers[index] = qNaN;
+        }
+    }
+}
+
 template<typename T, typename U, typename W>
 static void round_result(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-
     W result;
-    update_flags<W>([&]()
+    compute<W>([&]()
     {
         // NOTE: Using std::rintf is required to respect the rounding mode.
         //       It is preferable to std::nearbyint as it will raise FE_INEXACT
@@ -391,7 +397,7 @@ static void round_result(CPU& cpu, const Instruction instruction)
     // If the rounded result is not representable in the destination
     // format, it is clipped to the nearest value and the invalid flag
     // is set. NaN is always treated as positive.
-    if (result > std::numeric_limits<T>::max() || std::isnan(result))
+    if (result > std::numeric_limits<T>::max() || std::isnan(result))  [[unlikely]]
     {
         result = std::numeric_limits<T>::max();
         cpu.fcsr.set_nv(cpu);
@@ -462,8 +468,7 @@ void fsd(CPU& cpu, const Instruction instruction)
 
 void fmadd_s(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -474,8 +479,7 @@ void fmadd_s(CPU& cpu, const Instruction instruction)
 
 void fmadd_d(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -486,8 +490,7 @@ void fmadd_d(CPU& cpu, const Instruction instruction)
 
 void fmsub_s(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -498,8 +501,7 @@ void fmsub_s(CPU& cpu, const Instruction instruction)
 
 void fmsub_d(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -510,8 +512,7 @@ void fmsub_d(CPU& cpu, const Instruction instruction)
 
 void fnmadd_s(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -522,8 +523,7 @@ void fnmadd_s(CPU& cpu, const Instruction instruction)
 
 void fnmadd_d(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -534,8 +534,7 @@ void fnmadd_d(CPU& cpu, const Instruction instruction)
 
 void fnmsub_s(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -546,8 +545,7 @@ void fnmsub_s(CPU& cpu, const Instruction instruction)
 
 void fnmsub_d(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -558,8 +556,7 @@ void fnmsub_d(CPU& cpu, const Instruction instruction)
 
 void fadd_s(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -569,8 +566,7 @@ void fadd_s(CPU& cpu, const Instruction instruction)
 
 void fadd_d(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -580,8 +576,7 @@ void fadd_d(CPU& cpu, const Instruction instruction)
 
 void fsub_s(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -591,8 +586,7 @@ void fsub_s(CPU& cpu, const Instruction instruction)
 
 void fsub_d(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -602,8 +596,7 @@ void fsub_d(CPU& cpu, const Instruction instruction)
 
 void fmul_s(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -613,8 +606,7 @@ void fmul_s(CPU& cpu, const Instruction instruction)
 
 void fmul_d(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -624,8 +616,7 @@ void fmul_d(CPU& cpu, const Instruction instruction)
 
 void fdiv_s(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -636,7 +627,7 @@ void fdiv_s(CPU& cpu, const Instruction instruction)
 void fdiv_d(CPU& cpu, const Instruction instruction)
 {
     set_rounding_mode(cpu, instruction);
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -646,8 +637,7 @@ void fdiv_d(CPU& cpu, const Instruction instruction)
 
 void fsqrt_s(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         cpu.float_registers[instruction.get_rd()] = std::sqrt(a);
@@ -656,8 +646,7 @@ void fsqrt_s(CPU& cpu, const Instruction instruction)
 
 void fsqrt_d(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         cpu.double_registers[instruction.get_rd()] = std::sqrt(a);
@@ -734,7 +723,7 @@ void fsgnjx_d(CPU& cpu, const Instruction instruction)
 
 void fmin_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -757,7 +746,7 @@ void fmin_s(CPU& cpu, const Instruction instruction)
 
 void fmin_d(CPU& cpu, const Instruction instruction)
 {
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -780,7 +769,7 @@ void fmin_d(CPU& cpu, const Instruction instruction)
 
 void fmax_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -807,7 +796,7 @@ void fmax_s(CPU& cpu, const Instruction instruction)
 
 void fmax_d(CPU& cpu, const Instruction instruction)
 {
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -834,72 +823,82 @@ void fmax_d(CPU& cpu, const Instruction instruction)
 
 void fcvt_s_w(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    cpu.float_registers[instruction.get_rd()] =
-        (float)(i32)cpu.registers[instruction.get_rs1()];
+    compute<float>([&]() {
+        cpu.float_registers[instruction.get_rd()] =
+            (float)(i32)cpu.registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_s_d(CPU& cpu, const Instruction instruction)
 {
-    dbg(cpu.double_registers[instruction.get_rs1()]);
-    set_rounding_mode(cpu, instruction);
-    cpu.float_registers[instruction.get_rd()] = cpu.double_registers[instruction.get_rs1()];
+    compute<float>([&]() {
+        cpu.float_registers[instruction.get_rd()] =
+            cpu.double_registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_d_s(CPU& cpu, const Instruction instruction)
 {
-    dbg(cpu.float_registers[instruction.get_rs1()]);
-    set_rounding_mode(cpu, instruction);
-    cpu.double_registers[instruction.get_rd()] = (double)cpu.float_registers[instruction.get_rs1()];
+    compute<double>([&]() {
+        cpu.double_registers[instruction.get_rd()] =
+            (double)cpu.float_registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_d_w(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    cpu.double_registers[instruction.get_rd()] =
-        (double)(i32)cpu.registers[instruction.get_rs1()];
+    compute<double>([&]() {
+        cpu.double_registers[instruction.get_rd()] =
+            (double)(i32)cpu.registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_s_l(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    cpu.float_registers[instruction.get_rd()] =
-        (float)(i32)cpu.registers[instruction.get_rs1()];
+    compute<float>([&]() {
+        cpu.float_registers[instruction.get_rd()] =
+            (float)(i32)cpu.registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_d_l(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    cpu.double_registers[instruction.get_rd()] =
-        (double)(i64)cpu.registers[instruction.get_rs1()];
+    compute<double>([&]() {
+        cpu.double_registers[instruction.get_rd()] =
+            (double)(i64)cpu.registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_s_wu(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    cpu.float_registers[instruction.get_rd()] =
-        (float)(u32)cpu.registers[instruction.get_rs1()];
+    compute<float>([&]() {
+        cpu.float_registers[instruction.get_rd()] =
+            (float)(u32)cpu.registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_d_wu(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    cpu.double_registers[instruction.get_rd()] =
-        (double)(u32)cpu.registers[instruction.get_rs1()];
+    compute<double>([&]() {
+        cpu.double_registers[instruction.get_rd()] =
+            (double)(u32)cpu.registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_s_lu(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    cpu.float_registers[instruction.get_rd()] =
-        (float)cpu.registers[instruction.get_rs1()];
+    compute<float>([&]() {
+        cpu.float_registers[instruction.get_rd()] =
+            (float)cpu.registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_d_lu(CPU& cpu, const Instruction instruction)
 {
-    set_rounding_mode(cpu, instruction);
-    cpu.double_registers[instruction.get_rd()] =
-        (double)cpu.registers[instruction.get_rs1()];
+    compute<double>([&]() {
+        cpu.double_registers[instruction.get_rd()] =
+            (double)cpu.registers[instruction.get_rs1()];
+    }, cpu, instruction);
 }
 
 void fcvt_w_s (CPU& cpu, const Instruction instruction) { round_result<i32, i32, float> (cpu, instruction); }
@@ -941,7 +940,7 @@ void fmv_d_x(CPU& cpu, const Instruction instruction)
 
 void feq_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -951,7 +950,7 @@ void feq_s(CPU& cpu, const Instruction instruction)
 
 void feq_d(CPU& cpu, const Instruction instruction)
 {
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -961,7 +960,7 @@ void feq_d(CPU& cpu, const Instruction instruction)
 
 void flt_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -971,7 +970,7 @@ void flt_s(CPU& cpu, const Instruction instruction)
 
 void flt_d(CPU& cpu, const Instruction instruction)
 {
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
@@ -981,7 +980,7 @@ void flt_d(CPU& cpu, const Instruction instruction)
 
 void fle_s(CPU& cpu, const Instruction instruction)
 {
-    update_flags<float>([&]()
+    compute<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
         const float b = cpu.float_registers[instruction.get_rs2()];
@@ -991,7 +990,7 @@ void fle_s(CPU& cpu, const Instruction instruction)
 
 void fle_d(CPU& cpu, const Instruction instruction)
 {
-    update_flags<double>([&]()
+    compute<double>([&]()
     {
         const double a = cpu.double_registers[instruction.get_rs1()];
         const double b = cpu.double_registers[instruction.get_rs2()];
