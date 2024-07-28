@@ -20,6 +20,7 @@
             reg = <0>;
             compatible = "riscv";
             riscv,isa = "rv64gc";
+            riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "zicntr", "zicsr", "zifencei";
             mmu-type = "riscv,sv39";
             clock-frequency = <10000000>;
             cpu0_intc: interrupt-controller {
