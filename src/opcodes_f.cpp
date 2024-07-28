@@ -650,7 +650,7 @@ void fsqrt_s(CPU& cpu, const Instruction instruction)
     update_flags<float>([&]()
     {
         const float a = cpu.float_registers[instruction.get_rs1()];
-        cpu.float_registers[instruction.get_rd()] = std::sqrtf(a);
+        cpu.float_registers[instruction.get_rd()] = std::sqrt(a);
     }, cpu, instruction);
 }
 
