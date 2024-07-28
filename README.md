@@ -10,6 +10,8 @@ A RISC-V emulator capable of running Linux (6.9.10), written in C++.
 * F (floating point)
 * D (doubles)
 * Zicsr (CSRs)
+* Zicntr (counters and timers)
+* Zifencei (fences)
 
 (i.e. RV64GC)
 
