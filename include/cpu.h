@@ -214,12 +214,12 @@ public:
         u64 bits = 0;
         bits |= (1 << 0);  // A
         bits |= (1 << 2);  // C
-        bits |= (1 << 3);  // C
+        bits |= (1 << 3);  // D
         bits |= (1 << 5);  // F
         bits |= (1 << 8);  // E
-        bits |= (1 << 12); // U
-        bits |= (1 << 18); // S
-        bits |= (1 << 20); // U
+        bits |= (1 << 12); // M
+        bits |= (1 << 18); // S (supervisor mode)
+        bits |= (1 << 20); // U (user mode)
         return bits;
     }
 
