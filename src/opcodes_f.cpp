@@ -441,7 +441,7 @@ void fsw(CPU& cpu, const Instruction instruction)
     const u64 address = instruction.get_imm(Instruction::Type::S) +
         cpu.registers[instruction.get_rs1()];
 
-    const float value = cpu.float_registers[instruction.get_rs2()];
+    const float value = cpu.float_registers.get_raw(instruction.get_rs2());
 
     const auto error = cpu.write_32(address, as_u32(value));
     if (error.has_value())
@@ -914,7 +914,7 @@ void fcvt_lu_d(CPU& cpu, const Instruction instruction) { round_result<u64, u64,
 void fmv_x_w(CPU& cpu, const Instruction instruction)
 {
     // Unaffected by rounding mode despite having RM field
-    u32 value = as_u32(cpu.float_registers[instruction.get_rs1()]);
+    u32 value = as_u32(cpu.float_registers.get_raw(instruction.get_rs1()));
     cpu.registers[instruction.get_rd()] = (i64)(i32)value;
 }
 

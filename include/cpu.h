@@ -64,10 +64,25 @@ public:
         float get(size_t index)
         {
             // Perform NaN-boxing by chopping off all the 1's from above
+            // If it's not actually a NaN-boxed value, return the canonical NaN
             u64* u = (u64*)&cpu->double_registers[index];
-            u32 boxed = 0xffffffff & *u;
+            u32 new_bits;
+            if((*u & 0xffffffff00000000) != 0xffffffff00000000)
+                new_bits = 0x7fc00000;
+            else
+                new_bits = 0xffffffff & *u;
             float f;
-            memcpy(&f, &boxed, sizeof(float));
+            memcpy(&f, &new_bits, sizeof(float));
+            return f;
+        }
+
+        float get_raw(size_t index)
+        {
+            // Floating point transfer operations don't do the NaN thing
+            u64* u = (u64*)&cpu->double_registers[index];
+            u32 new_bits = 0xffffffff & *u;
+            float f;
+            memcpy(&f, &new_bits, sizeof(float));
             return f;
         }
 
