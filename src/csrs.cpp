@@ -121,10 +121,9 @@ std::optional<u64> SIP::read(CPU& cpu)
 
 bool SStatus::write(const u64 value, CPU& cpu)
 {
-    // Don't set the wpri fields; keep them zero (including XS)
+    // Don't set the wpri fields; keep them zero (XS is read-only)
+    // SXL and UXL are already hard-wired
     MStatus::Fields& fields = cpu.mstatus.fields;
-    fields.sd = (value >> 63) & 0x1;
-    fields.uxl = (value >> 32) & 0x3;
     fields.mxr = (value >> 19) & 0x1;
     fields.sum = (value >> 18) & 0x1;
     fields.fs = (value >> 13) & 0x3;
@@ -133,12 +132,16 @@ bool SStatus::write(const u64 value, CPU& cpu)
     fields.ube = (value >> 6) & 0x1;
     fields.spie = (value >> 5) & 0x1;
     fields.sie = (value >> 1) & 0x1;
+    fields.sd = (fields.fs == 0b11) || (fields.xs == 0b11);
+
     return true;
 }
 
 std::optional<u64> SStatus::read(CPU& cpu)
 {
-    const MStatus::Fields& fields = cpu.mstatus.fields;
+    MStatus::Fields& fields = cpu.mstatus.fields;
+    fields.sd = (fields.fs == 0b11) || (fields.xs == 0b11);
+
     u64 value = 0;
     value |= ((u64)(fields.sd) << 63);
     value |= ((u64)(fields.wpri_1) << 34);
@@ -158,6 +161,7 @@ std::optional<u64> SStatus::read(CPU& cpu)
     value |= ((u64)(0) << 2); // wpri_6
     value |= ((u64)(fields.sie) << 1);
     value |= ((u64)(0) << 0); // wpri_7
+
     return value;
 }
 
@@ -174,7 +178,7 @@ std::optional<u64> MISA::read(CPU& cpu)
     // capabilities)
     const u64 mxl = 2; // XLEN = 64
     const u64 extensions = CPU::get_supported_extensions();
-    return (mxl << 62)| extensions;
+    return (mxl << 62) | extensions;
 }
 
 bool SATP::write(const u64 value, CPU& cpu)

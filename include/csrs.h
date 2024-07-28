@@ -359,15 +359,17 @@ struct MStatus : CSR
     MStatus()
     {
         memset(&fields, 0, sizeof(Fields));
+
+        // Hardwire SXL and UXL
+        fields.sxl = 2;
+        fields.uxl = 2;
     }
 
     bool write(const u64 value, CPU&) override
     {
-        // Don't set the wpri fields; keep them zero (including XS)
+        // Don't set the wpri fields; keep them zero (XS is read-only)
         fields.mbe = (value >> 37) & 0x1;
         fields.sbe = (value >> 36) & 0x1;
-        fields.sxl = (value >> 34) & 0x3;
-        fields.uxl = (value >> 32) & 0x3;
         fields.tsr = (value >> 22) & 0x1;
         fields.tw = (value >> 21) & 0x1;
         fields.tvm = (value >> 20) & 0x1;
@@ -383,10 +385,6 @@ struct MStatus : CSR
         fields.spie = (value >> 5) & 0x1;
         fields.mie = (value >> 3) & 0x1;
         fields.sie = (value >> 1) & 0x1;
-
-        // WARL for SXL and UXL
-        fields.sxl = 2; // xlen = 64
-        fields.uxl = 2; // xlen = 64
 
         // SD
         fields.sd = (fields.fs == 0b11) || (fields.xs == 0b11);
