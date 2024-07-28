@@ -1145,3 +1145,54 @@ void fclass_d(CPU& cpu, const Instruction instruction)
         }
     }
 }
+
+void c_fldsp(CPU& cpu, const CompressedInstruction instruction)
+{
+    const u64 offset = instruction.get_ldsp_offset();
+    const u64 address = cpu.registers[2] + offset;
+
+    const auto value = cpu.read_64(address);
+    if (!value)
+    {
+        cpu.raise_exception(value.error());
+        return;
+    }
+
+    cpu.double_registers[instruction.get_rd()] = as_double(*value);
+}
+
+void c_fsdsp(CPU& cpu, const CompressedInstruction instruction)
+{
+    const u64 offset = instruction.get_sdsp_offset();
+    const u64 address = cpu.registers[2] + offset;
+
+    const double value = cpu.double_registers[instruction.get_rs2()];
+
+    const auto error = cpu.write_64(address, as_u64(value));
+    if (error.has_value())
+        cpu.raise_exception(*error);
+}
+
+void c_fld(CPU& cpu, const CompressedInstruction instruction)
+{
+    const u64 address = cpu.registers[instruction.get_rs1_alt()] + instruction.get_ld_sd_imm();
+    const auto value = cpu.read_64(address);
+
+    if (!value)
+    {
+        cpu.raise_exception(value.error());
+        return;
+    }
+
+    cpu.double_registers[instruction.get_rd_alt()] = as_double(*value);
+}
+
+void c_fsd(CPU& cpu, const CompressedInstruction instruction)
+{
+    const u64 address = cpu.registers[instruction.get_rs1_alt()] + instruction.get_ld_sd_imm();
+    const double value = cpu.double_registers[instruction.get_rs2_alt()];
+
+    const auto error = cpu.write_64(address, as_u64(value));
+    if (error.has_value())
+        cpu.raise_exception(*error);
+}

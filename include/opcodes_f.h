@@ -1,5 +1,6 @@
 #pragma once
 #include "instruction.h"
+#include "compressed_instruction.h"
 
 #define OPCODES_F_1 0x07
 #define OPCODES_F_2 0x27
@@ -72,6 +73,11 @@
 #define FLT_D       0x1
 #define FLE_S       0x0
 #define FLE_D       0x0
+
+#define C_FLDSP     0b001
+#define C_FSDSP     0b101
+#define C_FLD       0b001
+#define C_FSD       0b101
 
 extern u32 qNaN_float;  // a.k.a. "canconical" NaN
 extern u64 qNaN_double; // a.k.a. "canconical" NaN
@@ -146,3 +152,8 @@ void fle_s      (CPU& cpu, const Instruction instruction);
 void fle_d      (CPU& cpu, const Instruction instruction);
 void fclass_s   (CPU& cpu, const Instruction instruction);
 void fclass_d   (CPU& cpu, const Instruction instruction);
+
+void c_fldsp    (CPU& cpu, const CompressedInstruction instruction);
+void c_fsdsp    (CPU& cpu, const CompressedInstruction instruction);
+void c_fld      (CPU& cpu, const CompressedInstruction instruction);
+void c_fsd      (CPU& cpu, const CompressedInstruction instruction);
