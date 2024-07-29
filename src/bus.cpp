@@ -90,7 +90,7 @@ std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address, const u64 size
     // We include the size (in bytes) of the fetch to make sure addresses that
     // eclipse the end of RAM do not succeed. This edge case doesn't need to
     // be checked for other devices as they do their own checks.
-    if (address >= ram_base && address + (size-1) < ram_base + ram.size)
+    if (address >= ram_base && address + (size-1) < ram_base + ram.size) [[likely]]
         return { ram, ram_base };
 
     if (address == uart_address_one || address == uart_address_two)

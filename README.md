@@ -20,7 +20,7 @@ Sv39 paging is also supported.
 ## Supported Peripherals
 * CLINT
 * PLIC
-* UART (simple-uart driver for the above Linux)
+* UART (8250)
 
 ## Test Coverage
 You can find the official RISC-V test suite [here](https://github.com/riscv-software-src/riscv-tests).

@@ -20,12 +20,8 @@ if [ ! -d "$KERNEL_EXTRACT_DIR" ]; then
     echo "extracting $KERNEL_FILE..."
     tar -xf "$KERNEL_FILE"
 
-    # Apply patches
-    cd $KERNEL_EXTRACT_DIR
-    echo "patching linux..."
-    patch -p1 < ../../patches/linux/0001-add-simple-uart.patch
-
     # Apply config
+    cd $KERNEL_EXTRACT_DIR
     rm -f .config
     cp ../../linux.config .config
 
@@ -44,11 +40,6 @@ if [ ! -d "opensbi" ]; then
     git clone https://github.com/riscv/opensbi.git opensbi
     cd opensbi
     git checkout 70ffc3e2e690f2b7bcea456f49206b636420ef5f &> /dev/null
-
-    # Apply patches
-    echo "patching opensbi..."
-    git apply ../../patches/opensbi/0001-add-simple-uart.patch
-
     cd ..
 fi
 
