@@ -13,8 +13,6 @@ extern "C" {
     #include <riscv-disas.h>
 }
 
-#define ADDR_ALIGN_DOWN(n, m) ((n) / (m) * (m))
-
 CPU::CPU(const u64 ram_size, const bool emulating_test) :
     bus(ram_size, emulating_test) , emulating_test(emulating_test)
 {
@@ -100,7 +98,6 @@ void CPU::do_cycle()
 void CPU::trace()
 {
     // Get next instruction
-    // TODO: guard against modifying state via extraneous reads
     std::expected<Instruction, Exception> instruction = std::unexpected(Exception::IllegalInstruction);
     const std::expected<CompressedInstruction, Exception> half_instruction = read_16(pc, AccessType::Trace);
     const bool is_compressed = (half_instruction.has_value() && (half_instruction->instruction & 0b11) != 0b11);
