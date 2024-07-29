@@ -216,7 +216,7 @@ public:
         bits |= (1 << 2);  // C
         bits |= (1 << 3);  // D
         bits |= (1 << 5);  // F
-        bits |= (1 << 8);  // E
+        bits |= (1 << 8);  // I
         bits |= (1 << 12); // M
         bits |= (1 << 18); // S (supervisor mode)
         bits |= (1 << 20); // U (user mode)
