@@ -26,6 +26,8 @@
 
 #define INT_THRE           1
 
+constexpr size_t max_input_buffer_size = 10;
+
 UART::UART(bool listen_for_input) : listening_to_input(listen_for_input)
 {
     if (listen_for_input)
@@ -59,7 +61,19 @@ std::optional<u64> UART::read_byte(const u64 address)
             {
                 // Contains the byte received if no FIFO is used,
                 // else the oldest unread byte
-                return 0;
+                input_mutex.lock();
+                if (input_buffer.empty())
+                {
+                    input_mutex.unlock();
+                    return 0;
+                }
+                else
+                {
+                    char c = input_buffer.front();
+                    input_buffer.pop();
+                    input_mutex.unlock();
+                    return c;
+                }
             }
             case IER_OFFSET:
             {
@@ -79,7 +93,10 @@ std::optional<u64> UART::read_byte(const u64 address)
                 // Bit 0 = DR (i.e. data available to be read)
                 // Bit 5 = THR empty (i.e. we're ready to receive data)
                 // Bit 6 = THR empty *and* line is idle
-                return LSR_THRE | LSR_TEMT;
+                input_mutex.lock();
+                u64 ret = LSR_THRE | LSR_TEMT | (!input_buffer.empty());
+                input_mutex.unlock();
+                return ret;
             }
             case MSR_OFFSET:
             {
@@ -199,8 +216,11 @@ bool UART::write_byte(const u64 address, const u8 value)
 
 void UART::clock(PLIC& plic)
 {
-    // No input yet
-    if (1) pending_interrupts &= ~1;
+    // Input
+    input_mutex.lock();
+    if (!input_buffer.empty()) pending_interrupts |= 1;
+    else pending_interrupts &= ~1;
+    input_mutex.unlock();
 
     // Don't generate any disabled interrupts
     pending_interrupts &= ier;
@@ -221,7 +241,12 @@ void UART::input_thread_run(UART& uart)
         // Block and wait for input
         int character = read_character();
         if (character != -1 && character != '\0')
-            {}
+        {
+            uart.input_mutex.lock();
+            if (uart.input_buffer.size() < max_input_buffer_size)
+                uart.input_buffer.push(character);
+            uart.input_mutex.unlock();
+        }
     }
 }
 

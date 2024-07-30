@@ -25,6 +25,8 @@ private:
     // Input
     bool listening_to_input;
     std::thread input_thread;
+    std::queue<char> input_buffer;
+    std::mutex input_mutex;
     struct termios original_termios;
     static void input_thread_run(UART& uart);
     static int read_character();
