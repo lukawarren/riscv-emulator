@@ -30,8 +30,8 @@ public:
     constexpr static u64 plic_end = plic_base + 0x3fff004;
     constexpr static u64 clint_base = 0x2000000;
     constexpr static u64 clint_end = 0x2010000;
-    constexpr static u64 uart_address_one = 0x3000000;
-    constexpr static u64 uart_address_two = 0x3000001;
+    constexpr static u64 uart_address = 0x3000000;
+    constexpr static u64 uart_length = 0x100;
     constexpr static u64 ram_base = 0x80000000;
     constexpr static u64 programs_base = 0x80000000;
 

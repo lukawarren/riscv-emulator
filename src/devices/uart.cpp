@@ -1,12 +1,30 @@
 #include "devices/uart.h"
 
-#define TX_RX_REG   0
-#define STATUS_REG  1
+#define RBR_OFFSET         0 // In:  Recieve Buffer Register
+#define THR_OFFSET         0 // Out: Transmitter Holding Register
+#define DLL_OFFSET         0 // Out: Divisor Latch Low
+#define IER_OFFSET         1 // I/O: Interrupt Enable Register
+#define DLM_OFFSET         1 // Out: Divisor Latch High
+#define FCR_OFFSET         2 // Out: FIFO Control Register
+#define IIR_OFFSET         2 // I/O: Interrupt Identification Register
+#define LCR_OFFSET         3 // Out: Line Control Register
+#define MCR_OFFSET         4 // Out: Modem Control Register
+#define LSR_OFFSET         5 // In:  Line Status Register
+#define MSR_OFFSET         6 // In:  Modem Status Register
+#define SCR_OFFSET         7 // I/O: Scratch Register
+#define MDR1_OFFSET        8 // I/O: Mode Register
 
-#define RXEMPTY_BIT         0
-#define RX_INTERRUPT_BIT    1
-#define TXEMPTY_BIT         2
-#define TX_INTERRUPT_BIT    3
+#define LSR_FIFOE          0x80 // Fifo error
+#define LSR_TEMT           0x40 // Transmitter empty
+#define LSR_THRE           0x20 // Transmit-hold-register empty
+#define LSR_BI             0x10 // Break interrupt indicator
+#define LSR_FE             0x08 // Frame error indicator
+#define LSR_PE             0x04 // Parity error indicator
+#define LSR_OE             0x02 // Overrun error indicator
+#define LSR_DR             0x01 // Receiver data ready
+#define LSR_BRK_ERROR_BITS 0x1E // BI, FE, PE, OE bits
+
+#define INT_THRE           1
 
 UART::UART(bool listen_for_input) : listening_to_input(listen_for_input)
 {
@@ -31,80 +49,167 @@ UART::~UART()
 
 std::optional<u64> UART::read_byte(const u64 address)
 {
-    if (address == TX_RX_REG)
+    const bool dlab = (lcr & (1 << 7)) != 0;
+
+    if (!dlab)
     {
-        if (rx_buffer.size() > 0)
+        switch (address)
         {
-            const u8 value = rx_buffer.front();
-            rx_buffer.pop();
-            return value;
+            case RBR_OFFSET:
+            {
+                // Contains the byte received if no FIFO is used,
+                // else the oldest unread byte
+                return 0;
+            }
+            case IER_OFFSET:
+            {
+                return ier;
+            }
+            case IIR_OFFSET:
+            {
+                u8 value = (current_interrupt << 1) | (pending_interrupts ? 0 : 1);
+                if (current_interrupt == INT_THRE)
+                    pending_interrupts &= ~(1 << current_interrupt);
+                return value;
+            }
+            case LCR_OFFSET: return lcr;
+            case MCR_OFFSET: return mcr;
+            case LSR_OFFSET:
+            {
+                // Bit 0 = DR (i.e. data available to be read)
+                // Bit 5 = THR empty (i.e. we're ready to receive data)
+                // Bit 6 = THR empty *and* line is idle
+                return LSR_THRE | LSR_TEMT;
+            }
+            case MSR_OFFSET:
+            {
+                // - carrier detect
+                // - no ring
+                // - data ready
+                // - clear to send
+                return 0xb0;
+            }
+            case SCR_OFFSET:
+            {
+                // Plain 8250, so we don't have a scratch register
+                return 0;
+            }
+            default: break;
         }
-        return  0;
-    }
-    else if (address == STATUS_REG)
-    {
-        u8 value = 0;
-        value |= rx_buffer.empty() << RXEMPTY_BIT;
-        value |= tx_buffer.empty() << TXEMPTY_BIT;
-        value |= (rx_irq_enabled & 1) << RX_INTERRUPT_BIT;
-        value |= (tx_irq_enabled & 1) << TX_INTERRUPT_BIT;
-        return { value };
     }
     else
     {
-        dbg("unmapped UART address ", dbg::hex(address));
-        assert(false);
+        switch (address)
+        {
+            case DLL_OFFSET: return dll;
+            case DLM_OFFSET: return dlm;
+            case IIR_OFFSET:
+            {
+                // As above
+                u8 value = (current_interrupt << 1) | (pending_interrupts ? 0 : 1);
+                if (current_interrupt == INT_THRE)
+                    pending_interrupts &= ~(1 << current_interrupt);
+                return value;
+            }
+            case LCR_OFFSET: return lcr;
+            case MCR_OFFSET: return mcr;
+            case LSR_OFFSET:
+            {
+                // As above
+                return LSR_THRE | LSR_TEMT;
+            }
+            case MSR_OFFSET:
+            {
+                // As above
+                return 0xb0;
+            }
+            case SCR_OFFSET:
+            {
+                // As above
+                return 0;
+            }
+            default: break;
+        }
     }
 
-    return { 0 };
+    throw std::runtime_error(std::format(
+        "unknown UART read with base 0x{:x}, dlab = {}",
+        address,
+        dlab
+    ));
+    return std::nullopt;
 }
 
 bool UART::write_byte(const u64 address, const u8 value)
 {
-    if (address == TX_RX_REG)
+    const bool dlab = (lcr & (1 << 7)) != 0;
+
+    if (!dlab)
     {
-        tx_buffer.push(value);
-    }
-    else if (address == STATUS_REG)
-    {
-        // Status register
-        rx_irq_enabled = (value >> RX_INTERRUPT_BIT) & 1;
-        tx_irq_enabled = (value >> TX_INTERRUPT_BIT) & 1;
+        switch (address)
+        {
+            case THR_OFFSET:
+            {
+                // Used to hold data to be transmitted (barring FIFO)
+                std::cout << (char)value << std::flush;
+                pending_interrupts |= 1 << INT_THRE;
+                return true;
+            }
+
+            case IER_OFFSET: ier = value; return true;
+
+            // We don't care if FIFO is enabled or disabled
+            case FCR_OFFSET: return true;
+
+            case LCR_OFFSET: lcr = value; return true;
+            case MCR_OFFSET: mcr = value; return true;
+
+            // Plain 8250, so we don't have a scratch register
+            case SCR_OFFSET: return true;
+            default: break;
+        }
     }
     else
     {
-        dbg("unmapped UART address ", dbg::hex(address));
-        assert(false);
+        switch (address)
+        {
+            // Attempts to set the divisor (frequency)
+            case DLL_OFFSET: dll = value; return true;
+            case DLM_OFFSET: dlm = value; return true;
+
+            // As above
+            case FCR_OFFSET: return true;
+
+            case LCR_OFFSET: lcr = value; return true;
+            case MCR_OFFSET: mcr = value; return true;
+
+            // As above
+            case SCR_OFFSET: return true;
+            default: break;
+        }
     }
 
-    return true;
+    throw std::runtime_error(std::format(
+        "unknown UART write with base 0x{:x}, dlab = {}",
+        address,
+        dlab
+    ));
+    return false;
 }
 
 void UART::clock(PLIC& plic)
 {
-    bool should_trigger_irq = false;
+    // No input yet
+    if (1) pending_interrupts &= ~1;
 
-    // Write to stdout
-    if (tx_buffer.size() != 0)
+    // Don't generate any disabled interrupts
+    pending_interrupts &= ier;
+
+    if (pending_interrupts)
     {
-        // Print out all characters in "transmitted buffer"
-        while (tx_buffer.size() > 0)
-        {
-            const u8 character = tx_buffer.front();
-            std::cout << character;
-            tx_buffer.pop();
-        }
-        fflush(stdout);
-    }
-
-    if (rx_irq_enabled && rx_buffer.size() != 0)
-        should_trigger_irq = true;
-
-    if (tx_irq_enabled && tx_buffer.size() == 0)
-        should_trigger_irq = true;
-
-    if (should_trigger_irq)
+        current_interrupt = 31 - __builtin_clz(pending_interrupts | 1);
         plic.set_interrupt_pending(PLIC_INTERRUPT_UART);
+    }
     else
         plic.clear_interrupt_pending(PLIC_INTERRUPT_UART);
 }
@@ -116,8 +221,7 @@ void UART::input_thread_run(UART& uart)
         // Block and wait for input
         int character = read_character();
         if (character != -1 && character != '\0')
-            if (uart.rx_buffer.size() < max_buffers_size)
-                uart.rx_buffer.push((char)character);
+            {}
     }
 }
 

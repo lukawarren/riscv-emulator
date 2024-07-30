@@ -93,8 +93,8 @@ std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address, const u64 size
     if (address >= ram_base && address + (size-1) < ram_base + ram.size) [[likely]]
         return { ram, ram_base };
 
-    if (address == uart_address_one || address == uart_address_two)
-        return { uart, uart_address_one };
+    if (address >= uart_address && address < uart_address + uart_length)
+        return { uart, uart_address };
 
     if (address >= plic_base && address <= plic_end)
         return { plic, plic_base };

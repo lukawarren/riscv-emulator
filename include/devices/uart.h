@@ -13,17 +13,19 @@ public:
     void clock(PLIC& plic);
 
 private:
-    u8 rx_irq_enabled = 0;
-    u8 tx_irq_enabled = 0;
+    // ns16550a state
+    u8 ier;
+    u8 lcr;
+    u8 dll;
+    u8 dlm;
+    u8 mcr;
+    u8 current_interrupt;
+    u8 pending_interrupts;
 
-    constexpr static size_t max_buffers_size = 1024;
-    std::queue<u8> rx_buffer = {};
-    std::queue<u8> tx_buffer = {};
-
+    // Input
     bool listening_to_input;
     std::thread input_thread;
+    struct termios original_termios;
     static void input_thread_run(UART& uart);
     static int read_character();
-
-    struct termios original_termios;
 };
