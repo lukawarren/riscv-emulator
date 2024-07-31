@@ -1,4 +1,5 @@
 #include "devices/virtio_block_device.h"
+#include "cpu.h"
 
 // Registers common to all virtio devices
 #define MAGIC_VALUE                 0x00
@@ -44,34 +45,143 @@ VirtioBlockDevice::VirtioBlockDevice()
     capacity = (10 * 1024 * 1024) / 512;
 }
 
+void VirtioBlockDevice::clock(CPU& cpu, PLIC& plic)
+{
+    // "Writing a value with bits set as defined in InterruptStatus to this
+    // register notifies the device that events causing the interrupt have been
+    // handled."
+    if (interrupt_ack == interrupt_status)
+    {
+        interrupt_ack = 0;
+        plic.clear_interrupt_pending(PLIC_INTERRUPT_BLK);
+    }
+
+    if (wrote_to_queue_notify)
+    {
+        wrote_to_queue_notify = false;
+        process_queue_buffers(cpu, plic);
+    }
+}
+
+template<typename T>
+T* VirtioBlockDevice::get_structure(CPU& cpu, u64 address)
+{
+    // Assuming a little-endian host simplifies a lost of code.
+    // I don't even have a big-endian CPU to test this on, so
+    // unfortunately... TODO: support big endian
+    static_assert(std::endian::native == std::endian::little);
+    assert(address - cpu.bus.ram_base <= cpu.bus.ram.size - sizeof(T));
+    u8* addr = cpu.bus.ram.memory + (address - cpu.bus.ram_base);
+    return (T*)addr;
+}
+
+void VirtioBlockDevice::process_queue_buffers(CPU& cpu, PLIC& plic)
+{
+    auto* descriptions = get_structure<QueueDescription>(cpu, queue_desc);
+    auto* available = get_structure<QueueAvailable>(cpu, queue_avail);
+    auto* used = get_structure<QueueUsed>(cpu, queue_used);
+
+    // The available buffer contains buffers offered to us (the device)
+    u16 ring_index = last_processed_idx;
+    while (true)
+    {
+        u16 descriptor_index = available->ring[ring_index];
+        ring_index += 1;
+        ring_index %= max_queue_size;
+
+        // Process entire description chain
+        u16 local_index = 0;
+        while (true)
+        {
+            QueueDescription* description = descriptions + descriptor_index;
+            assert(description->is_indirect() == false);
+            u32 length_written = process_queue_description(cpu, description, local_index++);
+
+            // Place processed description into used ring if applicable;
+            // I'd personally place them all but Linux seems to only want
+            // the very first
+            if (local_index == 1)
+            {
+                used->ring[used->idx].id = descriptor_index;
+                used->ring[used->idx].length = length_written;
+                used->idx += 1;
+                used->idx %= max_queue_size;
+            }
+
+            if (description->has_next_field())
+                descriptor_index++;
+            else
+                break;
+        }
+
+        // Break out if we're reached the end of the ring buffer
+        if (ring_index == available->idx)
+            break;
+    }
+    last_processed_idx = available->idx;
+
+    if (!available->no_interrupt())
+        plic.set_interrupt_pending(PLIC_INTERRUPT_BLK);
+}
+
+u32 VirtioBlockDevice::process_queue_description(
+    CPU& cpu,
+    QueueDescription* description,
+    u16 local_index
+)
+{
+    u32 ret = 0;
+
+    // Header; keep track for later
+    if (description->length == sizeof(BlockDeviceHeader) && local_index == 0)
+        current_header = get_structure<BlockDeviceHeader>(cpu, description->address);
+
+    // The data itself; perform actual work
+    else if (local_index == 1)
+    {
+        // The spec defines "virtio_blk_req.data" to have a length of 512,
+        // but Linux seems to use 4096. Limiting the length to 512 and returning
+        // the proper "written amount" just results in memory corruption, so
+        // instead I am just assuming there is something else in the spec I
+        // misread or forgot to read.
+        u32 length = description->length;
+        u8* data = get_structure<u8>(cpu, description->address);
+
+        if (current_header->type == BlockDeviceHeader::Type::Read &&
+            description->is_device_write_only())
+        {
+            assert(description->is_device_write_only());
+
+            for (u32 i = 0; i < length; ++i)
+                data[i] = 'a' + (i % 25);
+
+            next_footer.status = BlockDeviceFooter::Status::Ok;
+            ret = length;
+        }
+        else if (current_header->type == BlockDeviceHeader::Type::Write &&
+            !description->is_device_write_only())
+        {
+            throw std::runtime_error("todo: write");
+        }
+        else
+            throw std::runtime_error("unsupported virtio_blk_req type");
+    }
+    else if (description->length == sizeof(BlockDeviceFooter) && local_index == 2)
+    {
+        // Footer
+        *get_structure<BlockDeviceFooter>(cpu, description->address) = next_footer;
+    }
+    else
+        throw std::runtime_error(
+            "unsupported queue description with length " +
+                std::to_string(description->length)
+        );
+
+    return ret;
+}
+
 u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
 {
-    static int i = 0;
-    if (((i++) % 4) == 0 &&
-        address != MAGIC_VALUE &&
-        address != VERSION &&
-        address != DEVICE_ID &&
-        address != VENDOR_ID &&
-        address != DRIVER_FEATURES &&
-        address != DRIVER_FEATURES_SELECT &&
-        address != DEVICE_FEATURES &&
-        address != DEVICE_FEATURES_SELECT &&
-        address != STATUS &&
-        address != QUEUE_SELECT &&
-        address != QUEUE_READY &&
-        address != QUEUE_NUM_MAX &&
-        address != QUEUE_NUM &&
-        address != QUEUE_DESC_LOW &&
-        address != QUEUE_DESC_HIGH &&
-        address != QUEUE_USED_LOW &&
-        address != QUEUE_USED_HIGH &&
-        address != QUEUE_AVAIL_LOW &&
-        address != QUEUE_AVAIL_HIGH &&
-        address != CONFIG_GENERATION &&
-        address != CAPACITY_LOW &&
-        address != CAPACITY_HIGH)
-    dbg(dbg::hex(address), mode);
-
     const auto check_queue = [&]()
     {
         if (queue_select != 0)
@@ -141,15 +251,19 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
                     check_queue();
                     return &requestq.ready;
                 }
-                case QUEUE_NOTIFY:           return &queue_notify;
+                case QUEUE_NOTIFY:
+                {
+                    wrote_to_queue_notify = true;
+                    return &queue_notify;
+                }
                 case INTERRUPT_ACK:          return &interrupt_ack;
                 case STATUS:                 return &status;
-                case QUEUE_DESC_LOW:         return &queue_desc_low;
-                case QUEUE_DESC_HIGH:        return &queue_desc_high;
-                case QUEUE_AVAIL_LOW:        return &queue_avail_low;
-                case QUEUE_AVAIL_HIGH:       return &queue_avail_high;
-                case QUEUE_USED_LOW:         return &queue_used_low;
-                case QUEUE_USED_HIGH:        return &queue_used_high;
+                case QUEUE_DESC_LOW:         return (u32*)&queue_desc + 0;
+                case QUEUE_DESC_HIGH:        return (u32*)&queue_desc + 1;
+                case QUEUE_AVAIL_LOW:        return (u32*)&queue_avail + 0;
+                case QUEUE_AVAIL_HIGH:       return (u32*)&queue_avail + 1;
+                case QUEUE_USED_LOW:         return (u32*)&queue_used + 0;
+                case QUEUE_USED_HIGH:        return (u32*)&queue_used + 1;
 
                 default:
                     throw std::runtime_error(std::format(

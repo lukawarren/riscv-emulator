@@ -10,6 +10,7 @@ class CPU;
 #define PLIC_SUPPORTED_INTERRUPTS   32
 
 #define PLIC_INTERRUPT_UART     10
+#define PLIC_INTERRUPT_BLK      11
 
 class PLIC : public RegisterDevice
 {

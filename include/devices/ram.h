@@ -1,8 +1,13 @@
 #pragma once
 #include "devices/bus_device.h"
 
+class VirtioBlockDevice;
+
 class RAM : public BusDevice
 {
+// Needs access to raw RAM
+friend VirtioBlockDevice;
+
 public:
     RAM(const u64 size);
     ~RAM();

@@ -80,6 +80,7 @@ void Bus::clock(CPU& cpu)
     if (((++clock_counter) % 1024) == 0)
     {
         uart.clock(plic);
+        block_device.clock(cpu, plic);
         plic.clock(cpu);
     }
 }

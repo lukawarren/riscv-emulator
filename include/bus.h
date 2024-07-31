@@ -11,6 +11,9 @@ class CPU;
 
 class Bus
 {
+// Needs access to raw RAM
+friend VirtioBlockDevice;
+
 public:
     Bus(const u64 ram_size, const bool is_test_mode = false);
 

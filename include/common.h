@@ -21,6 +21,9 @@
 #include <termios.h>
 #include <unistd.h>
 
+// For virtio endianness check
+#include <bit>
+
 // For nice formatting
 #define DBG_MACRO_NO_WARNING
 #include <dbg.h>
