@@ -11,7 +11,7 @@ class PLIC;
 class VirtioBlockDevice : public RegisterDevice
 {
 public:
-    VirtioBlockDevice();
+    VirtioBlockDevice(const std::optional<std::string> image);
     ~VirtioBlockDevice();
     void clock(CPU& cpu, PLIC& plic);
 
@@ -119,6 +119,9 @@ private:
     } __attribute__((packed));
     BlockDeviceHeader* current_header;
     BlockDeviceFooter next_footer;
+
+    // Actual image
+    u8* image = nullptr;
 
 private:
     void process_queue_buffers(CPU& cpu, PLIC& plic);

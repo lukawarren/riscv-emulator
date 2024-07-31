@@ -7,32 +7,43 @@
 #include "opcodes_c.h"
 #include "opcodes_f.h"
 #include "traps.h"
-#include "dtb.h"
 
 extern "C" {
     #include <riscv-disas.h>
 }
 
-CPU::CPU(const u64 ram_size, const bool emulating_test) :
-    bus(ram_size, emulating_test) , emulating_test(emulating_test)
+CPU::CPU(
+    const uint64_t ram_size,
+    const bool emulating_test,
+    const std::optional<std::string> block_device_image,
+    const uint8_t* dtb,
+    const size_t dtb_size
+) :
+    bus(ram_size, block_device_image, emulating_test), emulating_test(emulating_test)
 {
     // Set x0 to 0, sp to end of memory and pc to start of RAM
     registers[0] = 0;
     registers[2] = Bus::ram_base + ram_size;
     pc = Bus::programs_base;
 
-    // Work out DTB address - aligned to nearest page
-    u64 dtb_address = Bus::ram_base + ram_size - sizeof(DTB) - 1;
-    dtb_address = dtb_address / 4096 * 4096;
+    if (dtb != nullptr)
+    {
+        // Work out DTB address - aligned to nearest page
+        u64 dtb_address = Bus::ram_base + ram_size - dtb_size - 1;
+        dtb_address = dtb_address / 4096 * 4096;
 
-    // Load DTB into memory
-    for (size_t i = 0; i < sizeof(DTB); ++i)
-        std::ignore = write_8(dtb_address + i, DTB[i]);
+        // Load DTB into memory
+        for (size_t i = 0; i < dtb_size; ++i)
+            std::ignore = write_8(dtb_address + i, dtb[i]);
 
-    // Set x11 to DTB pointer and x10 to hart id
+        // Set x11 to DTB pointer
+        registers[11] = dtb_address;
+    }
+
+    // Set x10 to hart id
     registers[10] = 0;
-    registers[11] = dtb_address;
 
+    // Init floats
     float_registers = FloatRegisters(this);
     init_opcodes_f();
 }

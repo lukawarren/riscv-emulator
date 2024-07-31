@@ -1,5 +1,6 @@
 #include "devices/virtio_block_device.h"
 #include "cpu.h"
+#include "io.h"
 
 // Registers common to all virtio devices
 #define MAGIC_VALUE                 0x00
@@ -34,7 +35,7 @@
 #define FEATURE_VIRTIO_F_VERSION_1  (1UL << 32)
 #define FEATURE_VIRTIO_BLK_F_FLUSH  (1UL << 9)
 
-VirtioBlockDevice::VirtioBlockDevice()
+VirtioBlockDevice::VirtioBlockDevice(const std::optional<std::string> image)
 {
     // Setup features
     device_features = 0;
@@ -43,6 +44,14 @@ VirtioBlockDevice::VirtioBlockDevice()
 
     // The number of 512-byte logical blocks
     capacity = (10 * 1024 * 1024) / 512;
+
+    // If we don't actually have an image to play with, let's mess with
+    // the magic so Linux will ignore us, because I can't be bothered
+    // modifying the device tree
+    if (!image.has_value())
+        magic_value = 0;
+    else
+        this->image = io_read_file(image.value()).first;
 }
 
 void VirtioBlockDevice::clock(CPU& cpu, PLIC& plic)
@@ -278,4 +287,7 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
     }
 }
 
-VirtioBlockDevice::~VirtioBlockDevice() {}
+VirtioBlockDevice::~VirtioBlockDevice()
+{
+    delete[] image;
+}

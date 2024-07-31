@@ -15,7 +15,11 @@ class Bus
 friend VirtioBlockDevice;
 
 public:
-    Bus(const u64 ram_size, const bool is_test_mode = false);
+    Bus(
+        const u64 ram_size,
+        const std::optional<std::string> block_device_image,
+        const bool is_test_mode
+    );
 
     [[nodiscard]] std::optional<u8>  read_8 (const u64 address);
     [[nodiscard]] std::optional<u16> read_16(const u64 address);

@@ -1,10 +1,12 @@
 #include "bus.h"
 #include "cpu.h"
+#include "io.h"
 
-Bus::Bus(const u64 ram_size, const bool is_test_mode) :
-    ram(ram_size),
-    uart(!is_test_mode)
-{}
+Bus::Bus(
+    const u64 ram_size,
+    const std::optional<std::string> block_device_image,
+    const bool is_test_mode
+) : ram(ram_size), uart(!is_test_mode), block_device(block_device_image) {}
 
 #define READ_X(x) std::optional<u##x> Bus::read_##x(const u64 address)\
 {\
@@ -30,41 +32,12 @@ WRITE_X(64)
 
 void Bus::write_file(const u64 address, const std::string& filename)
 {
-    // Check isn't folder
-    if (!std::filesystem::is_regular_file(filename))
-    {
-        throw std::runtime_error(filename + " is not a file");
-        return;
-    }
+    std::pair<u8*, size_t> file = io_read_file(filename);
 
-    // Open file
-    std::ifstream file(filename, std::ios::binary);
-    if (!file.is_open())
-    {
-        throw std::runtime_error("unable to open file" + filename);
-        return;
-    }
+    for (u64 i = 0; i < file.second; ++i)
+        std::ignore = write_8(address + i, file.first[i]);
 
-    // Get file length
-    file.seekg(0, std::ios::end);
-    u64 fileLen = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    // Allocate memory
-    u8* buffer = new u8[fileLen + 1];
-    if (!buffer)
-    {
-        throw std::runtime_error("unable to load entire file into memory");
-        file.close();
-        return;
-    }
-
-    // Read file contents into buffer
-    file.read(reinterpret_cast<char*>(buffer), fileLen);
-    file.close();
-
-    for (u64 i = 0; i < fileLen; ++i)
-        std::ignore = write_8(address + i, buffer[i]);
+    delete[] file.first;
 }
 
 void Bus::clock(CPU& cpu)
