@@ -35,6 +35,8 @@
 #define FEATURE_VIRTIO_F_VERSION_1  (1UL << 32)
 #define FEATURE_VIRTIO_BLK_F_FLUSH  (1UL << 9)
 
+#define BLOCK_SIZE                  512
+
 VirtioBlockDevice::VirtioBlockDevice(const std::optional<std::string> image)
 {
     // Setup features
@@ -42,16 +44,37 @@ VirtioBlockDevice::VirtioBlockDevice(const std::optional<std::string> image)
     device_features |= FEATURE_VIRTIO_F_VERSION_1;
     device_features |= FEATURE_VIRTIO_BLK_F_FLUSH;
 
-    // The number of 512-byte logical blocks
-    capacity = (10 * 1024 * 1024) / 512;
-
     // If we don't actually have an image to play with, let's mess with
     // the magic so Linux will ignore us, because I can't be bothered
     // modifying the device tree
     if (!image.has_value())
         magic_value = 0;
     else
-        this->image = io_read_file(image.value()).first;
+    {
+        std::pair<u8*, size_t> file = io_read_file(image.value());
+        size_t file_length;
+
+        // If we aren't aligned to a sector size, we're going to be
+        // in trouble. Let's just re-allocate a new buffer (since true,
+        // valid images should be aligned (e.g. ext4), whereas small test
+        // files might not be, but performance cost will be negligible).
+        if (file.second % BLOCK_SIZE != 0)
+        {
+            file_length = ((file.second + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
+            u8* new_buffer = new u8[file_length];
+            memset(new_buffer, 0, file_length);
+            memcpy(new_buffer, file.first, file.second);
+            delete[] file.first;
+            this->image = new_buffer;
+        }
+        else
+        {
+            this->image = file.first;
+            file_length = file.second;
+        }
+
+        capacity = file_length / BLOCK_SIZE;
+    }
 }
 
 void VirtioBlockDevice::clock(CPU& cpu, PLIC& plic)
@@ -159,10 +182,9 @@ u32 VirtioBlockDevice::process_queue_description(
         if (current_header->type == BlockDeviceHeader::Type::Read &&
             description->is_device_write_only())
         {
-            assert(description->is_device_write_only());
-
-            for (u32 i = 0; i < length; ++i)
-                data[i] = 'a' + (i % 25);
+            // Read from image
+            u8* image_buffer = image + current_header->sector * BLOCK_SIZE;
+            memcpy(data, image_buffer, length);
 
             next_footer.status = BlockDeviceFooter::Status::Ok;
             ret = length;
@@ -220,7 +242,7 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
                     return &requestq.max_size;
                 }
                 case QUEUE_READY:       return &queue_ready;
-                case INTERRUPT_STATUS:  return &interrupt_status;;
+                case INTERRUPT_STATUS:  return &interrupt_status;
                 case STATUS:            return &status;
                 case CONFIG_GENERATION: return &config_generation;
 
@@ -266,7 +288,7 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
                     return &queue_notify;
                 }
                 case INTERRUPT_ACK:          return &interrupt_ack;
-                case STATUS:                 return &status;
+                case STATUS:                 return &status; // TODO: writing 0 = device reset
                 case QUEUE_DESC_LOW:         return (u32*)&queue_desc + 0;
                 case QUEUE_DESC_HIGH:        return (u32*)&queue_desc + 1;
                 case QUEUE_AVAIL_LOW:        return (u32*)&queue_avail + 0;

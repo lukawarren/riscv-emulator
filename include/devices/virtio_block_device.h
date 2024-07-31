@@ -44,9 +44,10 @@ private:
     // Registers for block devices
     u64 capacity = 0;
 
-    // To keep track of reads and writes
+    // Internal state
     bool wrote_to_queue_notify = false;
     u16 last_processed_idx = 0;
+    u8* image = nullptr;
 
     constexpr static u32 max_queue_size = 32768;
     struct Queue
@@ -119,9 +120,6 @@ private:
     } __attribute__((packed));
     BlockDeviceHeader* current_header;
     BlockDeviceFooter next_footer;
-
-    // Actual image
-    u8* image = nullptr;
 
 private:
     void process_queue_buffers(CPU& cpu, PLIC& plic);
