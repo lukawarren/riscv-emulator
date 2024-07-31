@@ -34,6 +34,7 @@
 // Features
 #define FEATURE_VIRTIO_F_VERSION_1  (1UL << 32)
 #define FEATURE_VIRTIO_BLK_F_FLUSH  (1UL << 9)
+#define FEATURE_VIRTIO_BLK_F_RO     (1UL << 5)
 
 #define BLOCK_SIZE                  512
 
@@ -43,6 +44,7 @@ VirtioBlockDevice::VirtioBlockDevice(const std::optional<std::string> image)
     device_features = 0;
     device_features |= FEATURE_VIRTIO_F_VERSION_1;
     device_features |= FEATURE_VIRTIO_BLK_F_FLUSH;
+    device_features |= FEATURE_VIRTIO_BLK_F_RO;
 
     // If we don't actually have an image to play with, let's mess with
     // the magic so Linux will ignore us, because I can't be bothered

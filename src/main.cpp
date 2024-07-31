@@ -96,11 +96,6 @@ int main(int argc, char** argv)
         else           emulate.operator()<false>();
 
     }
-    catch (std::exception& e)
-    {
-        // Genuine exception
-        std::cout << "unhandled exception: " << e.what() << std::endl;
-    }
     catch (std::string& s)
     {
         // Test pass (or fail!)

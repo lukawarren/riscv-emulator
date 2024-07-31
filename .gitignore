@@ -3,6 +3,7 @@ external/linux/build
 external/linux/image.bin
 external/buildroot/rootfs.cpio
 external/builldroot/build
+fs.img
 
 build/
 .vscode/
