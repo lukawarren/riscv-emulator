@@ -44,7 +44,6 @@
         ranges;
 
         clint0: clint@2000000 {
-            #interrupt-cells = <1>;
             compatible = "riscv,clint0";
             reg = <0x0 0x2000000 0x0 0xC000>;
             interrupts-extended =  <&cpu0_intc 3 &cpu0_intc 7>;
@@ -68,6 +67,13 @@
             interrupt-parent = <&plic0>;
             clock-frequency = <0x384000>;
             no-loopback-test;
+        };
+
+        blk0: virtio@4000000 {
+            compatible = "virtio,mmio";
+            reg = <0x0 0x4000000 0x0 0x200>;
+            interrupts = <0xb>;
+            interrupt-parent = <&plic0>;
         };
     };
 };
