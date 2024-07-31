@@ -1,5 +1,5 @@
 #pragma once
-#include "devices/bus_device.h"
+#include "devices/register_device.h"
 
 class CPU;
 
@@ -11,11 +11,9 @@ class CPU;
 
 #define PLIC_INTERRUPT_UART     10
 
-class PLIC : public BusDevice
+class PLIC : public RegisterDevice
 {
 public:
-    std::optional<u64> read_byte(const u64 address) override;
-    bool write_byte(const u64 address, const u8 value) override;
     void clock(CPU& cpu);
 
     u32  get_interrupt_priority (const u16 interrupt);
@@ -27,6 +25,9 @@ public:
     bool get_interrupt_claimed  (const u16 interrupt, const u16 context);
     void set_interrupt_claimed  (const u16 interrupt, const u16 context);
     void clear_interrupt_claimed(const u16 interrupt, const u16 context);
+
+protected:
+    u32* get_register(const u64 address, const Mode mode) override;
 
 private:
     // Priority: individual register for each interrupt
@@ -40,6 +41,4 @@ private:
     // Contexts misc.
     u32 context_priority_threshold[PLIC_SUPPORTED_CONTEXTS] = {};
     u32 context_claim[PLIC_SUPPORTED_CONTEXTS] = {};
-
-    u32* get_register(const u64 address);
 };

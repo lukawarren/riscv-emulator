@@ -21,6 +21,7 @@ Sv39 paging is also supported.
 * CLINT
 * PLIC
 * UART (8250)
+* Virtio block device
 
 ## Test Coverage
 You can find the official RISC-V test suite [here](https://github.com/riscv-software-src/riscv-tests).
