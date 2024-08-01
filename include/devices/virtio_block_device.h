@@ -20,32 +20,40 @@ protected:
 
 private:
     // Registers common to all virtio devices
-    u32 magic_value = 0x74726976;   // spells "virt"
-    u32 version = 2;                // correct as of virtio 1.0
-    u32 device_id = 2;              // block device
-    u32 vendor_id = 0;
-    u64 device_features;
-    u32 device_feature_select = 0;
-    u64 driver_features = 0;
-    u32 driver_features_select = 0;
-    u32 queue_select = 0;
-    u32 queue_number_max = 0;
-    u32 queue_number = 0;
-    u32 queue_ready = 0;
-    u32 queue_notify = 0;
-    u32 interrupt_status = 1;       // all interrupts will be due from updating the used ring
-    u32 interrupt_ack = 0;
-    u32 status = 0;
-    u64 queue_desc = 0;
-    u64 queue_avail = 0;
-    u64 queue_used = 0;
-    u32 config_generation = 0;
+    struct CommonRegisters
+    {
+        u32 magic_value = 0x74726976;   // spells "virt"
+        u32 version = 2;                // correct as of virtio 1.0
+        u32 device_id = 2;              // block device
+        u32 vendor_id = 0;
+        u64 device_features;
+        u32 device_feature_select = 0;
+        u64 driver_features = 0;
+        u32 driver_features_select = 0;
+        u32 queue_select = 0;
+        u32 queue_number_max = 0;
+        u32 queue_number = 0;
+        u32 queue_ready = 0;
+        u32 queue_notify = 0;
+        u32 interrupt_status = 1;       // all interrupts will be due from updating the used ring
+        u32 interrupt_ack = 0;
+        u32 status = 0;
+        u64 queue_desc = 0;
+        u64 queue_avail = 0;
+        u64 queue_used = 0;
+        u32 config_generation = 0;
+    } common_registers;
 
     // Registers for block devices
-    u64 capacity = 0;
+    struct BlockRegisters
+    {
+        u64 capacity = 0;
+    } block_registers;
 
     // Internal state
     bool wrote_to_queue_notify = false;
+    bool wrote_to_interrupt_ack = false;
+    bool wrote_to_status = false;
     u16 last_processed_idx = 0;
     u8* image = nullptr;
     int image_fd;
@@ -123,6 +131,7 @@ private:
     BlockDeviceFooter next_footer;
 
 private:
+    void reset_device();
     void process_queue_buffers(CPU& cpu, PLIC& plic);
     u32 process_queue_description(CPU& cpu, QueueDescription* description, u16 local_index);
     template<typename T> T* get_structure(CPU& cpu, u64 address);

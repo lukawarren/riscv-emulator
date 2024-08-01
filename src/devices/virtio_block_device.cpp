@@ -41,15 +41,15 @@
 VirtioBlockDevice::VirtioBlockDevice(const std::optional<std::string> image)
 {
     // Setup features
-    device_features = 0;
-    device_features |= FEATURE_VIRTIO_F_VERSION_1;
-    device_features |= FEATURE_VIRTIO_BLK_F_FLUSH;
+    common_registers.device_features = 0;
+    common_registers.device_features |= FEATURE_VIRTIO_F_VERSION_1;
+    common_registers.device_features |= FEATURE_VIRTIO_BLK_F_FLUSH;
 
     // If we don't actually have an image to play with, let's mess with
     // the magic so Linux will ignore us, because I can't be bothered
     // modifying the device tree
     if (!image.has_value())
-        magic_value = 0;
+        common_registers.magic_value = 0;
     else
     {
         auto [buffer, size, fd] = io_map_file(*image);
@@ -60,20 +60,25 @@ VirtioBlockDevice::VirtioBlockDevice(const std::optional<std::string> image)
             throw std::runtime_error("invalid virtio image - not aligned to 512 block size");
 
         this->image = buffer;
-        capacity = size / BLOCK_SIZE;
+        block_registers.capacity = size / BLOCK_SIZE;
         image_fd = fd;
     }
 }
 
 void VirtioBlockDevice::clock(CPU& cpu, PLIC& plic)
 {
-    // "Writing a value with bits set as defined in InterruptStatus to this
-    // register notifies the device that events causing the interrupt have been
-    // handled."
-    if (interrupt_ack == interrupt_status)
+    if (wrote_to_interrupt_ack)
     {
-        interrupt_ack = 0;
-        plic.clear_interrupt_pending(PLIC_INTERRUPT_BLK);
+        wrote_to_interrupt_ack = false;
+
+        // "Writing a value with bits set as defined in InterruptStatus to this
+        // register notifies the device that events causing the interrupt have been
+        // handled."
+        if (common_registers.interrupt_ack == common_registers.interrupt_status)
+        {
+            common_registers.interrupt_ack = 0;
+            plic.clear_interrupt_pending(PLIC_INTERRUPT_BLK);
+        }
     }
 
     if (wrote_to_queue_notify)
@@ -81,6 +86,28 @@ void VirtioBlockDevice::clock(CPU& cpu, PLIC& plic)
         wrote_to_queue_notify = false;
         process_queue_buffers(cpu, plic);
     }
+
+    if (wrote_to_status)
+    {
+        wrote_to_status = false;
+
+        if (common_registers.status == 0)
+        {
+            // Writing zero to status triggers a device reset
+            // We need to preserve the magic value and capacity
+            u32 magic_value = common_registers.magic_value;
+            u64 capacity = block_registers.capacity;
+            common_registers = CommonRegisters {};
+            block_registers = BlockRegisters {};
+            common_registers.magic_value = magic_value;
+            block_registers.capacity = capacity;
+        }
+    }
+}
+
+void VirtioBlockDevice::reset_device()
+{
+
 }
 
 template<typename T>
@@ -97,9 +124,9 @@ T* VirtioBlockDevice::get_structure(CPU& cpu, u64 address)
 
 void VirtioBlockDevice::process_queue_buffers(CPU& cpu, PLIC& plic)
 {
-    auto* descriptions = get_structure<QueueDescription>(cpu, queue_desc);
-    auto* available = get_structure<QueueAvailable>(cpu, queue_avail);
-    auto* used = get_structure<QueueUsed>(cpu, queue_used);
+    auto* descriptions = get_structure<QueueDescription>(cpu, common_registers.queue_desc);
+    auto* available = get_structure<QueueAvailable>(cpu, common_registers.queue_avail);
+    auto* used = get_structure<QueueUsed>(cpu, common_registers.queue_used);
 
     // The available buffer contains buffers offered to us (the device)
     u16 ring_index = last_processed_idx;
@@ -207,7 +234,7 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
 {
     const auto check_queue = [&]()
     {
-        if (queue_select != 0)
+        if (common_registers.queue_select != 0)
             throw std::runtime_error("invalid virtio QueueSel");
     };
 
@@ -218,29 +245,29 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
             switch (address)
             {
                 // Common registers
-                case MAGIC_VALUE:       return &magic_value;
-                case VERSION:           return &version;
-                case DEVICE_ID:         return &device_id;
-                case VENDOR_ID:         return &vendor_id;
+                case MAGIC_VALUE:       return &common_registers.magic_value;
+                case VERSION:           return &common_registers.version;
+                case DEVICE_ID:         return &common_registers.device_id;
+                case VENDOR_ID:         return &common_registers.vendor_id;
                 case DEVICE_FEATURES:
                 {
-                    if (device_feature_select >= 2)
+                    if (common_registers.device_feature_select >= 2)
                         throw std::runtime_error("invalid virtio DeviceFeaturesSel");
-                    return (u32*)&device_features + device_feature_select;
+                    return (u32*)&common_registers.device_features + common_registers.device_feature_select;
                 }
                 case QUEUE_NUM_MAX:
                 {
                     check_queue();
                     return &requestq.max_size;
                 }
-                case QUEUE_READY:       return &queue_ready;
-                case INTERRUPT_STATUS:  return &interrupt_status;
-                case STATUS:            return &status;
-                case CONFIG_GENERATION: return &config_generation;
+                case QUEUE_READY:       return &common_registers.queue_ready;
+                case INTERRUPT_STATUS:  return &common_registers.interrupt_status;
+                case STATUS:            return &common_registers.status;
+                case CONFIG_GENERATION: return &common_registers.config_generation;
 
                 // Block device registers
-                case CAPACITY_LOW:      return (u32*)&capacity + 0;
-                case CAPACITY_HIGH:     return (u32*)&capacity + 1;
+                case CAPACITY_LOW:      return (u32*)&block_registers.capacity + 0;
+                case CAPACITY_HIGH:     return (u32*)&block_registers.capacity + 1;
 
                 default:
                     throw std::runtime_error(std::format(
@@ -255,15 +282,15 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
             switch (address)
             {
                 // Common registers
-                case DEVICE_FEATURES_SELECT: return &device_feature_select;
+                case DEVICE_FEATURES_SELECT: return &common_registers.device_feature_select;
                 case DRIVER_FEATURES:
                 {
-                    if (driver_features_select >= 2)
+                    if (common_registers.driver_features_select >= 2)
                         throw std::runtime_error("invalid virtio DriverFeaturesSel");
-                    return (u32*)&driver_features + device_feature_select;
+                    return (u32*)&common_registers.driver_features + common_registers.device_feature_select;
                 }
-                case DRIVER_FEATURES_SELECT: return &driver_features_select;
-                case QUEUE_SELECT:           return &queue_select;
+                case DRIVER_FEATURES_SELECT: return &common_registers.driver_features_select;
+                case QUEUE_SELECT:           return &common_registers.queue_select;
                 case QUEUE_NUM:
                 {
                     check_queue();
@@ -277,16 +304,24 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
                 case QUEUE_NOTIFY:
                 {
                     wrote_to_queue_notify = true;
-                    return &queue_notify;
+                    return &common_registers.queue_notify;
                 }
-                case INTERRUPT_ACK:          return &interrupt_ack;
-                case STATUS:                 return &status; // TODO: writing 0 = device reset
-                case QUEUE_DESC_LOW:         return (u32*)&queue_desc + 0;
-                case QUEUE_DESC_HIGH:        return (u32*)&queue_desc + 1;
-                case QUEUE_AVAIL_LOW:        return (u32*)&queue_avail + 0;
-                case QUEUE_AVAIL_HIGH:       return (u32*)&queue_avail + 1;
-                case QUEUE_USED_LOW:         return (u32*)&queue_used + 0;
-                case QUEUE_USED_HIGH:        return (u32*)&queue_used + 1;
+                case INTERRUPT_ACK:
+                {
+                    wrote_to_interrupt_ack = true;
+                    return &common_registers.interrupt_ack;
+                }
+                case STATUS:
+                {
+                    wrote_to_status = true;
+                    return &common_registers.status;
+                }
+                case QUEUE_DESC_LOW:   return (u32*)&common_registers.queue_desc + 0;
+                case QUEUE_DESC_HIGH:  return (u32*)&common_registers.queue_desc + 1;
+                case QUEUE_AVAIL_LOW:  return (u32*)&common_registers.queue_avail + 0;
+                case QUEUE_AVAIL_HIGH: return (u32*)&common_registers.queue_avail + 1;
+                case QUEUE_USED_LOW:   return (u32*)&common_registers.queue_used + 0;
+                case QUEUE_USED_HIGH:  return (u32*)&common_registers.queue_used + 1;
 
                 default:
                     throw std::runtime_error(std::format(
@@ -304,5 +339,5 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
 VirtioBlockDevice::~VirtioBlockDevice()
 {
     if (image != nullptr)
-        io_unmap_file(image, capacity * BLOCK_SIZE, image_fd);
+        io_unmap_file(image, block_registers.capacity * BLOCK_SIZE, image_fd);
 }
