@@ -1,13 +1,6 @@
 #include "cpu.h"
 #include "io.h"
 
-typedef std::pair<std::string, std::optional<std::string>> Arg;
-static std::array<Arg, 3> args = {{
-    { "--test",  "n" },
-    { "--image", std::nullopt },
-    { "--blk",   std::nullopt }
-}};
-
 static void print_usage(char** argv)
 {
     std::cerr << "usage: " << argv[0] << " [--test] [--image FILE] [--blk FILE]" << std::endl;
@@ -15,6 +8,13 @@ static void print_usage(char** argv)
 
 int main(int argc, char** argv)
 {
+    typedef std::pair<std::string, std::optional<std::string>> Arg;
+    std::array<Arg, 3> args = {{
+        { "--test",  "n" },
+        { "--image", std::nullopt },
+        { "--blk",   std::nullopt }
+    }};
+
     // Parse argc
     int valid_skip = -1;
     for (int i = 1; i < argc; i++)
