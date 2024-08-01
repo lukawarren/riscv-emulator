@@ -17,7 +17,7 @@ def run_test(file_path, file_name):
     # Emulate test
     with open(os.devnull, 'w') as devnull:
         try:
-            result = subprocess.run([emulator, "--testing", file_path], stdout=devnull, stderr=devnull)
+            result = subprocess.run([emulator, "--test", "--image", file_path], stdout=devnull, stderr=devnull)
         except KeyboardInterrupt:
             print("Running " + file_name)
             exit()
