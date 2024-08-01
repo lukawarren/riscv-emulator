@@ -7,6 +7,7 @@
 #include "opcodes_c.h"
 #include "opcodes_f.h"
 #include "traps.h"
+#include "dtb.h"
 
 extern "C" {
     #include <riscv-disas.h>
@@ -15,9 +16,7 @@ extern "C" {
 CPU::CPU(
     const uint64_t ram_size,
     const bool emulating_test,
-    const std::optional<std::string> block_device_image,
-    const uint8_t* dtb,
-    const size_t dtb_size
+    const std::optional<std::string> block_device_image
 ) :
     bus(ram_size, block_device_image, emulating_test), emulating_test(emulating_test)
 {
@@ -26,22 +25,17 @@ CPU::CPU(
     registers[2] = Bus::ram_base + ram_size;
     pc = Bus::programs_base;
 
-    if (dtb != nullptr)
-    {
-        // Work out DTB address - aligned to nearest page
-        u64 dtb_address = Bus::ram_base + ram_size - dtb_size - 1;
-        dtb_address = dtb_address / 4096 * 4096;
+    // Work out DTB address - aligned to nearest page
+    u64 dtb_address = Bus::ram_base + ram_size - sizeof(DTB) - 1;
+    dtb_address = dtb_address / 4096 * 4096;
 
-        // Load DTB into memory
-        for (size_t i = 0; i < dtb_size; ++i)
-            std::ignore = write_8(dtb_address + i, dtb[i]);
+    // Load DTB into memory
+    for (size_t i = 0; i < sizeof(DTB); ++i)
+        std::ignore = write_8(dtb_address + i, DTB[i]);
 
-        // Set x11 to DTB pointer
-        registers[11] = dtb_address;
-    }
-
-    // Set x10 to hart id
+    // Set x11 to DTB pointer and x10 to hart id
     registers[10] = 0;
+    registers[11] = dtb_address;
 
     // Init floats
     float_registers = FloatRegisters(this);

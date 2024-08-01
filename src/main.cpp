@@ -2,23 +2,24 @@
 #include "io.h"
 
 typedef std::pair<std::string, std::optional<std::string>> Arg;
-static std::array<Arg, 4> args = {{
+static std::array<Arg, 3> args = {{
     { "--test",  "n" },
     { "--image", std::nullopt },
-    { "--dts",   std::nullopt },
     { "--blk",   std::nullopt }
 }};
 
 static void print_usage(char** argv)
 {
-    std::cerr << "usage: " << argv[0] << " [--test] [--image FILE] [--dts FILE]" << std::endl;
+    std::cerr << "usage: " << argv[0] << " [--test] [--image FILE] [--blk FILE]" << std::endl;
 }
 
 int main(int argc, char** argv)
 {
     // Parse argc
+    int valid_skip = -1;
     for (int i = 1; i < argc; i++)
     {
+        bool found = false;
         for (size_t j = 0; j < args.size(); ++j)
         {
             if (std::string(argv[i]) == args[j].first)
@@ -26,8 +27,20 @@ int main(int argc, char** argv)
                 if (args[j].first == "--test")
                     args[j].second = "y";
                 else
+                {
                     args[j].second = std::string(argv[i + 1]);
+                    valid_skip = i + 1;
+                }
+
+                found = true;
             }
+        }
+
+        if (!found && i != valid_skip)
+        {
+            std::cerr << "unknown argument: " << argv[i] << std::endl;
+            print_usage(argv);
+            return 1;
         }
     }
     const bool test_mode = args[0].second == "y";
@@ -39,30 +52,6 @@ int main(int argc, char** argv)
         print_usage(argv);
         return 1;
     }
-    else if (!test_mode && !args[2].second.has_value())
-    {
-        // Need a DTS if we're running Linux, etc.
-        std::cerr << "no DTS file specified" << std::endl;
-        print_usage(argv);
-        return 1;
-    }
-
-    u8* dtb = nullptr;
-    size_t dtb_size = 0;
-
-    if (args[2].second.has_value())
-    {
-        // Attempt to compile device tree
-        std::string command = "dtc -I dts -O dtb " + *args[2].second + " -o /tmp/riscv-emulator.dtb";
-        int result = system(command.c_str());
-        if (result != 0)
-            throw std::runtime_error("failed to compile device tree - do you have dtc installed?");
-
-        // Load dtb
-        std::pair<u8*, size_t> file = io_read_file("/tmp/riscv-emulator.dtb");
-        dtb = file.first;
-        dtb_size = file.second;
-    }
 
     try
     {
@@ -70,9 +59,7 @@ int main(int argc, char** argv)
         CPU cpu(
             128 * 1024 * 1024,
             test_mode,
-            args[3].second,
-            dtb,
-            dtb_size
+            args[2].second
         );
         cpu.bus.write_file(Bus::programs_base, *args[1].second);
 
