@@ -1,5 +1,64 @@
 #include "opcodes_a.h"
 
+#define GET_ADDRESS() \
+const u64 address = cpu.registers[instruction.get_rs1()];
+
+#define CHECK_LOAD_ALIGNMENT_32(addr) if (addr % 4 != 0)\
+{\
+    cpu.raise_exception(Exception::LoadAddressMisaligned);\
+    return;\
+}
+
+#define CHECK_LOAD_ALIGNMENT_64(addr) if (addr % 8 != 0)\
+{\
+    cpu.raise_exception(Exception::LoadAddressMisaligned);\
+    return;\
+}
+
+#define CHECK_STORE_ALIGNMENT_32(addr) if (addr % 4 != 0)\
+{\
+    cpu.raise_exception(Exception::StoreOrAMOAddressMisaligned);\
+    return;\
+}
+
+#define CHECK_STORE_ALIGNMENT_64(addr) if (addr % 8 != 0)\
+{\
+    cpu.raise_exception(Exception::StoreOrAMOAddressMisaligned);\
+    return;\
+}
+
+#define ATTEMPT_LOAD_32()\
+const auto value = cpu.read_32(address);\
+if (!value)\
+{\
+    cpu.raise_exception(value.error());\
+    return;\
+}
+
+#define ATTEMPT_LOAD_64()\
+const auto value = cpu.read_64(address);\
+if (!value)\
+{\
+    cpu.raise_exception(value.error());\
+    return;\
+}
+
+#define ATTEMPT_WRITE_32(value)\
+const auto error = cpu.write_32(address, value);\
+if (error.has_value())\
+{\
+    cpu.raise_exception(*error);\
+    return;\
+}
+
+#define ATTEMPT_WRITE_64(value)\
+const auto error = cpu.write_64(address, value);\
+if (error.has_value())\
+{\
+    cpu.raise_exception(*error);\
+    return;\
+}
+
 bool opcodes_a(CPU& cpu, const Instruction instruction)
 {
     const u64 opcode = instruction.get_opcode();
