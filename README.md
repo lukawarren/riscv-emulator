@@ -103,8 +103,8 @@ Alternatively, if you do not wish to build Linux and OpenSBI from source *and* y
 ## Attaching a block device
 If you don't have an image handy, you can make a simple ext4 filesystem containing the emulator's source like so:
 ```
-# Adjust size as necessary
-dd if=/dev/zero of=fs.img bs=10M count=200
+# Adjust size (count) as necessary
+dd if=/dev/zero of=fs.img bs=1M count=1
 mkfs.ext4 fs.img
 sudo mkdir /mnt/temp-riscv
 sudo mount -o loop fs.img /mnt/temp-riscv

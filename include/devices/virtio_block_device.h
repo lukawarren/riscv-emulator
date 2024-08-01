@@ -48,6 +48,7 @@ private:
     bool wrote_to_queue_notify = false;
     u16 last_processed_idx = 0;
     u8* image = nullptr;
+    int image_fd;
 
     constexpr static u32 max_queue_size = 32768;
     struct Queue
@@ -104,7 +105,7 @@ private:
         {
             Read = 0,
             Write = 1,
-            Flush = 2
+            Flush = 4
         } type;
         u32 reserved;
         u64 sector;

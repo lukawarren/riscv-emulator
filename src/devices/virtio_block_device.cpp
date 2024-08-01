@@ -44,7 +44,6 @@ VirtioBlockDevice::VirtioBlockDevice(const std::optional<std::string> image)
     device_features = 0;
     device_features |= FEATURE_VIRTIO_F_VERSION_1;
     device_features |= FEATURE_VIRTIO_BLK_F_FLUSH;
-    device_features |= FEATURE_VIRTIO_BLK_F_RO;
 
     // If we don't actually have an image to play with, let's mess with
     // the magic so Linux will ignore us, because I can't be bothered
@@ -53,29 +52,16 @@ VirtioBlockDevice::VirtioBlockDevice(const std::optional<std::string> image)
         magic_value = 0;
     else
     {
-        std::pair<u8*, size_t> file = io_read_file(image.value());
-        size_t file_length;
+        auto [buffer, size, fd] = io_map_file(*image);
 
         // If we aren't aligned to a sector size, we're going to be
-        // in trouble. Let's just re-allocate a new buffer (since true,
-        // valid images should be aligned (e.g. ext4), whereas small test
-        // files might not be, but performance cost will be negligible).
-        if (file.second % BLOCK_SIZE != 0)
-        {
-            file_length = ((file.second + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
-            u8* new_buffer = new u8[file_length];
-            memset(new_buffer, 0, file_length);
-            memcpy(new_buffer, file.first, file.second);
-            delete[] file.first;
-            this->image = new_buffer;
-        }
-        else
-        {
-            this->image = file.first;
-            file_length = file.second;
-        }
+        // in trouble. But that shouldn't happen to valid images...
+        if (size % BLOCK_SIZE != 0)
+            throw std::runtime_error("invalid virtio image - not aligned to 512 block size");
 
-        capacity = file_length / BLOCK_SIZE;
+        this->image = buffer;
+        capacity = size / BLOCK_SIZE;
+        image_fd = fd;
     }
 }
 
@@ -180,24 +166,28 @@ u32 VirtioBlockDevice::process_queue_description(
         // misread or forgot to read.
         u32 length = description->length;
         u8* data = get_structure<u8>(cpu, description->address);
+        u8* image_buffer = image + current_header->sector * BLOCK_SIZE;
 
         if (current_header->type == BlockDeviceHeader::Type::Read &&
             description->is_device_write_only())
         {
-            // Read from image
-            u8* image_buffer = image + current_header->sector * BLOCK_SIZE;
             memcpy(data, image_buffer, length);
-
-            next_footer.status = BlockDeviceFooter::Status::Ok;
             ret = length;
         }
         else if (current_header->type == BlockDeviceHeader::Type::Write &&
             !description->is_device_write_only())
         {
-            throw std::runtime_error("todo: write");
+            memcpy(image_buffer, data, length);
+        }
+        else if (current_header->type == BlockDeviceHeader::Type::Flush)
+        {
+            io_flush_file(image_buffer, length);
         }
         else
-            throw std::runtime_error("unsupported virtio_blk_req type");
+            throw std::runtime_error("unsupported virtio_blk_req type " +
+                std::to_string((int)current_header->type));
+
+        next_footer.status = BlockDeviceFooter::Status::Ok;
     }
     else if (description->length == sizeof(BlockDeviceFooter) && local_index == 2)
     {
@@ -313,5 +303,6 @@ u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)
 
 VirtioBlockDevice::~VirtioBlockDevice()
 {
-    delete[] image;
+    if (image != nullptr)
+        io_unmap_file(image, capacity * BLOCK_SIZE, image_fd);
 }

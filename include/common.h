@@ -32,6 +32,12 @@
 #include <cfenv>
 #include <cmath>
 
+// For virtio mmap
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 extern "C" {
     #include <riscv-disas.h>
 }
