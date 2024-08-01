@@ -57,7 +57,7 @@ int main(int argc, char** argv)
     {
         // Set up CPU
         CPU cpu(
-            128 * 1024 * 1024,
+            test_mode ? (16 * 1024 * 1024) : (2UL * 1024 * 1024 * 1024),
             test_mode,
             args[2].second
         );

@@ -6,7 +6,8 @@ Bus::Bus(
     const u64 ram_size,
     const std::optional<std::string> block_device_image,
     const bool is_test_mode
-) : ram(ram_size), uart(!is_test_mode), block_device(block_device_image) {}
+) : ram(ram_size), uart(!is_test_mode), block_device(block_device_image),
+    is_test_mode(is_test_mode) {}
 
 #define READ_X(x) std::optional<u##x> Bus::read_##x(const u64 address)\
 {\
@@ -79,6 +80,13 @@ std::pair<BusDevice&, u64> Bus::get_bus_device(const u64 address, const u64 size
     if (address >= clint_base && address <= clint_end)
         return { clint, clint_base };
 
-    dbg("attempt to read unmapped memory address ", dbg::hex(address));
+    // riscv-tests purposefully reads invalid addresses
+    if (!is_test_mode)
+    {
+        throw std::runtime_error(std::format(
+            "attempt to read unmapped memory address {:0x}",
+            address
+        ));
+    }
     return { error, 0 };
 }

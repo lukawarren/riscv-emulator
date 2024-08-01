@@ -3,6 +3,8 @@ external/linux/build
 external/linux/image.bin
 external/buildroot/rootfs.cpio
 external/builldroot/build
+external/u-boot/build
+external/u-boot/image.bin
 fs.img
 
 build/

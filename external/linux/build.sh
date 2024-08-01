@@ -24,7 +24,6 @@ if [ ! -d "$KERNEL_EXTRACT_DIR" ]; then
     cd $KERNEL_EXTRACT_DIR
     rm -f .config
     cp ../../linux.config .config
-
     cd ..
 fi
 

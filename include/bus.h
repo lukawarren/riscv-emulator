@@ -59,4 +59,5 @@ private:
     ErrorDevice error;
     VirtioBlockDevice block_device;
     u64 clock_counter = 0;
+    bool is_test_mode;
 };
