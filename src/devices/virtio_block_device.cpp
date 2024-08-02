@@ -36,6 +36,9 @@
 #define FEATURE_VIRTIO_BLK_F_FLUSH  (1UL << 9)
 #define FEATURE_VIRTIO_BLK_F_RO     (1UL << 5)
 
+// Status flags
+#define STATUS_DRIVER_OK            4
+
 #define BLOCK_SIZE                  512
 
 VirtioBlockDevice::VirtioBlockDevice(const std::optional<std::string> image)
@@ -83,31 +86,32 @@ void VirtioBlockDevice::clock(CPU& cpu, PLIC& plic)
 
     if (wrote_to_queue_notify)
     {
-        wrote_to_queue_notify = false;
-        process_queue_buffers(cpu, plic);
+        // "The device MUST NOT consume buffers or notify the driver before DRIVER_OK"
+        if ((common_registers.status & STATUS_DRIVER_OK) != 0)
+        {
+            wrote_to_queue_notify = false;
+            process_queue_buffers(cpu, plic);
+        }
     }
 
     if (wrote_to_status)
     {
         wrote_to_status = false;
-
         if (common_registers.status == 0)
-        {
-            // Writing zero to status triggers a device reset
-            // We need to preserve the magic value and capacity
-            u32 magic_value = common_registers.magic_value;
-            u64 capacity = block_registers.capacity;
-            common_registers = CommonRegisters {};
-            block_registers = BlockRegisters {};
-            common_registers.magic_value = magic_value;
-            block_registers.capacity = capacity;
-        }
+            reset_device();
     }
 }
 
 void VirtioBlockDevice::reset_device()
 {
-
+    // Writing zero to status triggers a device reset
+    // We need to preserve the magic value and capacity
+    u32 magic_value = common_registers.magic_value;
+    u64 capacity = block_registers.capacity;
+    common_registers = CommonRegisters {};
+    block_registers = BlockRegisters {};
+    common_registers.magic_value = magic_value;
+    block_registers.capacity = capacity;
 }
 
 template<typename T>
@@ -138,23 +142,27 @@ void VirtioBlockDevice::process_queue_buffers(CPU& cpu, PLIC& plic)
 
         // Process entire description chain
         u16 local_index = 0;
+        u16 head_index = 0;
         while (true)
         {
             QueueDescription* description = descriptions + descriptor_index;
-            assert(description->is_indirect() == false);
-            u32 length_written = process_queue_description(cpu, description, local_index++);
+            u32 length_written = process_queue_description(cpu, description, local_index);
 
-            // Place processed description into used ring if applicable;
-            // I'd personally place them all but Linux seems to only want
-            // the very first
+            // We are meant to place the head of the chain in the used buffer
+            // (i.e. the ID is the index of the head), but the length has to
+            // be the *total* length, which we don't know until the second
+            // entry in the chain.
             if (local_index == 1)
             {
-                used->ring[used->idx].id = descriptor_index;
+                used->ring[used->idx].id = head_index;
                 used->ring[used->idx].length = length_written;
                 used->idx += 1;
                 used->idx %= max_queue_size;
             }
+            else if (local_index == 0)
+                head_index = descriptor_index;
 
+            local_index++;
             if (description->has_next_field())
                 descriptor_index++;
             else
