@@ -74,7 +74,7 @@ First you must build the initramfs. Currently I use buildroot with support for t
 - busybox
 
 ```
-cd external/buildroot
+cd external/buildroot-linux/buildroot
 ./build.sh
 ```
 
@@ -88,14 +88,14 @@ Alternatively, you can [download a pre-built version here](https://github.com/lu
 Install the Linux toolchain (as opposed to the elf toolchain) by following the instructions above for building tests but running `make linux` instead of `make`. If you wish to download a pre-built version of the toolchain instead, follow the same steps as previously described but swap `-elf-` with `-glibc-`. Then:
 ```
 # Build
-cd external/linux
+cd external/buildroot-linux/linux
 ./build.sh
 
 # Run
 cd -
 cd build
 cmake .. -G Ninja && ninja
-./riscv-emulator --image ../external/linux/image.bin --dts ../emulator.dts
+./riscv-emulator --image ../external/buildroot-linux/image.bin --dts ../emulator.dts
 ```
 
 Alternatively, if you do not wish to build Linux and OpenSBI from source *and* you do not wish to build the initramfs either, you can [download a pre-built final image here](https://github.com/lukawarren/riscv-emulator/releases), so that you can simply run `./riscv-emulator image.bin`.

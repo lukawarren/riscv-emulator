@@ -1,10 +1,8 @@
 external/riscv-tests
-external/linux/build
-external/linux/image.bin
-external/buildroot/rootfs.cpio
-external/builldroot/build
-external/u-boot/build
-external/u-boot/image.bin
+external/buildroot-linux/linux/build
+external/buildroot-linux/linux/image.bin
+external/buildroot-linux/buildroot/rootfs.cpio
+external/buildroot-linux/builldroot/build
 fs.img
 
 build/
