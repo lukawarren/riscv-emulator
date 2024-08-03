@@ -218,6 +218,14 @@ u32 VirtioBlockDevice::process_queue_description(
         {
             io_flush_file(image_buffer, length);
         }
+        else if (current_header->type == BlockDeviceHeader::Type::GetID)
+        {
+            // In newer versions of the spec (we're 1.0)
+            // Debian doesn't care and will give it a go anyway
+            const char* id = "riscv-emulator";
+            memcpy(data, id, strlen(id) + 1);
+            ret = strlen(id) + 1;
+        }
         else
             throw std::runtime_error("unsupported virtio_blk_req type " +
                 std::to_string((int)current_header->type));

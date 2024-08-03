@@ -31,7 +31,8 @@ public:
     [[nodiscard]] bool write_32(const u64 address, const u32 value);
     [[nodiscard]] bool write_64(const u64 address, const u64 value);
 
-    void write_file(const u64 address, const std::string& filename);
+    // Returns size written
+    size_t write_file(const u64 address, const std::string& filename);
 
     // Bus layout for emulator
     constexpr static u64 plic_base = 0xc000000;

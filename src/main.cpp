@@ -9,10 +9,11 @@ static void print_usage(char** argv)
 int main(int argc, char** argv)
 {
     typedef std::pair<std::string, std::optional<std::string>> Arg;
-    std::array<Arg, 3> args = {{
-        { "--test",  "n" },
-        { "--image", std::nullopt },
-        { "--blk",   std::nullopt }
+    std::array<Arg, 4> args = {{
+        { "--test",         "n" },
+        { "--image",        std::nullopt },
+        { "--blk",          std::nullopt },
+        { "--initramfs",    std::nullopt }
     }};
 
     // Parse argc
@@ -61,7 +62,24 @@ int main(int argc, char** argv)
             test_mode,
             args[2].second
         );
-        cpu.bus.write_file(Bus::programs_base, *args[1].second);
+
+        // Load main kernel / program / image
+        std::ignore = cpu.bus.write_file(Bus::programs_base, *args[1].second);
+
+        if (args[3].second.has_value())
+        {
+            // Load initramfs - this is the address QEMU uses and decompression
+            // will fail on Debian testing if it isn't this, even if the would-be
+            // address is otherwise properly aligned...
+            const size_t address = 0xa0200000;
+            const size_t size = cpu.bus.write_file(address, *args[3].second);
+            if (size != (0xa2a30d12 - address))
+            {
+                throw std::runtime_error("initramfs size conflicts with the"
+                    " value in the DTB - you will have to modify the .dts file"
+                    " and the value in code (directly above) too");
+            }
+        }
 
         // Enter emulation loop
         const auto emulate = [&]<bool test_mode>()

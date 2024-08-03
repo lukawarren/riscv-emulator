@@ -3,6 +3,8 @@ external/buildroot-linux/linux/build
 external/buildroot-linux/linux/image.bin
 external/buildroot-linux/buildroot/rootfs.cpio
 external/buildroot-linux/builldroot/build
+externa/debian-linux/build
+external/debian-linux/image.bin
 fs.img
 
 build/

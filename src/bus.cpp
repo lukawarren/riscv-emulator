@@ -31,14 +31,15 @@ WRITE_X(16)
 WRITE_X(32)
 WRITE_X(64)
 
-void Bus::write_file(const u64 address, const std::string& filename)
+size_t Bus::write_file(const u64 address, const std::string& filename)
 {
     std::pair<u8*, size_t> file = io_read_file(filename);
 
     for (u64 i = 0; i < file.second; ++i)
-        std::ignore = write_8(address + i, file.first[i]);
+        assert(write_8(address + i, file.first[i]));
 
     delete[] file.first;
+    return file.second;
 }
 
 void Bus::clock(CPU& cpu)

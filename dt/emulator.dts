@@ -2,12 +2,14 @@
 / {
     #address-cells = <2>;
     #size-cells = <2>;
-    compatible = "riscv-virtio";
-    model = "riscv-virtio,qemu";
+    compatible = "ucbbar,spike-bare-dev";
+	model = "ucbbar,spike-bare,qemu";
 
     chosen {
-        bootargs = "earlycon=uart8250,mmio,0x3000000 console=ttyS0";
+        bootargs = "root=/dev/vda1 earlycon=uart8250,mmio,0x3000000 console=ttyS0";
         stdout-path = &uart0;
+        linux,initrd-end = <0xa2a30d12>;
+		linux,initrd-start = <0xa0200000>;
     };
 
     cpus {
@@ -19,7 +21,7 @@
             device_type = "cpu";
             reg = <0>;
             compatible = "riscv";
-            riscv,isa = "rv64gc";
+            riscv,isa = "rv64imafdc";
             riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "zicntr", "zicsr", "zifencei";
             mmu-type = "riscv,sv39";
             clock-frequency = <10000000>;

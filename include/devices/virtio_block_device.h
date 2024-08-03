@@ -113,7 +113,8 @@ private:
         {
             Read = 0,
             Write = 1,
-            Flush = 4
+            Flush = 4,
+            GetID = 8
         } type;
         u32 reserved;
         u64 sector;
