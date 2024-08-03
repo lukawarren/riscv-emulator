@@ -77,11 +77,12 @@ void VirtioBlockDevice::clock(CPU& cpu, PLIC& plic)
         // "Writing a value with bits set as defined in InterruptStatus to this
         // register notifies the device that events causing the interrupt have been
         // handled."
-        if (common_registers.interrupt_ack == common_registers.interrupt_status)
+        if (common_registers.interrupt_ack == common_registers.interrupt_status) [[likely]]
         {
             common_registers.interrupt_ack = 0;
             plic.clear_interrupt_pending(PLIC_INTERRUPT_BLK);
         }
+        else throw std::runtime_error("unknown virtio interrupt_ack " + common_registers.interrupt_ack);
     }
 
     if (wrote_to_queue_notify)
@@ -146,6 +147,7 @@ void VirtioBlockDevice::process_queue_buffers(CPU& cpu, PLIC& plic)
         while (true)
         {
             QueueDescription* description = descriptions + descriptor_index;
+            assert(description->is_indirect() == false);
             u32 length_written = process_queue_description(cpu, description, local_index);
 
             // We are meant to place the head of the chain in the used buffer
@@ -164,7 +166,7 @@ void VirtioBlockDevice::process_queue_buffers(CPU& cpu, PLIC& plic)
 
             local_index++;
             if (description->has_next_field())
-                descriptor_index++;
+                descriptor_index = description->next;
             else
                 break;
         }
@@ -194,11 +196,8 @@ u32 VirtioBlockDevice::process_queue_description(
     // The data itself; perform actual work
     else if (local_index == 1)
     {
-        // The spec defines "virtio_blk_req.data" to have a length of 512,
-        // but Linux seems to use 4096. Limiting the length to 512 and returning
-        // the proper "written amount" just results in memory corruption, so
-        // instead I am just assuming there is something else in the spec I
-        // misread or forgot to read.
+        // Version 1.0 of the spec has the length at a fixed 512, but later
+        // versions do away with this requirement
         u32 length = description->length;
         u8* data = get_structure<u8>(cpu, description->address);
         u8* image_buffer = image + current_header->sector * BLOCK_SIZE;
