@@ -90,7 +90,7 @@ struct Instruction
         {
             case Type::I:
                 // Sign extend then shift down
-                return ((i64)(i32)(instruction & 0xfff00000)) >> 20;
+                return ((i64)(i32)instruction) >> 20;
 
             case Type::S:
                 // Sign extend then shift down, then OR with lower bits
@@ -105,7 +105,7 @@ struct Instruction
 
             case Type:: U:
                 // No need to shift right by 12 as all opcodes using it
-                // ultimately then shift left by 12 :)
+                // ultimately then shift left by 12
                 return ((i64)(i32)(instruction & 0xfffff000));
 
             case Type::J:

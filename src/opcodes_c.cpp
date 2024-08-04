@@ -354,7 +354,7 @@ void c_lui(CPU& cpu, const CompressedInstruction instruction)
 void c_addi16sp(CPU& cpu, const CompressedInstruction instruction)
 {
     const u64 imm = instruction.get_addi16sp_none_zero_imm();
-    cpu.sp() = cpu.sp() + imm;
+    cpu.sp() += imm;
 }
 
 void c_addi4spn(CPU& cpu, const CompressedInstruction instruction)
@@ -432,7 +432,6 @@ void c_xor(CPU& cpu, const CompressedInstruction instruction)
     const u8 rs2 = instruction.get_rs2_alt();
     cpu.registers[rd] ^= cpu.registers[rs2];
 }
-
 
 void c_sub(CPU& cpu, const CompressedInstruction instruction)
 {

@@ -106,13 +106,14 @@ void VirtioBlockDevice::clock(CPU& cpu, PLIC& plic)
 void VirtioBlockDevice::reset_device()
 {
     // Writing zero to status triggers a device reset
-    // We need to preserve the magic value and capacity
-    u32 magic_value = common_registers.magic_value;
-    u64 capacity = block_registers.capacity;
+    // We need to preserve the capacity and device_features as these
+    // aren't set by default
+    const auto capacity = block_registers.capacity;
+    const auto device_features = common_registers.device_features;
     common_registers = CommonRegisters {};
     block_registers = BlockRegisters {};
-    common_registers.magic_value = magic_value;
     block_registers.capacity = capacity;
+    common_registers.device_features = device_features;
 }
 
 template<typename T>

@@ -165,7 +165,7 @@ struct CompressedInstruction
     u64 get_ld_sd_imm() const
     {
         return ((instruction << 1) & 0xc0) | // imm[7:6]
-                ((instruction >> 7) & 0x38);
+                ((instruction >> 7) & 0x38); // imm[5:3]
     }
 
     u64 get_jump_offset() const

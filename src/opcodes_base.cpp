@@ -605,7 +605,7 @@ void ecall(CPU& cpu, const Instruction instruction)
             break;
 
         case PrivilegeLevel::Machine:
-            throw std::runtime_error("TODO: unsupported ecall from machine mode - possible SBI driver");
+            throw std::runtime_error("TODO: unsupported ecall from machine mode - missing SBI?");
             cpu.raise_exception(Exception::EnvironmentCallFromMMode);
             break;
 
@@ -780,7 +780,7 @@ void sraiw(CPU& cpu, const Instruction instruction)
 {
     const u32 shift_amount = get_wide_shift_amount(cpu, instruction);
     const i32 rs1 = (i32)cpu.registers[instruction.get_rs1()];
-    cpu.registers[instruction.get_rd()] = (u64)(i64)(rs1 >> shift_amount);
+    cpu.registers[instruction.get_rd()] = (i64)(rs1 >> shift_amount);
 }
 
 void addw(CPU& cpu, const Instruction instruction)
