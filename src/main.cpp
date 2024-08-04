@@ -3,7 +3,7 @@
 
 static void print_usage(char** argv)
 {
-    std::cerr << "usage: " << argv[0] << " [--test] [--image FILE] [--blk FILE]" << std::endl;
+    std::cerr << "usage: " << argv[0] << " [--test] [--image FILE] [--blk FILE] [--initramfs FILE]" << std::endl;
 }
 
 int main(int argc, char** argv)

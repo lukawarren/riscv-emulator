@@ -73,9 +73,9 @@ private:
         u16 flags;
         u16 next;
 
-        bool has_next_field() { return (flags & 1) != 0; }
-        bool is_device_write_only() { return (flags & 2) != 0; }
-        bool is_indirect() { return (flags & 4) != 0; }
+        bool has_next_field() const { return (flags & 1) != 0; }
+        bool is_device_write_only() const { return (flags & 2) != 0; }
+        bool is_indirect() const { return (flags & 4) != 0; }
     }  __attribute__((packed));
 
     // Used to offer buffers to us (the device)
@@ -85,7 +85,7 @@ private:
         u16 idx;
         u16 ring[max_queue_size];
 
-        bool no_interrupt() { return (flags & 1) != 0; }
+        bool no_interrupt() const { return (flags & 1) != 0; }
     } __attribute__((packed));
 
     struct QueueUsedElement
@@ -101,7 +101,7 @@ private:
         u16 idx;
         QueueUsedElement ring[max_queue_size];
 
-        bool no_notify() { return (flags & 1) != 0; }
+        bool no_notify() const { return (flags & 1) != 0; }
     } __attribute__((packed));
 
     // A complete "packet" consists of three descriptions - a header detailing
@@ -123,17 +123,17 @@ private:
     {
         enum class Status : u8
         {
-            Ok,
-            IOError,
-            Unsupported
+            Ok = 0,
+            IOError = 1,
+            Unsupported = 2
         } status;
     } __attribute__((packed));
-    BlockDeviceHeader* current_header;
-    BlockDeviceFooter next_footer;
+    BlockDeviceHeader current_header;
 
 private:
     void reset_device();
     void process_queue_buffers(CPU& cpu, PLIC& plic);
-    u32 process_queue_description(CPU& cpu, QueueDescription* description, u16 local_index);
-    template<typename T> T* get_structure(CPU& cpu, u64 address);
+    u32 process_queue_description(CPU& cpu, const QueueDescription& description, u16 local_index);
+    template<typename T> T get_structure(CPU& cpu, u64 address);
+    template<typename T> void set_structure(CPU& cpu, u64 address, T& structure);
 };
