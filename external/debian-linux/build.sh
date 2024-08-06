@@ -1,7 +1,8 @@
 #!/bin/sh
 set -e
 
-DEBIAN_URL="https://gitlab.com/api/v4/projects/giomasce%2Fdqib/jobs/artifacts/master/download?job=convert_riscv64-virt"
+# See https://people.debian.org/~gio/dqib/
+DEBIAN_URL="https://gitlab.com/giomasce/dqib/-/jobs/7280338136/artifacts/download?file_type=archive"
 DEBIAN_FILE="debian.zip"
 
 mkdir -p build
@@ -22,6 +23,11 @@ if [ ! -d "debian" ]; then
     cd debian
     qemu-img convert -f qcow2 -O raw image.qcow2 image.img
     rm image.qcow2
+
+    # Copy
+    mv initrd ../../
+    mv image.img ../../rootfs.img
+
     cd ..
 
     # Remove zip
@@ -41,4 +47,12 @@ fi
 cd opensbi
 echo "building opensbi..."
 make CROSS_COMPILE=riscv64-unknown-linux-gnu- PLATFORM_RISCV_XLEN=64 PLATFORM_RISCV_ISA=rv64imafd_zicsr_zifencei PLATFORM=generic FW_PAYLOAD_PATH=../debian/kernel
-cp build/platform/generic/firmware/fw_payload.bin ../../image.bin
+mv build/platform/generic/firmware/fw_payload.bin ../../image.bin
+
+# Clean up
+cd ../../
+rm -rf build
+mkdir output
+mv image.bin output
+mv initrd output
+mv rootfs.img output

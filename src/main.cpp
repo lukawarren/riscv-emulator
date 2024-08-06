@@ -73,7 +73,7 @@ int main(int argc, char** argv)
             // address is otherwise properly aligned...
             const size_t address = 0xa0200000;
             const size_t size = cpu.bus.write_file(address, *args[3].second);
-            if (size != (0xa2a30d12 - address))
+            if (size != (0xa25f03a6 - address))
             {
                 throw std::runtime_error("initramfs size conflicts with the"
                     " value in the DTB - you will have to modify the .dts file"

@@ -6,6 +6,7 @@ external/buildroot-linux/builldroot/build
 external/buildroot-linux/image.bin
 externa/debian-linux/build
 external/debian-linux/image.bin
+external/debian-linux/output
 fs.img
 
 build/

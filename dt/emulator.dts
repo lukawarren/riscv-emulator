@@ -8,7 +8,7 @@
     chosen {
         bootargs = "root=/dev/vda1 rw earlycon=uart8250,mmio,0x3000000 console=ttyS0";
         stdout-path = &uart0;
-        linux,initrd-end = <0xa2a30d12>;
+        linux,initrd-end = <0xa25f03a6>;
 		linux,initrd-start = <0xa0200000>;
     };
 

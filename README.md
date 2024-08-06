@@ -1,5 +1,6 @@
 # riscv-emulator
 A RISC-V emulator capable of running Linux (6.9.10), written in C++.
+![The emulator running Debian trixie](screenshots/debian.png)
 ![The emulator running Linux with a buildroot userspace](screenshots/linux_6.9.10_mmu.png)
 
 ## Supported Extensions
@@ -60,13 +61,34 @@ for file in *; do if [[ -x "$file" && ! -d "$file" ]]; then riscv64-unknown-elf-
 
 Then run the tests:
 ```
-# in project's root directory
+# in project's root directory, after building it in build/
 python run_tests.py
 ```
 
 ## Running Linux
 
-### initramfs
+### Debian
+Debian does not currently officially support RISC-V, but should do when Debian 13 comes out (2025).
+However, debian-testing can still be downloaded [from here](https://people.debian.org/~gio/dqib/).
+You will need qemu-img to convert the `.qcow2` to a `.img` (`sudo pacman -S qemu-img`).
+The process is automated below:
+```
+# Download
+cd external/debian-linux/
+./build.sh
+
+# Run
+cd -
+mkdir -p build && cd build
+cmake .. -G Ninja && ninja
+./riscv-emulator --image ../external/debian-linux/output/image.bin --initramfs ../external/debian-linux/output/initrd --blk ../external/debian-linux/output/rootfs.img
+```
+
+Log in with `root:root` or `debian:debian`.
+
+### Buildroot
+
+#### initramfs
 First you must build the initramfs. Currently I use buildroot with support for the following binaries:
 - nano
 - bash
@@ -84,7 +106,7 @@ Alternatively, you can [download a pre-built version here](https://github.com/lu
 
 **You must re-run the kernel's `build.sh` (see below) whenever the initramfs changes.**
 
-### Kernel
+#### Kernel
 Install the Linux toolchain (as opposed to the elf toolchain) by following the instructions above for building tests but running `make linux` instead of `make`. If you wish to download a pre-built version of the toolchain instead, follow the same steps as previously described but swap `-elf-` with `-glibc-`. Then:
 ```
 # Build
@@ -93,15 +115,17 @@ cd external/buildroot-linux/linux
 
 # Run
 cd -
-cd build
+mkdir -p build && cd build
 cmake .. -G Ninja && ninja
 ./riscv-emulator --image ../external/buildroot-linux/image.bin --dts ../emulator.dts
 ```
 
 Alternatively, if you do not wish to build Linux and OpenSBI from source *and* you do not wish to build the initramfs either, you can [download a pre-built final image here](https://github.com/lukawarren/riscv-emulator/releases), so that you can simply run `./riscv-emulator image.bin`.
 
-## Attaching a block device
-If you don't have an image handy, you can make a simple ext4 filesystem containing the emulator's source like so:
+Log in with `root` (no password).
+
+#### Attaching a block device
+If you don't have an image handy but would like to attach one, you can make a simple ext4 filesystem containing the emulator's source like so:
 ```
 # Adjust size (count) as necessary
 dd if=/dev/zero of=fs.img bs=1M count=1
