@@ -116,7 +116,7 @@ cd external/buildroot-linux/linux
 cd -
 mkdir -p build && cd build
 cmake .. -G Ninja && ninja
-./riscv-emulator --image ../external/buildroot-linux/image.bin --dts ../emulator.dts
+./riscv-emulator --image ../external/buildroot-linux/image.bin
 ```
 
 Alternatively, if you do not wish to build Linux and OpenSBI from source *and* you do not wish to build the initramfs either, you can [download a pre-built final image here](https://github.com/lukawarren/riscv-emulator/releases), so that you can simply run `./riscv-emulator image.bin`.
@@ -135,4 +135,4 @@ sudo cp -r src/* /mnt/temp-riscv
 sudo umount /mnt/temp-riscv
 sudo rm -r /mnt/temp-riscv
 ```
-Then you can run Linux, etc. with `./riscv-emulator --image ../external/linux/image.bin --dts ../emulator.dts --blk fs.img`
+Then append `--blk fs.img`

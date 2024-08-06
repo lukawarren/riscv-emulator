@@ -14,6 +14,7 @@ public:
     CPU(
         const uint64_t ram_size,
         const bool emulating_test,
+        const bool has_initramfs,
         const std::optional<std::string> block_device_image
     );
     void do_cycle();

@@ -60,6 +60,7 @@ int main(int argc, char** argv)
         CPU cpu(
             test_mode ? (16 * 1024 * 1024) : (2UL * 1024 * 1024 * 1024),
             test_mode,
+            args[3].second.has_value(),
             args[2].second
         );
 

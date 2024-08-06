@@ -16,6 +16,7 @@ extern "C" {
 CPU::CPU(
     const uint64_t ram_size,
     const bool emulating_test,
+    const bool has_initramfs,
     const std::optional<std::string> block_device_image
 ) :
     bus(ram_size, block_device_image, emulating_test), emulating_test(emulating_test)
@@ -26,12 +27,13 @@ CPU::CPU(
     pc = Bus::programs_base;
 
     // Work out DTB address - aligned to nearest page
-    u64 dtb_address = Bus::ram_base + ram_size - sizeof(DTB) - 1;
+    const auto& dtb = has_initramfs ? DTB_INITRD : DTB_SIMPLE;
+    u64 dtb_address = Bus::ram_base + ram_size - sizeof(dtb) - 1;
     dtb_address = dtb_address / 4096 * 4096;
 
     // Load DTB into memory
-    for (size_t i = 0; i < sizeof(DTB); ++i)
-        std::ignore = write_8(dtb_address + i, DTB[i]);
+    for (size_t i = 0; i < sizeof(dtb); ++i)
+        std::ignore = write_8(dtb_address + i, dtb[i]);
 
     // Set x11 to DTB pointer and x10 to hart id
     registers[10] = 0;
