@@ -339,21 +339,52 @@ private:
         }
         else
         {
-            std::expected<u64, Exception> physical_address = tlb_lookup(address, type);
-            if (physical_address.has_value())
+            // Aligned access
+            if ((address % sizeof(T)) == 0) [[likely]]
             {
-                const std::optional<T> value = fetch_from_bus<T>(*physical_address);
-                if (!value)
+                std::expected<u64, Exception> physical_address = tlb_lookup(address, type);
+                if (physical_address.has_value()) [[likely]]
                 {
-                    if (type == AccessType::Instruction)
-                        return std::unexpected(Exception::InstructionAccessFault);
+                    const std::optional<T> value = fetch_from_bus<T>(*physical_address);
+                    if (!value) [[unlikely]]
+                    {
+                        if (type == AccessType::Instruction)
+                            return std::unexpected(Exception::InstructionAccessFault);
+                        else
+                            return std::unexpected(Exception::LoadAccessFault);
+                    }
                     else
-                        return std::unexpected(Exception::LoadAccessFault);
+                        return *value;
                 }
-                else return *value;
+                else
+                    return physical_address;
             }
+
+            // Unaligned access
             else
-                return physical_address;
+            {
+                T result = 0;
+                for (size_t i = 0; i < sizeof(T); ++i)
+                {
+                    std::expected<u64, Exception> physical_address = tlb_lookup(address + i, type);
+                    if (physical_address.has_value()) [[likely]]
+                    {
+                        const std::optional<u8> value = fetch_from_bus<u8>(*physical_address);
+                        if (!value) [[unlikely]]
+                        {
+                            if (type == AccessType::Instruction)
+                                return std::unexpected(Exception::InstructionAccessFault);
+                            else
+                                return std::unexpected(Exception::LoadAccessFault);
+                        }
+                        else
+                            result |= (T(*value) << (i * 8));
+                    }
+                    else
+                        return physical_address;
+                }
+                return result;
+            }
         }
     }
 
@@ -364,18 +395,39 @@ private:
         {
             if (!write_to_bus<T>(address, value))
                 return Exception::StoreOrAMOAccessFault;
+        }
+        else
+        {
+            // Aligned access
+            if ((address % sizeof(T)) == 0) [[likely]]
+            {
+                const std::expected<u64, Exception> virtual_address = tlb_lookup(address, type);
+                if (virtual_address.has_value()) [[likely]]
+                {
+                    if (!write_to_bus<T>(*virtual_address, value)) [[unlikely]]
+                        return Exception::StoreOrAMOAccessFault;
+                }
+                else
+                    return virtual_address.error();
+            }
+
+            // Unaligned access
             else
-                return std::nullopt;
+            {
+                for (size_t i = 0; i < sizeof(T); ++i)
+                {
+                    const std::expected<u64, Exception> virtual_address = tlb_lookup(address + i, type);
+                    if (virtual_address.has_value()) [[likely]]
+                    {
+                        if (!write_to_bus<u8>(*virtual_address, (value >> (i * 8)) & 0xff)) [[unlikely]]
+                            return Exception::StoreOrAMOAccessFault;
+                    }
+                    else
+                        return virtual_address.error();
+                }
+            }
         }
 
-        const std::expected<u64, Exception> virtual_address = tlb_lookup(address, type);
-        if (virtual_address.has_value())
-        {
-            if (!write_to_bus<T>(*virtual_address, value))
-                return Exception::StoreOrAMOAccessFault;
-            else
-                return std::nullopt;
-        }
-        else return virtual_address.error();
+        return std::nullopt;
     }
 };
