@@ -142,6 +142,15 @@ void VirtioBlockDevice::set_structure(CPU& cpu, u64 address, T& structure)
     memcpy(addr, &structure, sizeof(T));
 }
 
+VirtioBlockDevice::QueueDescription VirtioBlockDevice::get_queue_description(CPU& cpu, u16 index)
+{
+    // queue_desc[i] (i.e. queue_desc + i * sizeof(desc))
+    return get_structure<QueueDescription>(
+        cpu,
+        common_registers.queue_desc + index * sizeof(QueueDescription)
+    );
+}
+
 void VirtioBlockDevice::process_queue_buffers(CPU& cpu, PLIC& plic)
 {
     // The available buffer contains buffers offered to us (the device)
@@ -149,51 +158,29 @@ void VirtioBlockDevice::process_queue_buffers(CPU& cpu, PLIC& plic)
     const auto available = get_structure<QueueAvailable>(cpu, common_registers.queue_avail);
     auto used = get_structure<QueueUsed>(cpu, common_registers.queue_used);
 
-    u16 ring_index = last_processed_idx;
+    // Return early if none to process
+    u16 ring_index = last_processed_idx % requestq.size;
     if (ring_index == available.idx)
         return;
 
     while (true)
     {
+        // Retrieve (and advance) index from ring buffer
         u16 descriptor_index = available.ring[ring_index];
         ring_index += 1;
         ring_index %= requestq.size;
 
-        // Process entire description chain
-        u16 local_index = 0;
-        u16 head_index = 0;
-        while (true)
-        {
-            // Fetch head of chain as queue_desc[i] (i.e. queue_desc + i * sizeof(desc))
-            const auto description = get_structure<QueueDescription>(
-                cpu,
-                common_registers.queue_desc + descriptor_index * sizeof(QueueDescription)
-            );
-            assert(description.is_indirect() == false);
-            u32 length_written = process_queue_description(cpu, description, local_index);
+        // Fetch head of chain
+        const auto description = get_queue_description(cpu, descriptor_index);
+        u32 length_written = process_queue_description_head(cpu, description);
 
-            // We are meant to place the head of the chain in the used buffer
-            // (i.e. the ID is the index of the head), but the length has to
-            // be the *total* length, which we don't know until the second
-            // entry in the chain.
-            if (local_index == 1)
-            {
-                used.ring[used.idx].id = head_index;
-                used.ring[used.idx].length = length_written;
-                used.idx += 1;
-                used.idx %= requestq.size;
-
-                set_structure(cpu, common_registers.queue_used, used);
-            }
-            else if (local_index == 0)
-                head_index = descriptor_index;
-
-            local_index++;
-            if (description.has_next_field())
-                descriptor_index = description.next;
-            else
-                break;
-        }
+        // Place the head of the chain in the used buffer
+        // (i.e. the ID is the index of the head)
+        used.ring[used.idx].id = descriptor_index;
+        used.ring[used.idx].length = length_written;
+        used.idx += 1;
+        used.idx %= requestq.size;
+        set_structure(cpu, common_registers.queue_used, used);
 
         // Break out if we're reached the end of the ring buffer
         if (ring_index == available.idx)
@@ -202,71 +189,84 @@ void VirtioBlockDevice::process_queue_buffers(CPU& cpu, PLIC& plic)
     last_processed_idx = available.idx;
 
     if (!available.no_interrupt())
+    {
+        // Bit 0 is set if at least one queue was used by us (the "device")
+        common_registers.interrupt_status |= 0x1;
         plic.set_interrupt_pending(PLIC_INTERRUPT_BLK);
+    }
 }
 
-u32 VirtioBlockDevice::process_queue_description(
-    CPU& cpu,
-    const QueueDescription& description,
-    u16 local_index
-)
+u32 VirtioBlockDevice::process_queue_description_head(CPU& cpu, const QueueDescription& description)
 {
-    u32 ret = 0;
+    // The head and its two next entries should form a chain that goes:
+    // header --> concerned data --> footer
 
-    // Header; keep track for later
-    if (local_index == 0 && description.length == sizeof(BlockDeviceHeader))
-        current_header = get_structure<BlockDeviceHeader>(cpu, description.address);
+    QueueDescription descriptors[3];
 
-    // The data itself; perform actual work
-    else if (local_index == 1)
+    // Header
+    descriptors[0] = description;
+    assert(descriptors[0].has_next_field());
+    assert(descriptors[0].is_indirect() == false);
+    assert(descriptors[0].length == sizeof(BlockDeviceHeader));
+    const auto header = get_structure<BlockDeviceHeader>(cpu, descriptors[0].address);
+
+    descriptors[1] = get_queue_description(cpu, descriptors[0].next);
+
+    // VIRTIO_BLK_T_FLUSH commands have no data, so this may be the last descriptor
+    if (descriptors[1].has_next_field() == false && descriptors[1].length == sizeof(BlockDeviceFooter))
     {
-        // Version 1.0 of the spec has the length at a fixed 512, but later
-        // versions do away with this requirement
-        u32 length = description.length;
-        u8* data = cpu.bus.ram.memory + (description.address - cpu.bus.ram_base);
-        u8* image_buffer = image + current_header.sector * BLOCK_SIZE;
+        assert(header.type == BlockDeviceHeader::Type::Flush);
+        io_flush_file(image, block_registers.capacity * BLOCK_SIZE);
 
-        if (current_header.type == BlockDeviceHeader::Type::Read &&
-            description.is_device_write_only())
-        {
-            memcpy(data, image_buffer, length);
-            ret = length;
-        }
-        else if (current_header.type == BlockDeviceHeader::Type::Write &&
-            !description.is_device_write_only())
-        {
-            memcpy(image_buffer, data, length);
-        }
-        else if (current_header.type == BlockDeviceHeader::Type::Flush)
-        {
-            io_flush_file(image_buffer, length);
-        }
-        else if (current_header.type == BlockDeviceHeader::Type::GetID)
-        {
-            // In newer versions of the spec (we're 1.0)
-            // Debian doesn't care and will give it a go anyway
-            const char* id = "riscv-emulator";
-            memcpy(data, id, strlen(id) + 1);
-            ret = strlen(id) + 1;
-        }
-        else
-            throw std::runtime_error("unsupported virtio_blk_req type " +
-                std::to_string((int)current_header.type));
-    }
-    else if (description.length == sizeof(BlockDeviceFooter) && local_index == 2)
-    {
-        // Write to footer
-        auto footer = get_structure<BlockDeviceFooter>(cpu, description.address);
+        auto footer = get_structure<BlockDeviceFooter>(cpu, descriptors[1].address);
         footer.status = BlockDeviceFooter::Status::Ok;
-        set_structure(cpu, description.address, footer);
+        set_structure(cpu, descriptors[1].address, footer);
+
+        return 0;
     }
     else
-        throw std::runtime_error(
-            "unsupported queue description with length " +
-                std::to_string(description.length)
-        );
+    {
+        assert(descriptors[1].has_next_field());
+        assert(descriptors[1].is_indirect() == false);
+    }
 
-    return ret;
+    // Footer
+    descriptors[2] = get_queue_description(cpu, descriptors[1].next);
+    assert(descriptors[2].has_next_field() == false);
+    assert(descriptors[2].is_indirect() == false);
+    assert(descriptors[2].length == sizeof(BlockDeviceFooter));
+    auto footer = get_structure<BlockDeviceFooter>(cpu, descriptors[2].address);
+
+    // Presumptively set footer status as we will always succeed
+    footer.status = BlockDeviceFooter::Status::Ok;
+    set_structure(cpu, descriptors[2].address, footer);
+
+    u32 length = descriptors[1].length;
+    u8* data = cpu.bus.ram.memory + (descriptors[1].address - cpu.bus.ram_base);
+    u8* image_buffer = image + header.sector * BLOCK_SIZE;
+
+    if (header.type == BlockDeviceHeader::Type::Read &&
+        descriptors[1].is_device_write_only())
+        memcpy(data, image_buffer, length);
+
+    else if (header.type == BlockDeviceHeader::Type::Write &&
+        !descriptors[1].is_device_write_only())
+        memcpy(image_buffer, data, length);
+
+    else if (header.type == BlockDeviceHeader::Type::GetID)
+    {
+        // In newer versions of the spec (we're 1.0)
+        // Debian doesn't care and will give it a go anyway
+        const char* id = "riscv-emulator";
+        memcpy(data, id, strlen(id) + 1);
+        length = strlen(id) + 1;
+    }
+
+    else
+        throw std::runtime_error("unsupported virtio_blk_req type " +
+            std::to_string((int)header.type));
+
+    return length;
 }
 
 u32* VirtioBlockDevice::get_register(const u64 address, const Mode mode)

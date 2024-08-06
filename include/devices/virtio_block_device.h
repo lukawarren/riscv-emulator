@@ -128,12 +128,13 @@ private:
             Unsupported = 2
         } status;
     } __attribute__((packed));
-    BlockDeviceHeader current_header;
 
 private:
     void reset_device();
     void process_queue_buffers(CPU& cpu, PLIC& plic);
-    u32 process_queue_description(CPU& cpu, const QueueDescription& description, u16 local_index);
+    u32 process_queue_description_head(CPU& cpu, const QueueDescription& description);
+
+    QueueDescription get_queue_description(CPU& cpu, u16 index);
     template<typename T> T get_structure(CPU& cpu, u64 address);
     template<typename T> void set_structure(CPU& cpu, u64 address, T& structure);
 };
