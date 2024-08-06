@@ -198,7 +198,7 @@ void c_lwsp(CPU& cpu, const CompressedInstruction instruction)
 {
     const u8 rd = instruction.get_rd();
     const u64 offset = instruction.get_lwsp_offset();
-    const auto value = cpu.read_32(cpu.registers[2] + offset);
+    const auto value = cpu.read_32(cpu.sp() + offset);
 
     if (!value)
     {
@@ -213,7 +213,7 @@ void c_ldsp(CPU& cpu, const CompressedInstruction instruction)
 {
     const u8 rd = instruction.get_rd();
     const u64 offset = instruction.get_ldsp_offset();
-    const auto value = cpu.read_64(cpu.registers[2] + offset);
+    const auto value = cpu.read_64(cpu.sp() + offset);
 
     if (!value)
     {
@@ -257,7 +257,7 @@ void c_swsp(CPU& cpu, const CompressedInstruction instruction)
     const u8 rs2 = instruction.get_rs2();
     const u64 offset = instruction.get_swsp_offset();
     const auto error = cpu.write_32(
-        cpu.registers[2] + offset,
+        cpu.sp() + offset,
         cpu.registers[rs2]
     );
 
@@ -273,7 +273,7 @@ void c_sdsp(CPU& cpu, const CompressedInstruction instruction)
     const u8 rs2 = instruction.get_rs2();
     const u64 offset = instruction.get_sdsp_offset();
     const auto error = cpu.write_64(
-        cpu.registers[2] + offset,
+        cpu.sp() + offset,
         cpu.registers[rs2]
     );
 
@@ -365,8 +365,7 @@ void c_addi4spn(CPU& cpu, const CompressedInstruction instruction)
 
 void c_slli(CPU& cpu, const CompressedInstruction instruction)
 {
-    cpu.registers[instruction.get_rd()] =
-        cpu.registers[instruction.get_rd()] << instruction.get_shamt();
+    cpu.registers[instruction.get_rd()] <<= instruction.get_shamt();
 }
 
 void c_srli(CPU& cpu, const CompressedInstruction instruction)

@@ -418,7 +418,7 @@ void CPU::add_tlb_entry(
 
 void CPU::check_for_invalid_tlb()
 {
-    // Certain staes modify page "permissions", like mstatus or the current privilege
+    // Certain states modify page "permissions", like mstatus or the current privilege
     // level. When these change, we can no longer assume that any previously cached
     // translation is valid.
 

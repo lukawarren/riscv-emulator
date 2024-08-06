@@ -202,6 +202,7 @@ get_operands(CPU& cpu, const Instruction instruction)
 
 void divide_by_zero(CPU& cpu, const Instruction instruction)
 {
-    // TODO: set DZ flag to 1 when floating point support added?
+    // As floating pointer is supported, we set DZ to 1 too
     cpu.registers[instruction.get_rd()] = std::numeric_limits<u64>::max();
+    cpu.fcsr.set_dz(cpu);
 }
