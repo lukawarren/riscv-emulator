@@ -1,7 +1,6 @@
 # riscv-emulator
-A RISC-V emulator capable of running Linux (6.9.10), written in C++.
+A RISC-V emulator capable of running Linux (Debian, buildroot, etc.), written in C++.
 ![The emulator running Debian trixie](screenshots/debian.png)
-![The emulator running Linux with a buildroot userspace](screenshots/linux_6.9.10_mmu.png)
 
 ## Supported Extensions
 * RV64I
