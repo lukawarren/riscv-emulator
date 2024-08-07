@@ -717,7 +717,8 @@ void sfence_vma(CPU& cpu, const Instruction instruction)
         cpu.raise_exception(Exception::IllegalInstruction);
 
     // TODO: support local page flushes too
-    cpu.invalidate_tlb();
+    if (cpu.privilege_level >= PrivilegeLevel::Supervisor)
+        cpu.invalidate_tlb();
 }
 
 void lwu(CPU& cpu, const Instruction instruction)
