@@ -39,12 +39,12 @@ namespace JIT
     inline void sh         (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
     inline void sw         (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
 
-    inline void beq        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void bne        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void blt        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void bge        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void bltu       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void bgeu       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
+    void beq        (const Instruction instruction, Context& context);
+    void bne        (const Instruction instruction, Context& context);
+    void blt        (const Instruction instruction, Context& context);
+    void bge        (const Instruction instruction, Context& context);
+    void bltu       (const Instruction instruction, Context& context);
+    void bgeu       (const Instruction instruction, Context& context);
 
     void jal        (const Instruction instruction, Context& context);
     inline void jalr       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }

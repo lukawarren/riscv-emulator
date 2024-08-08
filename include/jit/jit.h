@@ -9,13 +9,28 @@ namespace JIT
     struct Context
     {
         llvm::IRBuilder<>& builder;
+        llvm::LLVMContext& context;
+
+        // Variables
         llvm::Value* registers;
         u64 pc;
+
+        // Interface functions
+        llvm::Function* write_to_csr;
     };
 
     void init();
     void create_frame(CPU& cpu);
-    bool emit_instruction(CPU& cpu, const Instruction instruction, Context& context);
+    void register_interface_functions(
+        llvm::Module* module,
+        llvm::LLVMContext& context,
+        Context& jit_context
+    );
+    bool emit_instruction(
+        CPU& cpu,
+        const Instruction instruction,
+        Context& context
+    );
 
     llvm::Value* get_registers(CPU& cpu, llvm::IRBuilder<>& builder);
     llvm::Value* load_register(Context& context, u32 index);

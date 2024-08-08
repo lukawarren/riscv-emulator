@@ -1,11 +1,10 @@
 #include "jit/jit_base.h"
+#include "jit/jit_common.h"
 
 using namespace JIT;
 
-#define rs1 load_register(context, instruction.get_rs1())
-#define rs2 load_register(context, instruction.get_rs2())
-#define set_rd(r) store_register(context, instruction.get_rd(), r);
-#define u64_im(x) llvm::ConstantInt::get(context.builder.getInt64Ty(), x)
+// Helpers
+static void emit_branch(const Instruction instruction, Context& context, llvm::Value* condition);
 
 void JIT::add(const Instruction instruction, Context& context)
 {
@@ -157,6 +156,41 @@ void JIT::sltiu(const Instruction instruction, Context& context)
     ));
 }
 
+void JIT::beq(const Instruction instruction, Context& context)
+{
+    UNIMPLEMENTED();
+}
+
+void JIT::bne(const Instruction instruction, Context& context)
+{
+    llvm::Value* condition = context.builder.CreateICmpNE(rs1, rs2);
+    emit_branch(instruction, context, condition);
+}
+
+void JIT::blt(const Instruction instruction, Context& context)
+{
+    llvm::Value* condition = context.builder.CreateICmpSLT(rs1, rs2);
+    emit_branch(instruction, context, condition);
+}
+
+void JIT::bge(const Instruction instruction, Context& context)
+{
+    llvm::Value* condition = context.builder.CreateICmpSGT(rs1, rs2);
+    emit_branch(instruction, context, condition);
+}
+
+void JIT::bltu(const Instruction instruction, Context& context)
+{
+    llvm::Value* condition = context.builder.CreateICmpULT(rs1, rs2);
+    emit_branch(instruction, context, condition);
+}
+
+void JIT::bgeu(const Instruction instruction, Context& context)
+{
+    llvm::Value* condition = context.builder.CreateICmpUGT(rs1, rs2);
+    emit_branch(instruction, context, condition);
+}
+
 void JIT::jal(const Instruction instruction, Context& context)
 {
     // Instead of actually running a jump, we can just simulate the effects
@@ -167,4 +201,31 @@ void JIT::jal(const Instruction instruction, Context& context)
         u64_im(context.pc + 4)
     );
     context.pc += offset - 4;
+}
+
+// -- Helpers --
+
+static void emit_branch(const Instruction instruction, Context& context, llvm::Value* condition)
+{
+    // Check branch alignment
+    const u64 target = instruction.get_imm(Instruction::Type::B);
+    if ((target & 0b1) != 0)
+    {
+        std::runtime_error("todo: raise exception on unaligned jump");
+    }
+
+    llvm::Function* function = context.builder.GetInsertBlock()->getParent();
+
+    // Create blocks
+    llvm::BasicBlock* true_block = llvm::BasicBlock::Create(context.context);
+    llvm::BasicBlock* false_block = llvm::BasicBlock::Create(context.context);
+    context.builder.CreateCondBr(condition, true_block, false_block);
+
+    // True block - unable to JIT further (for now!) so return early
+    context.builder.SetInsertPoint(true_block);
+    context.builder.CreateRet(u64_im(target));
+
+    // False block - merge back
+    function->insert(function->end(), false_block);
+    context.builder.SetInsertPoint(false_block);
 }

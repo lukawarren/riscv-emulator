@@ -2,8 +2,12 @@
 #include "jit/jit_base.h"
 #include "opcodes_base.h"
 #include "opcodes_m.h"
+#include "opcodes_zicsr.h"
 
 using namespace JIT;
+
+// "Interface" functions called from JIT'ed code itself
+extern "C" void write_to_csr(u64 value, u64 address);
 
 void JIT::init()
 {
@@ -34,9 +38,13 @@ void JIT::create_frame(CPU& cpu)
     llvm::Value* registers = get_registers(cpu, builder);
     Context jit_context {
         .builder = builder,
+        .context = context,
         .registers = registers,
-        .pc = cpu.pc
+        .pc = cpu.pc,
+        .write_to_csr = nullptr
     };
+
+    register_interface_functions(module, context, jit_context);
 
     // Build blocks
     while (true)
@@ -68,7 +76,7 @@ void JIT::create_frame(CPU& cpu)
     }
 
     // Return from block
-    builder.CreateRetVoid();
+    builder.CreateRet(llvm::ConstantInt::get(builder.getInt64Ty(), cpu.pc));
 
     // Build engine
     std::string error;
@@ -219,8 +227,23 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
 
         case OPCODES_BASE_SYSTEM:
         {
-            // 0 = CSR instructions - except for ebreak
-            if (funct3 != 0) return false;
+            // Zicsr instructions
+            if (funct3 != 0)
+            {
+                switch (funct3)
+                {
+                    case CSRRW:     csrrw (cpu, instruction); break;
+                    case CSRRS:     csrrs (cpu, instruction); break;
+                    case CSRRC:     csrrc (cpu, instruction); break;
+                    case CSRRWI:    csrrwi(cpu, instruction); break;
+                    case CSRRSI:    csrrsi(cpu, instruction); break;
+                    case CSRRCI:    csrrci(cpu, instruction); break;
+
+                    default:
+                        return false;
+                }
+                break;
+            }
 
             const u8 rs2 = instruction.get_rs2();
 
@@ -384,5 +407,34 @@ void JIT::store_register(Context& context, u32 index, llvm::Value* value)
             context.registers,
             index_value
         )
+    );
+}
+
+extern "C" void write_to_csr(u64 value, u64 address)
+{
+    dbg("todo: JIT csr write", value, address);
+}
+
+void JIT::register_interface_functions(
+    llvm::Module* module,
+    llvm::LLVMContext& context,
+    Context& jit_context
+)
+{
+    llvm::FunctionType* write_to_csr_type = llvm::FunctionType::get
+    (
+        llvm::Type::getVoidTy(context),         // Return
+        {
+            llvm::Type::getInt64Ty(context),    // Arg 1
+            llvm::Type::getInt64Ty(context)     // Arg 2
+        },
+        false
+    );
+
+    jit_context.write_to_csr = llvm::Function::Create(
+        write_to_csr_type,
+        llvm::Function::ExternalLinkage,
+        "",
+        module
     );
 }
