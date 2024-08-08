@@ -16,6 +16,7 @@
 #include <queue>
 #include <thread>
 #include <mutex>
+#include <functional>
 
 // For UART stdin
 #include <termios.h>

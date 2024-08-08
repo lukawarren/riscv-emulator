@@ -35,3 +35,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 # PCH
 target_precompile_headers(${PROJECT_NAME} PRIVATE include/common.h)
+target_precompile_headers(${PROJECT_NAME} PRIVATE include/jit/llvm.h)
+
+# LLVM
+find_package(LLVM REQUIRED CONFIG)
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
+target_link_libraries(${PROJECT_NAME} PRIVATE LLVM-18)
+

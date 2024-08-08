@@ -1,19 +1,21 @@
 #include "cpu.h"
 #include "io.h"
+#include "jit/jit.h"
 
 static void print_usage(char** argv)
 {
-    std::cerr << "usage: " << argv[0] << " [--test] [--image FILE] [--blk FILE] [--initramfs FILE]" << std::endl;
+    std::cerr << "usage: " << argv[0] << " [--test] [--jit] [--image FILE] [--blk FILE] [--initramfs FILE]" << std::endl;
 }
 
 int main(int argc, char** argv)
 {
     typedef std::pair<std::string, std::optional<std::string>> Arg;
-    std::array<Arg, 4> args = {{
+    std::array<Arg, 5> args = {{
         { "--test",         "n" },
         { "--image",        std::nullopt },
         { "--blk",          std::nullopt },
-        { "--initramfs",    std::nullopt }
+        { "--initramfs",    std::nullopt },
+        { "--jit",          std::nullopt }
     }};
 
     // Parse argc
@@ -25,7 +27,7 @@ int main(int argc, char** argv)
         {
             if (std::string(argv[i]) == args[j].first)
             {
-                if (args[j].first == "--test")
+                if (args[j].first == "--test" || args[j].first == "--jit")
                     args[j].second = "y";
                 else
                 {
@@ -82,24 +84,32 @@ int main(int argc, char** argv)
             }
         }
 
-        // Enter emulation loop
-        const auto emulate = [&]<bool test_mode>()
+        if (!args[4].second.has_value())
         {
-            while(1)
+            // Enter emulation loop
+            const auto emulate = [&]<bool test_mode>()
             {
-                if constexpr(test_mode)
-                    cpu.trace();
+                while(1)
+                {
+                    if constexpr(test_mode)
+                        cpu.trace();
 
-                cpu.do_cycle();
-                cpu.bus.clock(cpu);
+                    cpu.do_cycle();
+                    cpu.bus.clock(cpu);
 
-                const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
-                if (trap.has_value())
-                    cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
-            }
-        };
-        if (test_mode) emulate.operator()<true>();
-        else           emulate.operator()<false>();
+                    const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
+                    if (trap.has_value())
+                        cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
+                }
+            };
+            if (test_mode) emulate.operator()<true>();
+            else           emulate.operator()<false>();
+        }
+        else
+        {
+            // JIT
+            JIT::create_frame(cpu);
+        }
 
     }
     catch (std::string& s)
