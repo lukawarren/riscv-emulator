@@ -9,25 +9,25 @@
 namespace JIT
 {
     void add        (const Instruction instruction, Context& context);
-    inline void sub        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void _xor       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void _or        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void _and       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void sll        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void srl        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void sra        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void slt        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void sltu       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
+    void sub        (const Instruction instruction, Context& context);
+    void _xor       (const Instruction instruction, Context& context);
+    void _or        (const Instruction instruction, Context& context);
+    void _and       (const Instruction instruction, Context& context);
+    void sll        (const Instruction instruction, Context& context);
+    void srl        (const Instruction instruction, Context& context);
+    void sra        (const Instruction instruction, Context& context);
+    void slt        (const Instruction instruction, Context& context);
+    void sltu       (const Instruction instruction, Context& context);
 
-    inline void addi       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void xori       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void ori        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void andi       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void slli       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void srli       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void srai       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void slti       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void sltiu      (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
+    void addi       (const Instruction instruction, Context& context);
+    void xori       (const Instruction instruction, Context& context);
+    void ori        (const Instruction instruction, Context& context);
+    void andi       (const Instruction instruction, Context& context);
+    void slli       (const Instruction instruction, Context& context);
+    void srli       (const Instruction instruction, Context& context);
+    void srai       (const Instruction instruction, Context& context);
+    void slti       (const Instruction instruction, Context& context);
+    void sltiu      (const Instruction instruction, Context& context);
 
     inline void lb         (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
     inline void lh         (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }

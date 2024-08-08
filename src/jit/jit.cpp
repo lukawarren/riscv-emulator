@@ -62,7 +62,7 @@ void JIT::create_frame(CPU& cpu)
             assert(false);
         }
 
-        emit_instruction(cpu, *instruction, jit_context);
+        assert(emit_instruction(cpu, *instruction, jit_context));
         cpu.pc = jit_context.pc + 4;
         jit_context.pc = cpu.pc;
     }
