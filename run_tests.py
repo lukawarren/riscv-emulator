@@ -7,7 +7,7 @@ emulator = "./build/riscv-emulator"
 passed = 0
 failed = 0
 
-def run_test(file_path, file_name):
+def run_test(file_path, file_name, do_jit):
     global passed
     global failed
 
@@ -17,7 +17,10 @@ def run_test(file_path, file_name):
     # Emulate test
     with open(os.devnull, 'w') as devnull:
         try:
-            result = subprocess.run([emulator, "--test", "--image", file_path], stdout=devnull, stderr=devnull)
+            if do_jit:
+                result = subprocess.run([emulator, "--test", "--jit", "--image", file_path], stdout=devnull, stderr=devnull)
+            else:
+                result = subprocess.run([emulator, "--test", "--image", file_path], stdout=devnull, stderr=devnull)
         except KeyboardInterrupt:
             print("Running " + file_name)
             exit()
@@ -25,7 +28,7 @@ def run_test(file_path, file_name):
     print(" " * 40, end='\r')
 
     # Check the return status
-    if result.returncode == 1:
+    if result.returncode == 0:
         passed += 1
         return True
     else:
@@ -49,11 +52,22 @@ def main():
         if os.path.isfile(file_path):
             tests.append({
                 "name": file_path,
-                "display_name": pad(file_path.replace(tests_dir + "/", ""))
+                "display_name": pad(file_path.replace(tests_dir + "/", "")),
+                "jit": False
+            })
+
+    # Duplicate tests for JIT
+    for test in tests:
+        if test["jit"] == False:
+            tests.append({
+                "name": test["name"],
+                "display_name": pad(test["display_name"] + " (JIT)"),
+                "passed": False,
+                "jit": True
             })
 
     for test in tests:
-        if run_test(test["name"], test["display_name"]):
+        if run_test(test["name"], test["display_name"], test["jit"]):
             test["passed"] = True
         else:
             test["passed"] = False
