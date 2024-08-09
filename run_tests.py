@@ -61,7 +61,7 @@ def main():
         if test["jit"] == False:
             tests.append({
                 "name": test["name"],
-                "display_name": pad(test["display_name"] + " (JIT)"),
+                "display_name": test["display_name"],
                 "passed": False,
                 "jit": True
             })
@@ -79,6 +79,8 @@ def main():
 
     for test in tests:
         status = "✅" if test["passed"] else "❌"
+        if test["jit"]:
+            status += " (JIT)"
         print(f"{test['display_name']}\t{status}")
 
     print(f"\n\tPassed {passed}/{passed + failed}")

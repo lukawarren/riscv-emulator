@@ -66,9 +66,9 @@ namespace JIT
     void srliw      (const Instruction instruction, Context& context);
     void sraiw      (const Instruction instruction, Context& context);
 
-    inline void addw       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void subw       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void sllw       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void srlw       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void sraw       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
+    void addw       (const Instruction instruction, Context& context);
+    void subw       (const Instruction instruction, Context& context);
+    void sllw       (const Instruction instruction, Context& context);
+    void srlw       (const Instruction instruction, Context& context);
+    void sraw       (const Instruction instruction, Context& context);
 }

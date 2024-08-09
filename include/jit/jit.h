@@ -25,6 +25,7 @@ namespace JIT
         llvm::Function* on_csr;
         llvm::Function* on_ecall;
         llvm::Function* on_mret;
+        llvm::Function* on_branch_fail;
 
         // Early return
         std::optional<u64> return_pc = std::nullopt;

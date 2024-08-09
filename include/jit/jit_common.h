@@ -5,6 +5,5 @@
 #define set_rd(r) store_register(context, instruction.get_rd(), r)
 #define u32_im(x) llvm::ConstantInt::get(context.builder.getInt32Ty(), x)
 #define u64_im(x) llvm::ConstantInt::get(context.builder.getInt64Ty(), x)
+#define u64_to_32(x) context.builder.CreateTrunc(x, context.builder.getInt32Ty())
 #define stop_translation() context.return_pc = context.pc + 4
-#define has_value(x) context.builder.CreateExtractValue(x, 0);
-#define get_value(x) context.builder.CreateExtractValue(x, 1);

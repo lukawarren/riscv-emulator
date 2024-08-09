@@ -231,8 +231,7 @@ void JIT::addiw(const Instruction instruction, Context& context)
 {
     llvm::Value* imm  = u64_im(instruction.get_imm(Instruction::Type::I));
     llvm::Value* result = context.builder.CreateAdd(imm, rs1);
-    llvm::Value* masked = context.builder.CreateAnd(result, 0xffffffff);
-    set_rd(sign_extend_32(context, masked));
+    set_rd(sign_extend_32(context, result));
 }
 
 void JIT::slliw(const Instruction instruction, Context& context)
@@ -243,15 +242,51 @@ void JIT::slliw(const Instruction instruction, Context& context)
 
 void JIT::srliw(const Instruction instruction, Context& context)
 {
-    llvm::Value* _rs1 = context.builder.CreateTrunc(rs1, context.builder.getInt32Ty());
+    llvm::Value* _rs1 = u64_to_32(rs1);
     llvm::Value* result = context.builder.CreateLShr(_rs1, instruction.get_wide_shift_amount());
     set_rd(sign_extend_32(context, result));
 }
 
 void JIT::sraiw(const Instruction instruction, Context& context)
 {
-    llvm::Value* _rs1 = context.builder.CreateTrunc(rs1, context.builder.getInt32Ty());
+    llvm::Value* _rs1 = u64_to_32(rs1);
     llvm::Value* result = context.builder.CreateAShr(_rs1, instruction.get_wide_shift_amount());
+    set_rd(sign_extend_32(context, result));
+}
+
+void JIT::addw(const Instruction instruction, Context& context)
+{
+    llvm::Value* result = context.builder.CreateAdd(rs1, rs2);
+    set_rd(sign_extend_32(context, result));
+}
+
+void JIT::subw(const Instruction instruction, Context& context)
+{
+    llvm::Value* result = context.builder.CreateSub(rs1, rs2);
+    set_rd(sign_extend_32(context, result));
+}
+
+void JIT::sllw(const Instruction instruction, Context& context)
+{
+    llvm::Value* _rs1 = u64_to_32(rs1);
+    llvm::Value* _rs2 = u64_to_32(context.builder.CreateAnd(rs2, u64_im(0b11111)));
+    llvm::Value* result = context.builder.CreateShl(_rs1, _rs2);
+    set_rd(sign_extend_32(context, result));
+}
+
+void JIT::srlw(const Instruction instruction, Context& context)
+{
+    llvm::Value* _rs1 = u64_to_32(rs1);
+    llvm::Value* _rs2 = u64_to_32(context.builder.CreateAnd(rs2, u64_im(0b11111)));
+    llvm::Value* result = context.builder.CreateLShr(_rs1, _rs2);
+    set_rd(sign_extend_32(context, result));
+}
+
+void JIT::sraw(const Instruction instruction, Context& context)
+{
+    llvm::Value* _rs1 = u64_to_32(rs1);
+    llvm::Value* _rs2 = u64_to_32(context.builder.CreateAnd(rs2, u64_im(0b11111)));
+    llvm::Value* result = context.builder.CreateAShr(_rs1, _rs2);
     set_rd(sign_extend_32(context, result));
 }
 
@@ -273,6 +308,7 @@ static void emit_branch(const Instruction instruction, Context& context, llvm::V
 
     // True block - unable to JIT further (for now!) so return early
     context.builder.SetInsertPoint(true_block);
+    context.builder.CreateCall(context.on_branch_fail, { u64_im(context.pc) });
     context.builder.CreateRet(u64_im(context.pc + target));
     function->insert(function->end(), true_block);
 
@@ -284,7 +320,7 @@ static void emit_branch(const Instruction instruction, Context& context, llvm::V
 static llvm::Value* sign_extend_32(Context& context, llvm::Value* value)
 {
     return context.builder.CreateSExt(
-        context.builder.CreateTrunc(value, context.builder.getInt32Ty()),
+        u64_to_32(value),
         context.builder.getInt64Ty()
     );
 }

@@ -87,7 +87,7 @@ void JIT::run_next_frame(CPU& cpu)
     std::string error;
     llvm::ExecutionEngine* engine = llvm::EngineBuilder(std::unique_ptr<llvm::Module>(module))
         .setErrorStr(&error)
-        .setOptLevel(llvm::CodeGenOptLevel::Default)
+        .setOptLevel(llvm::CodeGenOptLevel::None)
         .setEngineKind(llvm::EngineKind::JIT)
         .create();
 
@@ -96,12 +96,12 @@ void JIT::run_next_frame(CPU& cpu)
 
     link_interface_functions(engine, jit_context);
 
+    engine->finalizeObject();
+
 #if DEBUG_JIT
     module->print(llvm::outs(), nullptr);
     assert(!llvm::verifyModule(*module, &llvm::errs()));
 #endif
-
-    engine->finalizeObject();
 
     // Run
     interface_cpu = &cpu;
@@ -447,6 +447,19 @@ void on_mret(u64 pc)
     ::mret(*interface_cpu, Instruction(0));
 }
 
+#if DEBUG_JIT
+void on_branch_fail(u64 pc)
+{
+    static int i = 0;
+    if (i == 2)
+    {
+        dbg("branch failed", dbg::hex(pc));
+        //exit(1);
+    }
+    i++;
+}
+#endif
+
 void JIT::register_interface_functions(
     llvm::Module* module,
     llvm::LLVMContext& context,
@@ -490,6 +503,13 @@ void JIT::register_interface_functions(
         "on_mret",
         module
     );
+
+    jit_context.on_branch_fail = llvm::Function::Create(
+        opcode_type,
+        llvm::Function::ExternalLinkage,
+        "on_branch_fail",
+        module
+    );
 }
 
 void JIT::link_interface_functions(
@@ -500,4 +520,5 @@ void JIT::link_interface_functions(
     engine->addGlobalMapping(jit_context.on_csr,   (void*)&on_csr);
     engine->addGlobalMapping(jit_context.on_ecall, (void*)&on_ecall);
     engine->addGlobalMapping(jit_context.on_mret,  (void*)&on_mret);
+    engine->addGlobalMapping(jit_context.on_branch_fail,  (void*)&on_branch_fail);
 }
