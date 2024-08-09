@@ -56,65 +56,81 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    try
+    // Set up CPU
+    CPU cpu(
+        test_mode ? (16 * 1024 * 1024) : (2UL * 1024 * 1024 * 1024),
+        test_mode,
+        args[3].second.has_value(),
+        args[2].second
+    );
+
+    // Load main kernel / program / image
+    std::ignore = cpu.bus.write_file(Bus::programs_base, *args[1].second);
+
+    if (args[3].second.has_value())
     {
-        // Set up CPU
-        CPU cpu(
-            test_mode ? (16 * 1024 * 1024) : (2UL * 1024 * 1024 * 1024),
-            test_mode,
-            args[3].second.has_value(),
-            args[2].second
-        );
-
-        // Load main kernel / program / image
-        std::ignore = cpu.bus.write_file(Bus::programs_base, *args[1].second);
-
-        if (args[3].second.has_value())
+        // Load initramfs - this is the address QEMU uses and decompression
+        // will fail on Debian testing if it isn't this, even if the would-be
+        // address is otherwise properly aligned...
+        const size_t address = 0xa0200000;
+        const size_t size = cpu.bus.write_file(address, *args[3].second);
+        if (size != (0xa25f03a6 - address))
         {
-            // Load initramfs - this is the address QEMU uses and decompression
-            // will fail on Debian testing if it isn't this, even if the would-be
-            // address is otherwise properly aligned...
-            const size_t address = 0xa0200000;
-            const size_t size = cpu.bus.write_file(address, *args[3].second);
-            if (size != (0xa25f03a6 - address))
+            throw std::runtime_error("initramfs size conflicts with the"
+                " value in the DTB - you will have to modify the .dts file"
+                " and the value in code (directly above) too");
+        }
+    }
+
+    // Interpreter
+    if (!args[4].second.has_value())
+    {
+        // Enter emulation loop
+        const auto emulate = [&]<bool test_mode>()
+        {
+            while(1)
             {
-                throw std::runtime_error("initramfs size conflicts with the"
-                    " value in the DTB - you will have to modify the .dts file"
-                    " and the value in code (directly above) too");
+                if constexpr(test_mode)
+                    cpu.trace();
+
+                cpu.do_cycle();
+                cpu.bus.clock(cpu);
+
+                const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
+                if (trap.has_value())
+                    cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
+            }
+        };
+        if (test_mode)
+        {
+            try
+            {
+                emulate.operator()<true>();
+            }
+            catch (std::string& e)
+            {
+                if (e == "pass") return 0;
+                else return 1;
             }
         }
-
-        if (!args[4].second.has_value())
-        {
-            // Enter emulation loop
-            const auto emulate = [&]<bool test_mode>()
-            {
-                while(1)
-                {
-                    if constexpr(test_mode)
-                        cpu.trace();
-
-                    cpu.do_cycle();
-                    cpu.bus.clock(cpu);
-
-                    const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
-                    if (trap.has_value())
-                        cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
-                }
-            };
-            if (test_mode) emulate.operator()<true>();
-            else           emulate.operator()<false>();
-        }
         else
-        {
-            // JIT
-            JIT::create_frame(cpu);
-        }
-
+            emulate.operator()<false>();
     }
-    catch (std::string& s)
+
+    // JIT
+    else
     {
-        // Test pass (or fail!)
-        return (s == "pass");
+        JIT::init();
+
+        try
+        {
+            while(true)
+                JIT::run_next_frame(cpu);
+        }
+        catch (std::string& e)
+        {
+            if (e == "pass") return 0;
+            else return 1;
+        }
     }
 }

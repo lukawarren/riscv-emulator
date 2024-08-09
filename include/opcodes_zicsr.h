@@ -14,9 +14,6 @@
 
 bool opcodes_zicsr(CPU& cpu, const Instruction instruction);
 
-std::optional<u64> read_csr(CPU& cpu, const u16 address);
-[[nodiscard]] bool write_csr(CPU& cpu, const u64 value, const u16 address);
-
 void csrrw  (CPU& cpu, const Instruction instruction);
 void csrrc  (CPU& cpu, const Instruction instruction);
 void csrrs  (CPU& cpu, const Instruction instruction);

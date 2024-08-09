@@ -1,13 +1,16 @@
 #include "jit/jit.h"
 #include "jit/jit_base.h"
+#include "jit/jit_zicsr.h"
 #include "opcodes_base.h"
 #include "opcodes_m.h"
 #include "opcodes_zicsr.h"
 
 using namespace JIT;
 
-// "Interface" functions called from JIT'ed code itself
-extern "C" void write_to_csr(u64 value, u64 address);
+#define DEBUG_JIT true
+
+// Global CPU pointer (for this file only) for said interface functions
+static CPU* interface_cpu = nullptr;
 
 void JIT::init()
 {
@@ -16,35 +19,28 @@ void JIT::init()
     llvm::InitializeNativeTargetAsmParser();
 }
 
-void JIT::create_frame(CPU& cpu)
+void JIT::run_next_frame(CPU& cpu)
 {
     // Init LLVM
     llvm::LLVMContext context;
     llvm::Module* module = new llvm::Module("jit", context);
     llvm::IRBuilder builder(context);
 
+    // Register functions
+    Context jit_context(builder, context, cpu.pc);
+    jit_context.registers = get_registers(cpu, builder);
+    register_interface_functions(module, context, jit_context);
+
     // Create entry
-    llvm::FunctionType* function_type = llvm::FunctionType::get(builder.getVoidTy(), false);
+    llvm::FunctionType* function_type = llvm::FunctionType::get(builder.getInt64Ty(), false);
     llvm::Function* function = llvm::Function::Create(
         function_type,
         llvm::Function::ExternalLinkage,
-        "main",
+        "jit_main",
         module
     );
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", function);
     builder.SetInsertPoint(entry);
-
-    // Fetch variables we'll need
-    llvm::Value* registers = get_registers(cpu, builder);
-    Context jit_context {
-        .builder = builder,
-        .context = context,
-        .registers = registers,
-        .pc = cpu.pc,
-        .write_to_csr = nullptr
-    };
-
-    register_interface_functions(module, context, jit_context);
 
     // Build blocks
     while (true)
@@ -70,7 +66,16 @@ void JIT::create_frame(CPU& cpu)
             assert(false);
         }
 
+        jit_context.current_instruction = instruction->instruction;
         assert(emit_instruction(cpu, *instruction, jit_context));
+
+        // Break if we encountered an instruction that requires "intervention"
+        if (jit_context.return_pc.has_value())
+        {
+            cpu.pc = *jit_context.return_pc;
+            break;
+        }
+
         cpu.pc = jit_context.pc + 4;
         jit_context.pc = cpu.pc;
     }
@@ -83,17 +88,32 @@ void JIT::create_frame(CPU& cpu)
     llvm::ExecutionEngine* engine = llvm::EngineBuilder(std::unique_ptr<llvm::Module>(module))
         .setErrorStr(&error)
         .setOptLevel(llvm::CodeGenOptLevel::Default)
+        .setEngineKind(llvm::EngineKind::JIT)
         .create();
 
     if (!engine)
         throw std::runtime_error("failed to create llvm::ExecutionEngine: " + error);
 
-    engine->finalizeObject();
+    link_interface_functions(engine, jit_context);
+
+#if DEBUG_JIT
     module->print(llvm::outs(), nullptr);
+    assert(!llvm::verifyModule(*module, &llvm::errs()));
+#endif
+
+    engine->finalizeObject();
 
     // Run
-    // void (*run)() = (void(*)())engine->getPointerToFunction(function);
-    // run();
+    interface_cpu = &cpu;
+#if DEBUG_JIT
+    dbg("running frame");
+#endif
+    auto run = (u64(*)())engine->getFunctionAddress("jit_main");
+    u64 next_pc = run();
+    cpu.pc = next_pc;
+#if DEBUG_JIT
+    dbg("frame done");
+#endif
 
     delete engine;
 }
@@ -232,12 +252,12 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
             {
                 switch (funct3)
                 {
-                    case CSRRW:     csrrw (cpu, instruction); break;
-                    case CSRRS:     csrrs (cpu, instruction); break;
-                    case CSRRC:     csrrc (cpu, instruction); break;
-                    case CSRRWI:    csrrwi(cpu, instruction); break;
-                    case CSRRSI:    csrrsi(cpu, instruction); break;
-                    case CSRRCI:    csrrci(cpu, instruction); break;
+                    case CSRRW:     csrrw (instruction, context); break;
+                    case CSRRS:     csrrs (instruction, context); break;
+                    case CSRRC:     csrrc (instruction, context); break;
+                    case CSRRWI:    csrrwi(instruction, context); break;
+                    case CSRRSI:    csrrsi(instruction, context); break;
+                    case CSRRCI:    csrrci(instruction, context); break;
 
                     default:
                         return false;
@@ -369,28 +389,26 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
 
 llvm::Value* JIT::get_registers(CPU& cpu, llvm::IRBuilder<>& builder)
 {
-    constexpr size_t len = sizeof(cpu.registers) / sizeof(cpu.registers[0]);
-    llvm::Type* u64_type = builder.getInt64Ty();
-    llvm::Type* registers_type = llvm::ArrayType::get(u64_type, len);
-    llvm::PointerType* registers_pointer_type = registers_type->getPointerTo();
-
+    llvm::Type* i64_ptr_type = builder.getInt64Ty()->getPointerTo();
     return builder.CreateIntToPtr(
         llvm::ConstantInt::get(builder.getInt64Ty(), reinterpret_cast<uint64_t>(cpu.registers)),
-        registers_pointer_type
+        i64_ptr_type
     );
 }
 
 llvm::Value* JIT::load_register(Context& context, u32 index)
 {
+    // x0 is always zero
+    if (index == 0)
+        return llvm::ConstantInt::get(context.builder.getInt64Ty(), 0);
+
     llvm::Value* index_value = llvm::ConstantInt::get(context.builder.getInt32Ty(), index);
-    return context.builder.CreateLoad(
+    llvm::Value* element_pointer = context.builder.CreateGEP(
         context.builder.getInt64Ty(),
-        context.builder.CreateGEP(
-            llvm::PointerType::get(context.builder.getInt64Ty(), 0),
-            context.registers,
-            index_value
-        )
+        context.registers,
+        index_value
     );
+    return context.builder.CreateLoad(context.builder.getInt64Ty(), element_pointer);
 }
 
 void JIT::store_register(Context& context, u32 index, llvm::Value* value)
@@ -400,19 +418,33 @@ void JIT::store_register(Context& context, u32 index, llvm::Value* value)
         return;
 
     llvm::Value* index_value = llvm::ConstantInt::get(context.builder.getInt32Ty(), index);
-    context.builder.CreateStore(
-        value,
-        context.builder.CreateGEP(
-            llvm::PointerType::get(context.builder.getInt64Ty(), 0),
-            context.registers,
-            index_value
-        )
+    llvm::Value* element_pointer = context.builder.CreateGEP(
+        context.builder.getInt64Ty(),
+        context.registers,
+        index_value
     );
+
+    context.builder.CreateStore(value, element_pointer);
 }
 
-extern "C" void write_to_csr(u64 value, u64 address)
+void on_csr(Instruction instruction, u64 pc)
 {
-    dbg("todo: JIT csr write", value, address);
+    dbg("csr");
+    interface_cpu->pc = pc;
+    ::opcodes_zicsr(*interface_cpu, instruction);
+}
+
+void on_ecall(u64 pc)
+{
+    dbg("ecall");
+    interface_cpu->pc = pc;
+    ::ecall(*interface_cpu, Instruction(0));
+}
+
+void on_mret(u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::mret(*interface_cpu, Instruction(0));
 }
 
 void JIT::register_interface_functions(
@@ -421,20 +453,51 @@ void JIT::register_interface_functions(
     Context& jit_context
 )
 {
-    llvm::FunctionType* write_to_csr_type = llvm::FunctionType::get
+    llvm::FunctionType* on_csr_type = llvm::FunctionType::get
     (
-        llvm::Type::getVoidTy(context),         // Return
+        llvm::Type::getVoidTy(context),
         {
-            llvm::Type::getInt64Ty(context),    // Arg 1
-            llvm::Type::getInt64Ty(context)     // Arg 2
+            llvm::Type::getInt32Ty(context),
+            llvm::Type::getInt64Ty(context)
         },
         false
     );
 
-    jit_context.write_to_csr = llvm::Function::Create(
-        write_to_csr_type,
+    llvm::FunctionType* opcode_type = llvm::FunctionType::get
+    (
+        llvm::Type::getVoidTy(context),
+        { llvm::Type::getInt64Ty(context) },
+        false
+    );
+
+    jit_context.on_csr = llvm::Function::Create(
+        on_csr_type,
         llvm::Function::ExternalLinkage,
-        "",
+        "on_csr",
         module
     );
+
+    jit_context.on_ecall = llvm::Function::Create(
+        opcode_type,
+        llvm::Function::ExternalLinkage,
+        "on_ecall",
+        module
+    );
+
+    jit_context.on_mret = llvm::Function::Create(
+        opcode_type,
+        llvm::Function::ExternalLinkage,
+        "on_mret",
+        module
+    );
+}
+
+void JIT::link_interface_functions(
+    llvm::ExecutionEngine* engine,
+    Context& jit_context
+)
+{
+    engine->addGlobalMapping(jit_context.on_csr,   (void*)&on_csr);
+    engine->addGlobalMapping(jit_context.on_ecall, (void*)&on_ecall);
+    engine->addGlobalMapping(jit_context.on_mret,  (void*)&on_mret);
 }

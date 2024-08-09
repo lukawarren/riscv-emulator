@@ -126,4 +126,11 @@ struct Instruction
         // shamt is 6 bits for RV64I, but 5 bits for RV32I
         return (instruction >> 20) & 0b111111;
     }
+
+    u32 get_wide_shift_amount() const
+    {
+        // SLLIW, SRLIW and SRAIW generate an illegal instruction exception
+        // if imm[5] != 0. TODO: emulate!
+        return get_imm(Instruction::Type::I) & 0b11111;
+    }
 };

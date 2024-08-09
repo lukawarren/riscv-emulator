@@ -11,19 +11,37 @@ namespace JIT
         llvm::IRBuilder<>& builder;
         llvm::LLVMContext& context;
 
+        Context(
+            llvm::IRBuilder<>& builder,
+            llvm::LLVMContext& context,
+            u64 pc
+        ) : builder(builder), context(context), pc(pc), current_instruction(0) {}
+
         // Variables
         llvm::Value* registers;
         u64 pc;
 
         // Interface functions
-        llvm::Function* write_to_csr;
+        llvm::Function* on_csr;
+        llvm::Function* on_ecall;
+        llvm::Function* on_mret;
+
+        // Early return
+        std::optional<u64> return_pc = std::nullopt;
+
+        // For falling back to the interpreter
+        Instruction current_instruction;
     };
 
     void init();
-    void create_frame(CPU& cpu);
+    void run_next_frame(CPU& cpu);
     void register_interface_functions(
         llvm::Module* module,
         llvm::LLVMContext& context,
+        Context& jit_context
+    );
+    void link_interface_functions(
+        llvm::ExecutionEngine* engine,
         Context& jit_context
     );
     bool emit_instruction(

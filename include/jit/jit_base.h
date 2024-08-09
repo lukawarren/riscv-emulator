@@ -1,7 +1,4 @@
 #pragma once
-#include "cpu.h"
-#include "instruction.h"
-#include "jit/llvm.h"
 #include "jit/jit.h"
 
 #define UNIMPLEMENTED() throw std::runtime_error("unimplemented: " + std::to_string(__LINE__));
@@ -49,14 +46,14 @@ namespace JIT
     void jal        (const Instruction instruction, Context& context);
     inline void jalr       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
 
-    inline void lui        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void auipc      (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
+    void lui        (const Instruction instruction, Context& context);
+    void auipc      (const Instruction instruction, Context& context);
 
-    inline void ecall      (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
+    void ecall      (const Instruction instruction, Context& context);
     inline void ebreak     (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
     inline void uret       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
     inline void sret       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void mret       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
+    void mret       (const Instruction instruction, Context& context);
     inline void wfi        (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
     inline void sfence_vma (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
 
@@ -64,10 +61,10 @@ namespace JIT
     inline void ld         (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
     inline void sd         (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
 
-    inline void addiw      (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void slliw      (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void srliw      (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
-    inline void sraiw      (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
+    void addiw      (const Instruction instruction, Context& context);
+    void slliw      (const Instruction instruction, Context& context);
+    void srliw      (const Instruction instruction, Context& context);
+    void sraiw      (const Instruction instruction, Context& context);
 
     inline void addw       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
     inline void subw       (const Instruction instruction, Context& context) { UNIMPLEMENTED(); }
