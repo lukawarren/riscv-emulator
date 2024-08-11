@@ -1,8 +1,10 @@
 #include "jit/jit.h"
 #include "jit/jit_base.h"
 #include "jit/jit_zicsr.h"
+#include "jit/jit_a.h"
 #include "opcodes_base.h"
 #include "opcodes_m.h"
+#include "opcodes_a.h"
 #include "opcodes_zicsr.h"
 
 using namespace JIT;
@@ -385,6 +387,56 @@ bool JIT::emit_instruction(CPU& cpu, Context& context)
             break;
         }
 
+        // RV64A
+        case OPCODES_A:
+        {
+            switch (funct3)
+            {
+                case OPCODES_A_FUNCT_3:
+                {
+                    switch (funct7 >> 2)
+                    {
+                        case LR_W:      lr_w     (context); break;
+                        case SC_W:      sc_w     (context); break;
+                        case AMOSWAP_W: amoswap_w(context); break;
+                        case AMOADD_W:  amoadd_w (context); break;
+                        case AMOXOR_W:  amoxor_w (context); break;
+                        case AMOAND_W:  amoand_w (context); break;
+                        case AMOOR_W:   amoor_w  (context); break;
+                        case AMOMIN_W:  amomin_w (context); break;
+                        case AMOMAX_W:  amomax_w (context); break;
+                        case AMOMINU_W: amominu_w(context); break;
+                        case AMOMAXU_W: amomaxu_w(context); break;
+                        default:        return false;
+                    }
+                    break;
+                }
+
+                case OPCODES_A_64:
+                {
+                    switch (funct7 >> 2)
+                    {
+                        case LR_D:      lr_d     (context); break;
+                        case SC_D:      sc_d     (context); break;
+                        case AMOSWAP_D: amoswap_d(context); break;
+                        case AMOADD_D:  amoadd_d (context); break;
+                        case AMOXOR_D:  amoxor_d (context); break;
+                        case AMOAND_D:  amoand_d (context); break;
+                        case AMOOR_D:   amoor_d  (context); break;
+                        case AMOMIN_D:  amomin_d (context); break;
+                        case AMOMAX_D:  amomax_d (context); break;
+                        case AMOMINU_D: amominu_d(context); break;
+                        case AMOMAXU_D: amomaxu_d(context); break;
+                        default:        return false;
+                    }
+                    break;
+                }
+
+                default: return false;
+            }
+            break;
+        }
+
         default:
             return false;
     }
@@ -430,12 +482,6 @@ void JIT::store_register(Context& context, u32 index, llvm::Value* value)
     );
 
     context.builder.CreateStore(value, element_pointer);
-}
-
-void on_csr(Instruction instruction, u64 pc)
-{
-    interface_cpu->pc = pc;
-    ::opcodes_zicsr(*interface_cpu, instruction);
 }
 
 void on_ecall(u64 pc)
@@ -494,6 +540,18 @@ T on_load(u64 address, u64 pc, bool* did_succeed)
 
     *did_succeed = true;
     return *value;
+}
+
+void on_csr(Instruction instruction, u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::opcodes_zicsr(*interface_cpu, instruction);
+}
+
+void on_atomic(Instruction instruction, u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::opcodes_a(*interface_cpu, instruction);
 }
 
 u8 on_lb(u64 address, u64 pc, bool* did_succeed)
@@ -555,7 +613,7 @@ void JIT::register_interface_functions(
     Context& jit_context
 )
 {
-    llvm::FunctionType* on_csr_type = llvm::FunctionType::get
+    llvm::FunctionType* fallback_type = llvm::FunctionType::get
     (
         llvm::Type::getVoidTy(context),
         {
@@ -565,50 +623,55 @@ void JIT::register_interface_functions(
         false
     );
 
-    jit_context.on_csr = llvm::Function::Create(
-        on_csr_type,
-        llvm::Function::ExternalLinkage,
-        "on_csr",
-        module
-    );
-
-    #define OPCODE_TYPE_1(return_type) llvm::FunctionType::get\
-    (\
-        return_type,\
-        { llvm::Type::getInt64Ty(context) },\
-        false\
-    )
-
-    #define OPCODE_TYPE_2(return_type) llvm::FunctionType::get\
-    (\
-        return_type,\
-        {\
-            llvm::Type::getInt64Ty(context),\
-            llvm::Type::getInt64Ty(context),\
-            llvm::PointerType::get(llvm::Type::getInt1Ty(context), 0)\
-        },\
-        false\
-    )
-
-    #define OPCODE_TYPE_3(data_type) llvm::FunctionType::get\
-    (\
-        llvm::Type::getInt1Ty(context),\
-        {\
-            llvm::Type::getInt64Ty(context),\
-            data_type,\
-            llvm::Type::getInt64Ty(context)\
-        },\
-        false\
-    )
-
     #define TWINE_NAME(name) #name
 
-    #define OPCODE(name, return_type) jit_context.name = llvm::Function::Create(\
-        return_type,\
-        llvm::Function::ExternalLinkage,\
-        TWINE_NAME(name),\
-        module\
-    )
+    #define FALLBACK(name)\
+        jit_context.name = llvm::Function::Create(\
+            fallback_type,\
+            llvm::Function::ExternalLinkage,\
+            TWINE_NAME(name),\
+            module\
+        );
+
+    #define OPCODE_TYPE_1(return_type)\
+        llvm::FunctionType::get\
+        (\
+            return_type,\
+            { llvm::Type::getInt64Ty(context) },\
+            false\
+        )
+
+    #define OPCODE_TYPE_2(return_type)\
+        llvm::FunctionType::get\
+        (\
+            return_type,\
+            {\
+                llvm::Type::getInt64Ty(context),\
+                llvm::Type::getInt64Ty(context),\
+                llvm::PointerType::get(llvm::Type::getInt1Ty(context), 0)\
+            },\
+            false\
+        )
+
+    #define OPCODE_TYPE_3(data_type)\
+        llvm::FunctionType::get\
+        (\
+            llvm::Type::getInt1Ty(context),\
+            {\
+                llvm::Type::getInt64Ty(context),\
+                data_type,\
+                llvm::Type::getInt64Ty(context)\
+            },\
+            false\
+        )
+
+    #define OPCODE(name, return_type)\
+        jit_context.name = llvm::Function::Create(\
+            return_type,\
+            llvm::Function::ExternalLinkage,\
+            TWINE_NAME(name),\
+            module\
+        )
 
     OPCODE(on_ecall,        OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
     OPCODE(on_ebreak,       OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
@@ -625,6 +688,9 @@ void JIT::register_interface_functions(
     OPCODE(on_sh,           OPCODE_TYPE_3(llvm::Type::getInt16Ty(context)));
     OPCODE(on_sw,           OPCODE_TYPE_3(llvm::Type::getInt32Ty(context)));
     OPCODE(on_sd,           OPCODE_TYPE_3(llvm::Type::getInt64Ty(context)));
+
+    FALLBACK(on_csr);
+    FALLBACK(on_atomic);
 }
 
 void JIT::link_interface_functions(
@@ -635,7 +701,6 @@ void JIT::link_interface_functions(
     #define LINK(name)\
         engine->addGlobalMapping(jit_context.name, (void*)&name);
 
-    LINK(on_csr);
     LINK(on_ecall);
     LINK(on_ebreak);
     LINK(on_uret);
@@ -651,4 +716,7 @@ void JIT::link_interface_functions(
     LINK(on_sh);
     LINK(on_sw);
     LINK(on_sd);
+
+    LINK(on_csr);
+    LINK(on_atomic);
 }

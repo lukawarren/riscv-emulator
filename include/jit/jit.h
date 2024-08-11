@@ -22,8 +22,7 @@ namespace JIT
         u64 pc;
         Instruction current_instruction;
 
-        // Interface functions
-        llvm::Function* on_csr;
+        // Base interface functions
         llvm::Function* on_ecall;
         llvm::Function* on_ebreak;
         llvm::Function* on_uret;
@@ -39,6 +38,11 @@ namespace JIT
         llvm::Function* on_sh;
         llvm::Function* on_sw;
         llvm::Function* on_sd;
+
+        // Fallbacks for "tricky" extensions that infrequently pop-up but are
+        // a pain to JIT
+        llvm::Function* on_csr;
+        llvm::Function* on_atomic;
 
         // For early return
         std::optional<u64> return_pc = std::nullopt;
