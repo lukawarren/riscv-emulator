@@ -12,6 +12,7 @@ static llvm::Value* get_load_address(Context& context);
 static llvm::Value* get_store_address(Context& context);
 static llvm::Value* perform_load(Context& context, llvm::Function* f);
 static void perform_store(Context& context, llvm::Function* f, llvm::Value* value);
+static void call_handler_and_return(Context& context, llvm::Function* f);
 
 void JIT::add(Context& context)
 {
@@ -285,51 +286,37 @@ void JIT::auipc(Context& context)
 
 void JIT::ecall(Context& context)
 {
-    // TODO: don't stop translation
-    context.builder.CreateCall(context.on_ecall, { u64_im(context.pc) });
-    stop_translation();
+    call_handler_and_return(context, context.on_ecall);
 }
 
 void JIT::ebreak(Context& context)
 {
-    // TODO: don't stop translation
-    context.builder.CreateCall(context.on_ebreak, { u64_im(context.pc) });
-    stop_translation();
+    call_handler_and_return(context, context.on_ebreak);
 }
 
 void JIT::uret(Context& context)
 {
-    // TODO: don't stop translation
-    context.builder.CreateCall(context.on_uret, { u64_im(context.pc) });
-    stop_translation();
+    call_handler_and_return(context, context.on_uret);
 }
 
 void JIT::sret(Context& context)
 {
-    // TODO: don't stop translation
-    context.builder.CreateCall(context.on_sret, { u64_im(context.pc) });
-    stop_translation();
+    call_handler_and_return(context, context.on_sret);
 }
 
 void JIT::mret(Context& context)
 {
-    // TODO: don't stop translation
-    context.builder.CreateCall(context.on_mret, { u64_im(context.pc) });
-    stop_translation();
+    call_handler_and_return(context, context.on_mret);
 }
 
 void JIT::wfi(Context& context)
 {
-    // TODO: don't stop translation
-    context.builder.CreateCall(context.on_wfi, { u64_im(context.pc) });
-    stop_translation();
+    call_handler_and_return(context, context.on_wfi);
 }
 
 void JIT::sfence_vma(Context& context)
 {
-    // TLB invalidated so the JIT is too
-    context.builder.CreateCall(context.on_sfence_vma, { u64_im(context.pc) });
-    stop_translation();
+    call_handler_and_return(context, context.on_sfence_vma);
 }
 
 void JIT::lwu(Context& context)
@@ -498,7 +485,7 @@ static llvm::Value* perform_load(Context& context, llvm::Function* f)
 
     // Failure block - unable to JIT further (for now!) so return early
     context.builder.SetInsertPoint(failure_block);
-    context.builder.CreateRet(u64_im(context.pc + 4));
+    context.builder.CreateRet(u64_im(0));
     function->insert(function->end(), failure_block);
 
     // Success block - carry on
@@ -523,10 +510,29 @@ static void perform_store(Context& context, llvm::Function* f, llvm::Value* valu
 
     // Failure block - unable to JIT further (for now!) so return early
     context.builder.SetInsertPoint(failure_block);
-    context.builder.CreateRet(u64_im(context.pc + 4));
+    context.builder.CreateRet(u64_im(0));
     function->insert(function->end(), failure_block);
 
     // Success block - carry on
-    function->insert(function->end(), success_block);
     context.builder.SetInsertPoint(success_block);
+    function->insert(function->end(), success_block);
+}
+
+static void call_handler_and_return(Context& context, llvm::Function* f)
+{
+    // LLVM won't let us just return in the middle of a block, so we always
+    // return true and return inside that block instead
+    llvm::Value* result = context.builder.CreateCall(f, { u64_im(context.pc) });
+
+    llvm::Function* root = context.builder.GetInsertBlock()->getParent();
+    llvm::BasicBlock* return_block = llvm::BasicBlock::Create(context.context);
+    llvm::BasicBlock* failure_block = llvm::BasicBlock::Create(context.context);
+    context.builder.CreateCondBr(result, return_block, failure_block);
+
+    context.builder.SetInsertPoint(return_block);
+    context.builder.CreateRet(u64_im(context.pc + 4));
+    root->insert(root->end(), return_block);
+
+    context.builder.SetInsertPoint(failure_block);
+    root->insert(root->end(), failure_block);
 }

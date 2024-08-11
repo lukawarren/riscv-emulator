@@ -509,46 +509,53 @@ void JIT::store_register(Context& context, u32 index, llvm::Value* value)
     context.builder.CreateStore(value, element_pointer);
 }
 
-void on_ecall(u64 pc)
+bool on_ecall(u64 pc)
 {
     interface_cpu->pc = pc;
     ::ecall(*interface_cpu, Instruction(0));
+    return true;
 }
 
-void on_ebreak(u64 pc)
+bool on_ebreak(u64 pc)
 {
     interface_cpu->pc = pc;
     ::ebreak(*interface_cpu, Instruction(0));
+    return true;
 }
 
-void on_uret(u64 pc)
+bool on_uret(u64 pc)
 {
     interface_cpu->pc = pc;
     ::uret(*interface_cpu, Instruction(0));
+    return true;
 }
 
-void on_sret(u64 pc)
+bool on_sret(u64 pc)
 {
     interface_cpu->pc = pc;
     ::sret(*interface_cpu, Instruction(0));
+    return true;
 }
 
-void on_mret(u64 pc)
+bool on_mret(u64 pc)
 {
     interface_cpu->pc = pc;
     ::mret(*interface_cpu, Instruction(0));
+    return true;
 }
 
-void on_wfi(u64 pc)
+bool on_wfi(u64 pc)
 {
     interface_cpu->pc = pc;
     ::mret(*interface_cpu, Instruction(0));
+    return true;
 }
 
-void on_sfence_vma(u64 pc)
+bool on_sfence_vma(u64 pc)
 {
     interface_cpu->pc = pc;
     ::mret(*interface_cpu, Instruction(0));
+    return true;
 }
 
 template<auto F, typename T>
@@ -634,29 +641,6 @@ bool on_atomic(Instruction instruction, u64 pc)
     return !interface_cpu->pending_trap.has_value();
 }
 
-void print(u64 value)
-{
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-    std::cout << std::hex << value << std::endl;
-}
-
 void JIT::register_interface_functions(
     llvm::Module* module,
     llvm::LLVMContext& context,
@@ -723,13 +707,13 @@ void JIT::register_interface_functions(
             module\
         )
 
-    OPCODE(on_ecall,        OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
-    OPCODE(on_ebreak,       OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
-    OPCODE(on_uret,         OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
-    OPCODE(on_sret,         OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
-    OPCODE(on_mret,         OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
-    OPCODE(on_wfi,          OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
-    OPCODE(on_sfence_vma,   OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_ecall,        OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
+    OPCODE(on_ebreak,       OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
+    OPCODE(on_uret,         OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
+    OPCODE(on_sret,         OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
+    OPCODE(on_mret,         OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
+    OPCODE(on_wfi,          OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
+    OPCODE(on_sfence_vma,   OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
     OPCODE(on_lb,           OPCODE_TYPE_2(llvm::Type::getInt8Ty(context)));
     OPCODE(on_lh,           OPCODE_TYPE_2(llvm::Type::getInt16Ty(context)));
     OPCODE(on_lw,           OPCODE_TYPE_2(llvm::Type::getInt32Ty(context)));
