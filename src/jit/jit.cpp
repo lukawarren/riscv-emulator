@@ -2,6 +2,7 @@
 #include "jit/jit_base.h"
 #include "jit/jit_zicsr.h"
 #include "jit/jit_a.h"
+#include "jit/jit_m.h"
 #include "opcodes_base.h"
 #include "opcodes_m.h"
 #include "opcodes_a.h"
@@ -160,8 +161,23 @@ bool JIT::emit_instruction(CPU& cpu, Context& context)
     {
         case OPCODES_BASE_R_TYPE:
         {
+            // RV64M
             if (funct7 == OPCODES_M_FUNCT_7)
-                return false;
+            {
+                switch (funct3)
+                {
+                    case MUL:       mul   (context); break;
+                    case MULH:      mulh  (context); break;
+                    case MULHSU:    mulhsu(context); break;
+                    case MULHU:     mulhu (context); break;
+                    case DIV:       div   (context); break;
+                    case DIVU:      divu  (context); break;
+                    case REM:       rem   (context); break;
+                    case REMU:      remu  (context); break;
+                    default:        return false;
+                }
+                break;
+            }
 
             switch (funct3)
             {
@@ -378,8 +394,20 @@ bool JIT::emit_instruction(CPU& cpu, Context& context)
 
         case OPCODES_BASE_R_TYPE_32:
         {
+            // RV64M
             if (funct7 == OPCODES_M_FUNCT_7)
-                return false;
+            {
+                switch (funct3)
+                {
+                    case MULW:      mulw (context);  break;
+                    case DIVW:      divw (context);  break;
+                    case DIVUW:     divuw(context);  break;
+                    case REMW:      remw (context);  break;
+                    case REMUW:     remuw(context);  break;
+                    default:        return false;
+                }
+                break;
+            }
 
             switch (funct3)
             {
@@ -634,6 +662,11 @@ bool on_csr(Instruction instruction, u64 pc)
     return !interface_cpu->pending_trap.has_value();
 }
 
+void set_fcsr_dz()
+{
+    interface_cpu->fcsr.set_dz(*interface_cpu);
+}
+
 bool on_atomic(Instruction instruction, u64 pc)
 {
     interface_cpu->pc = pc;
@@ -699,6 +732,14 @@ void JIT::register_interface_functions(
             false\
         )
 
+    #define OPCODE_TYPE_4()\
+        llvm::FunctionType::get\
+        (\
+            llvm::Type::getVoidTy(context),\
+            {},\
+            false\
+        )
+
     #define OPCODE(name, return_type)\
         jit_context.name = llvm::Function::Create(\
             return_type,\
@@ -722,6 +763,7 @@ void JIT::register_interface_functions(
     OPCODE(on_sh,           OPCODE_TYPE_3(llvm::Type::getInt16Ty(context)));
     OPCODE(on_sw,           OPCODE_TYPE_3(llvm::Type::getInt32Ty(context)));
     OPCODE(on_sd,           OPCODE_TYPE_3(llvm::Type::getInt64Ty(context)));
+    OPCODE(set_fcsr_dz,     OPCODE_TYPE_4());
 
     FALLBACK(on_csr);
     FALLBACK(on_atomic);
@@ -750,6 +792,7 @@ void JIT::link_interface_functions(
     LINK(on_sh);
     LINK(on_sw);
     LINK(on_sd);
+    LINK(set_fcsr_dz);
 
     LINK(on_csr);
     LINK(on_atomic);

@@ -38,6 +38,7 @@ namespace JIT
         llvm::Function* on_sh;
         llvm::Function* on_sw;
         llvm::Function* on_sd;
+        llvm::Function* set_fcsr_dz;
 
         // Fallbacks for "tricky" extensions that infrequently pop-up but are
         // a pain to JIT
