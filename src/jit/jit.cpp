@@ -44,7 +44,11 @@ void JIT::run_next_frame(CPU& cpu)
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", function);
     builder.SetInsertPoint(entry);
 
+    // Keep track of the starting PC so that any "local" branches avoid re-compilation
+    u64 starting_pc = cpu.pc;
+
     // Build blocks
+    bool frame_empty = true;
     while (true)
     {
         // Check for 16-bit alignment
@@ -59,17 +63,34 @@ void JIT::run_next_frame(CPU& cpu)
         // Fetch next instruction
         std::expected<Instruction, Exception> instruction =
             cpu.read_32(cpu.pc, CPU::AccessType::Instruction);
-        assert(instruction.has_value());
 
         // Check it's valid
-        if (instruction->instruction == 0xffffffff || instruction->instruction == 0)
+        if (!instruction.has_value() || instruction->instruction == 0xffffffff || instruction->instruction == 0)
         {
-            cpu.raise_exception(Exception::IllegalInstruction, instruction->instruction);
-            assert(false);
+            if (frame_empty)
+            {
+                cpu.raise_exception(Exception::IllegalInstruction, instruction->instruction);
+                assert(false);
+            }
+            else
+                break;
         }
 
-        jit_context.current_instruction = instruction->instruction;
-        assert(emit_instruction(cpu, jit_context));
+        jit_context.current_instruction = *instruction;
+
+        if(emit_instruction(cpu, jit_context))
+        {
+            // Now we've got at least one valid instruction, any failure to fetch
+            // another might mean we just strayed too far into the future
+            frame_empty = false;
+        }
+        else
+        {
+            if (frame_empty)
+                throw std::runtime_error("JIT - unsupported opcode");
+            else
+                break;
+        }
 
         // Break if we encountered an instruction that requires "intervention"...
         if (jit_context.return_pc.has_value())
@@ -112,15 +133,19 @@ void JIT::run_next_frame(CPU& cpu)
 
     // Run
     interface_cpu = &cpu;
-#if DEBUG_JIT
-    dbg("running frame");
-#endif
     auto run = (u64(*)())engine->getFunctionAddress("jit_main");
     u64 next_pc = run();
     cpu.pc = next_pc;
-#if DEBUG_JIT
-    dbg("frame done");
-#endif
+
+    // If the next PC is inside the already JIT'ed block, we don't need to compile
+    // again, but can instead just jump back... but only if the block *starts*
+    // where we want to jump to! This won't happen immediately (e.g. on a first branch
+    // back), but will on subsequent runs.
+    while(next_pc == starting_pc)
+    {
+        next_pc = run();
+        cpu.pc = next_pc;
+    }
 
     delete engine;
 }
@@ -542,18 +567,6 @@ T on_load(u64 address, u64 pc, bool* did_succeed)
     return *value;
 }
 
-void on_csr(Instruction instruction, u64 pc)
-{
-    interface_cpu->pc = pc;
-    ::opcodes_zicsr(*interface_cpu, instruction);
-}
-
-void on_atomic(Instruction instruction, u64 pc)
-{
-    interface_cpu->pc = pc;
-    ::opcodes_a(*interface_cpu, instruction);
-}
-
 u8 on_lb(u64 address, u64 pc, bool* did_succeed)
 {
     return on_load<&CPU::read_8, u8>(address, pc, did_succeed);
@@ -607,6 +620,43 @@ bool on_sd(u64 address, u64 value, u64 pc)
     return on_store<&CPU::write_64, u64>(address, value, pc);
 }
 
+bool on_csr(Instruction instruction, u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::opcodes_zicsr(*interface_cpu, instruction);
+    return !interface_cpu->pending_trap.has_value();
+}
+
+bool on_atomic(Instruction instruction, u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::opcodes_a(*interface_cpu, instruction);
+    return !interface_cpu->pending_trap.has_value();
+}
+
+void print(u64 value)
+{
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+    std::cout << std::hex << value << std::endl;
+}
+
 void JIT::register_interface_functions(
     llvm::Module* module,
     llvm::LLVMContext& context,
@@ -615,7 +665,7 @@ void JIT::register_interface_functions(
 {
     llvm::FunctionType* fallback_type = llvm::FunctionType::get
     (
-        llvm::Type::getVoidTy(context),
+        llvm::Type::getInt1Ty(context),
         {
             llvm::Type::getInt32Ty(context),
             llvm::Type::getInt64Ty(context)

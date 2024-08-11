@@ -285,37 +285,51 @@ void JIT::auipc(Context& context)
 
 void JIT::ecall(Context& context)
 {
+    // TODO: don't stop translation
     context.builder.CreateCall(context.on_ecall, { u64_im(context.pc) });
+    stop_translation();
 }
 
 void JIT::ebreak(Context& context)
 {
+    // TODO: don't stop translation
     context.builder.CreateCall(context.on_ebreak, { u64_im(context.pc) });
+    stop_translation();
 }
 
 void JIT::uret(Context& context)
 {
+    // TODO: don't stop translation
     context.builder.CreateCall(context.on_uret, { u64_im(context.pc) });
+    stop_translation();
 }
 
 void JIT::sret(Context& context)
 {
+    // TODO: don't stop translation
     context.builder.CreateCall(context.on_sret, { u64_im(context.pc) });
+    stop_translation();
 }
 
 void JIT::mret(Context& context)
 {
+    // TODO: don't stop translation
     context.builder.CreateCall(context.on_mret, { u64_im(context.pc) });
+    stop_translation();
 }
 
 void JIT::wfi(Context& context)
 {
+    // TODO: don't stop translation
     context.builder.CreateCall(context.on_wfi, { u64_im(context.pc) });
+    stop_translation();
 }
 
 void JIT::sfence_vma(Context& context)
 {
+    // TLB invalidated so the JIT is too
     context.builder.CreateCall(context.on_sfence_vma, { u64_im(context.pc) });
+    stop_translation();
 }
 
 void JIT::lwu(Context& context)

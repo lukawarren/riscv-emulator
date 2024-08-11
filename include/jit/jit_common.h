@@ -12,3 +12,27 @@
 #define u64_to_16(x) context.builder.CreateTrunc(x, context.builder.getInt16Ty())
 #define u64_to_8(x) context.builder.CreateTrunc(x, context.builder.getInt8Ty())
 #define stop_translation() context.return_pc = context.pc + 4
+
+#ifdef JIT_ENABLE_FALLBACK
+static void fall_back(llvm::Function* function, JIT::Context& context)
+{
+    llvm::Value* did_succeed = context.builder.CreateCall(function, {
+        u32_im(context.current_instruction.instruction),
+        u64_im(context.pc)
+    });
+
+    llvm::Function* root = context.builder.GetInsertBlock()->getParent();
+    llvm::BasicBlock* success_block = llvm::BasicBlock::Create(context.context);
+    llvm::BasicBlock* failure_block = llvm::BasicBlock::Create(context.context);
+    context.builder.CreateCondBr(did_succeed, success_block, failure_block);
+
+    // Exception occured so the PC's about to change - abort!
+    context.builder.SetInsertPoint(failure_block);
+    context.builder.CreateRet(u64_im(0));
+    root->insert(root->end(), failure_block);
+
+    // All went well; carry on
+    root->insert(root->end(), success_block);
+    context.builder.SetInsertPoint(success_block);
+}
+#endif
