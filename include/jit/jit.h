@@ -40,10 +40,11 @@ namespace JIT
         llvm::Function* on_sd;
         llvm::Function* set_fcsr_dz;
 
-        // Fallbacks for "tricky" extensions that infrequently pop-up but are
-        // a pain to JIT
+        // Fallbacks for "tricky" extensions that infrequently pop-up;
+        // negligable for performance in most cases
         llvm::Function* on_csr;
         llvm::Function* on_atomic;
+        llvm::Function* on_floating;
 
         // For early return
         std::optional<u64> return_pc = std::nullopt;

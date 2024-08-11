@@ -3,9 +3,11 @@
 #include "jit/jit_zicsr.h"
 #include "jit/jit_a.h"
 #include "jit/jit_m.h"
+#include "jit/jit_f.h"
 #include "opcodes_base.h"
 #include "opcodes_m.h"
 #include "opcodes_a.h"
+#include "opcodes_f.h"
 #include "opcodes_zicsr.h"
 
 using namespace JIT;
@@ -156,6 +158,7 @@ bool JIT::emit_instruction(CPU& cpu, Context& context)
     const u8 opcode = context.current_instruction.get_opcode();
     const u8 funct3 = context.current_instruction.get_funct3();
     const u8 funct7 = context.current_instruction.get_funct7();
+    const u8 funct2 = context.current_instruction.get_funct2();
 
     switch (opcode)
     {
@@ -490,6 +493,222 @@ bool JIT::emit_instruction(CPU& cpu, Context& context)
             break;
         }
 
+        // RV64FD
+        case OPCODES_F_1:
+        {
+            switch (funct3)
+            {
+                case FLW: flw(context); return true;;
+                case FLD: fld(context); return true;;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_2:
+        {
+            switch (funct3)
+            {
+                case FSW: fsw(context); return true;;
+                case FSD: fsd(context); return true;;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_3:
+        {
+            switch (funct2)
+            {
+                case FMADD_S: fmadd_s(context); return true;;
+                case FMADD_D: fmadd_d(context); return true;;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_4:
+        {
+            switch (funct2)
+            {
+                case FMSUB_S: fmsub_s(context); return true;;
+                case FMSUB_D: fmsub_d(context); return true;;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_5:
+        {
+            switch (funct2)
+            {
+                case FNMADD_S: fnmadd_s(context); return true;;
+                case FNMADD_D: fnmadd_d(context); return true;;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_6:
+        {
+            switch (funct2)
+            {
+                case FNMSUB_S: fnmsub_s(context); return true;;
+                case FNMSUB_D: fnmsub_d(context); return true;;
+                default: return false;
+            }
+        }
+
+        case OPCODES_F_7:
+        {
+            switch (funct7)
+            {
+                case FADD_S: fadd_s(context); return true;;
+                case FADD_D: fadd_d(context); return true;;
+                case FSUB_S: fsub_s(context); return true;;
+                case FSUB_D: fsub_d(context); return true;;
+                case FMUL_S: fmul_s(context); return true;;
+                case FMUL_D: fmul_d(context); return true;;
+                case FDIV_S: fdiv_s(context); return true;;
+                case FDIV_D: fdiv_d(context); return true;;
+
+                case 0x10:
+                {
+                    switch (funct3)
+                    {
+                        case FSGNJ_S:  fsgnj_s(context);  return true;
+                        case FSGNJN_S: fsgnjn_s(context); return true;;
+                        case FSGNJX_S: fsgnjx_s(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x11:
+                {
+                    switch (funct3)
+                    {
+                        case FSGNJ_D:  fsgnj_d(context);  return true;
+                        case FSGNJN_D: fsgnjn_d(context); return true;;
+                        case FSGNJX_D: fsgnjx_d(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x14:
+                {
+                    switch (funct3)
+                    {
+                        case FMIN_S: fmin_s(context); return true;;
+                        case FMAX_S: fmax_s(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x15:
+                {
+                    switch (funct3)
+                    {
+                        case FMIN_D: fmin_d(context); return true;;
+                        case FMAX_D: fmax_d(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x50:
+                {
+                    switch (funct3)
+                    {
+                        case FEQ_S: feq_s(context); return true;;
+                        case FLT_S: flt_s(context); return true;;
+                        case FLE_S: fle_s(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x51:
+                {
+                    switch (funct3)
+                    {
+                        case FEQ_D: feq_d(context); return true;;
+                        case FLT_D: flt_d(context); return true;;
+                        case FLE_D: fle_d(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x60:
+                {
+                    switch (context.current_instruction.get_rs2())
+                    {
+                        case FCVT_W_S:  fcvt_w_s(context);  return true;
+                        case FCVT_L_S:  fcvt_l_s(context);  return true;
+                        case FCVT_WU_S: fcvt_wu_s(context); return true;;
+                        case FCVT_LU_S: fcvt_lu_s(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x61:
+                {
+                    switch (context.current_instruction.get_rs2())
+                    {
+                        case FCVT_W_D:  fcvt_w_d(context);  return true;
+                        case FCVT_L_D:  fcvt_l_d(context);  return true;
+                        case FCVT_WU_D: fcvt_wu_d(context); return true;;
+                        case FCVT_LU_D: fcvt_lu_d(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x68:
+                {
+                    switch (context.current_instruction.get_rs2())
+                    {
+                        case FCVT_S_W:  fcvt_s_w(context);  return true;
+                        case FCVT_S_L:  fcvt_s_l(context);  return true;
+                        case FCVT_S_WU: fcvt_s_wu(context); return true;;
+                        case FCVT_S_LU: fcvt_s_lu(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x69:
+                {
+                    switch (context.current_instruction.get_rs2())
+                    {
+                        case FCVT_D_W:  fcvt_d_w(context);  return true;
+                        case FCVT_D_L:  fcvt_d_l(context);  return true;
+                        case FCVT_D_WU: fcvt_d_wu(context); return true;;
+                        case FCVT_D_LU: fcvt_d_lu(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x70:
+                {
+                    switch (funct3)
+                    {
+                        case FMV_X_W:  fmv_x_w(context);  return true;
+                        case FCLASS_S: fclass_s(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case 0x71:
+                {
+                    switch (funct3)
+                    {
+                        case FMV_X_D:  fmv_x_d(context);  return true;
+                        case FCLASS_D: fclass_d(context); return true;;
+                        default: return false;
+                    }
+                }
+
+                case FCVT_S_D: fcvt_s_d(context); return true;;
+                case FCVT_D_S: fcvt_d_s(context); return true;;
+                case FSQRT_S:  fsqrt_s(context);  return true;
+                case FSQRT_D:  fsqrt_d(context);  return true;
+                case FMV_W_X:  fmv_w_x(context);  return true;
+                case FMV_D_X:  fmv_d_x(context);  return true;
+                default: return false;
+            }
+        }
+
         default:
             return false;
     }
@@ -674,6 +893,13 @@ bool on_atomic(Instruction instruction, u64 pc)
     return !interface_cpu->pending_trap.has_value();
 }
 
+bool on_floating(Instruction instruction, u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::opcodes_f(*interface_cpu, instruction);
+    return !interface_cpu->pending_trap.has_value();
+}
+
 void JIT::register_interface_functions(
     llvm::Module* module,
     llvm::LLVMContext& context,
@@ -767,6 +993,7 @@ void JIT::register_interface_functions(
 
     FALLBACK(on_csr);
     FALLBACK(on_atomic);
+    FALLBACK(on_floating);
 }
 
 void JIT::link_interface_functions(
@@ -796,4 +1023,5 @@ void JIT::link_interface_functions(
 
     LINK(on_csr);
     LINK(on_atomic);
+    LINK(on_floating);
 }
