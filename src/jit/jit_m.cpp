@@ -199,9 +199,9 @@ void JIT::mulw(Context& context)
     llvm::Value* _rs1 = context.builder.CreateTrunc(rs1, context.builder.getInt32Ty());
     llvm::Value* _rs2 = context.builder.CreateTrunc(rs2, context.builder.getInt32Ty());
     set_rd(
-        context.builder.CreateSExt(
-            context.builder.CreateMul(_rs1, _rs2),
-            llvm::Type::getInt64Ty(context.context)
+        sign_extend(
+            context,
+            context.builder.CreateMul(_rs1, _rs2)
         )
     );
 }
@@ -246,9 +246,9 @@ void JIT::divw(Context& context)
     // if(overflow)
     context.builder.SetInsertPoint(overflow);
     set_rd(
-        context.builder.CreateSExt(
-            dividend,
-            llvm::Type::getInt64Ty(context.context)
+        sign_extend(
+            context,
+            dividend
         )
     );
     context.builder.CreateBr(done);
@@ -256,9 +256,9 @@ void JIT::divw(Context& context)
     // else
     context.builder.SetInsertPoint(normal);
     set_rd(
-        context.builder.CreateSExt(
-            context.builder.CreateSDiv(dividend, divisor),
-            llvm::Type::getInt64Ty(context.context)
+        sign_extend(
+            context,
+            context.builder.CreateSDiv(dividend, divisor)
         )
     );
     context.builder.CreateBr(done);
@@ -289,9 +289,9 @@ void JIT::divuw(Context& context)
     // else
     context.builder.SetInsertPoint(normal);
     set_rd(
-        context.builder.CreateSExt(
-            context.builder.CreateUDiv(dividend, divisor),
-            llvm::Type::getInt64Ty(context.context)
+        sign_extend(
+            context,
+            context.builder.CreateUDiv(dividend, divisor)
         )
     );
     context.builder.CreateBr(done);
@@ -316,8 +316,9 @@ void JIT::remw(Context& context)
     // if(divisor == 0)
     context.builder.SetInsertPoint(divide_by_zero);
     set_rd(
-        context.builder.CreateSExt(
-            dividend, llvm::Type::getInt64Ty(context.context)
+        sign_extend(
+            context,
+            dividend
         )
     );
     context.builder.CreateBr(done);
@@ -348,9 +349,9 @@ void JIT::remw(Context& context)
     // else
     context.builder.SetInsertPoint(normal);
     set_rd(
-        context.builder.CreateSExt(
-            context.builder.CreateSRem(dividend, divisor),
-            llvm::Type::getInt64Ty(context.context)
+        sign_extend(
+            context,
+            context.builder.CreateSRem(dividend, divisor)
         )
     );
     context.builder.CreateBr(done);
@@ -375,9 +376,9 @@ void JIT::remuw(Context& context)
     // if(divisor == 0)
     context.builder.SetInsertPoint(divide_by_zero);
     set_rd(
-        context.builder.CreateSExt(
-            dividend,
-            llvm::Type::getInt64Ty(context.context)
+        sign_extend(
+            context,
+            dividend
         )
     );
     context.builder.CreateBr(done);
@@ -385,9 +386,9 @@ void JIT::remuw(Context& context)
     // else
     context.builder.SetInsertPoint(normal);
     set_rd(
-        context.builder.CreateSExt(
-            context.builder.CreateURem(dividend, divisor),
-            llvm::Type::getInt64Ty(context.context)
+        sign_extend(
+            context,
+            context.builder.CreateURem(dividend, divisor)
         )
     );
     context.builder.CreateBr(done);

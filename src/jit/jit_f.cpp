@@ -66,3 +66,8 @@ void JIT::fle_s      (Context& context) { fall_back(context.on_floating, context
 void JIT::fle_d      (Context& context) { fall_back(context.on_floating, context); }
 void JIT::fclass_s   (Context& context) { fall_back(context.on_floating, context); }
 void JIT::fclass_d   (Context& context) { fall_back(context.on_floating, context); }
+
+void JIT::c_fldsp    (Context& context) { fall_back(context.on_floating_compressed, context, true); }
+void JIT::c_fsdsp    (Context& context) { fall_back(context.on_floating_compressed, context, true); }
+void JIT::c_fld      (Context& context) { fall_back(context.on_floating_compressed, context, true); }
+void JIT::c_fsd      (Context& context) { fall_back(context.on_floating_compressed, context, true); }

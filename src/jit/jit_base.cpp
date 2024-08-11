@@ -5,13 +5,8 @@ using namespace JIT;
 
 // Helpers
 static void emit_branch(Context& context, llvm::Value* condition);
-static llvm::Value* sign_extend_32_as_64(Context& context, llvm::Value* value);
-static llvm::Value* sign_extend(Context& context, llvm::Value* value);
-static llvm::Value* zero_extend(Context& context, llvm::Value* value);
 static llvm::Value* get_load_address(Context& context);
 static llvm::Value* get_store_address(Context& context);
-static llvm::Value* perform_load(Context& context, llvm::Function* f);
-static void perform_store(Context& context, llvm::Function* f, llvm::Value* value);
 static void call_handler_and_return(Context& context, llvm::Function* f);
 
 void JIT::add(Context& context)
@@ -166,42 +161,42 @@ void JIT::sltiu(Context& context)
 
 void JIT::lb(Context& context)
 {
-    set_rd(sign_extend(context, perform_load(context, context.on_lb)));
+    set_rd(sign_extend(context, perform_load(context, context.on_lb, get_load_address)));
 }
 
 void JIT::lh(Context& context)
 {
-    set_rd(sign_extend(context, perform_load(context, context.on_lh)));
+    set_rd(sign_extend(context, perform_load(context, context.on_lh, get_load_address)));
 }
 
 void JIT::lw(Context& context)
 {
-    set_rd(sign_extend(context, perform_load(context, context.on_lw)));
+    set_rd(sign_extend(context, perform_load(context, context.on_lw, get_load_address)));
 }
 
 void JIT::lbu(Context& context)
 {
-    set_rd(zero_extend(context, perform_load(context, context.on_lb)));
+    set_rd(zero_extend(context, perform_load(context, context.on_lb, get_load_address)));
 }
 
 void JIT::lhu(Context& context)
 {
-    set_rd(zero_extend(context, perform_load(context, context.on_lh)));
+    set_rd(zero_extend(context, perform_load(context, context.on_lh, get_load_address)));
 }
 
 void JIT::sb(Context& context)
 {
-    perform_store(context, context.on_sb, u64_to_8(rs2));
+    perform_store(context, context.on_sb, u64_to_8(rs2), get_store_address);
 }
 
 void JIT::sh(Context& context)
 {
-    perform_store(context, context.on_sh, u64_to_16(rs2));
+    perform_store(context, context.on_sh, u64_to_16(rs2), get_store_address);
 }
 
 void JIT::sw(Context& context)
 {
-    perform_store(context, context.on_sw, u64_to_32(rs2));
+    perform_store(context, context.on_sw, u64_to_32(rs2), get_store_address);
 }
 
 void JIT::beq(Context& context)
@@ -321,17 +316,17 @@ void JIT::sfence_vma(Context& context)
 
 void JIT::lwu(Context& context)
 {
-    set_rd(zero_extend(context, perform_load(context, context.on_lw)));
+    set_rd(zero_extend(context, perform_load(context, context.on_lw, get_load_address)));
 }
 
 void JIT::ld(Context& context)
 {
-    set_rd(perform_load(context, context.on_ld));
+    set_rd(perform_load(context, context.on_ld, get_load_address));
 }
 
 void JIT::sd(Context& context)
 {
-    perform_store(context, context.on_sd, rs2);
+    perform_store(context, context.on_sd, rs2, get_store_address);
 }
 
 void JIT::addiw(Context& context)
@@ -426,30 +421,6 @@ static void emit_branch(Context& context, llvm::Value* condition)
     context.builder.SetInsertPoint(false_block);
 }
 
-static llvm::Value* sign_extend_32_as_64(Context& context, llvm::Value* value)
-{
-    return context.builder.CreateSExt(
-        u64_to_32(value),
-        context.builder.getInt64Ty()
-    );
-}
-
-static llvm::Value* sign_extend(Context& context, llvm::Value* value)
-{
-    return context.builder.CreateSExt(
-        value,
-        context.builder.getInt64Ty()
-    );
-}
-
-static llvm::Value* zero_extend(Context& context, llvm::Value* value)
-{
-    return context.builder.CreateZExt(
-        value,
-        context.builder.getInt64Ty()
-    );
-}
-
 static llvm::Value* get_load_address(Context& context)
 {
     return context.builder.CreateAdd(
@@ -464,58 +435,6 @@ static llvm::Value* get_store_address(Context& context)
         u64_im(context.current_instruction.get_imm(Instruction::Type::S)),
         rs1
     );
-}
-
-static llvm::Value* perform_load(Context& context, llvm::Function* f)
-{
-    const auto bool_type = llvm::Type::getInt1Ty(context.context);
-    llvm::Value* did_succeed_ptr = context.builder.CreateAlloca(bool_type);
-    llvm::Value* result = context.builder.CreateCall(f, {
-        get_load_address(context),
-        u64_im(context.pc),
-        did_succeed_ptr
-    });
-    llvm::Value* did_succeed = context.builder.CreateLoad(bool_type, did_succeed_ptr);
-
-    // Return early on failure
-    llvm::Function* function = context.builder.GetInsertBlock()->getParent();
-    llvm::BasicBlock* success_block = llvm::BasicBlock::Create(context.context);
-    llvm::BasicBlock* failure_block = llvm::BasicBlock::Create(context.context);
-    context.builder.CreateCondBr(did_succeed, success_block, failure_block);
-
-    // Failure block - unable to JIT further (for now!) so return early
-    context.builder.SetInsertPoint(failure_block);
-    context.builder.CreateRet(u64_im(0));
-    function->insert(function->end(), failure_block);
-
-    // Success block - carry on
-    function->insert(function->end(), success_block);
-    context.builder.SetInsertPoint(success_block);
-    return result;
-}
-
-static void perform_store(Context& context, llvm::Function* f, llvm::Value* value)
-{
-    llvm::Value* did_succeed = context.builder.CreateCall(f, {
-        get_store_address(context),
-        value,
-        u64_im(context.pc)
-    });
-
-    // Return early on failure
-    llvm::Function* function = context.builder.GetInsertBlock()->getParent();
-    llvm::BasicBlock* success_block = llvm::BasicBlock::Create(context.context);
-    llvm::BasicBlock* failure_block = llvm::BasicBlock::Create(context.context);
-    context.builder.CreateCondBr(did_succeed, success_block, failure_block);
-
-    // Failure block - unable to JIT further (for now!) so return early
-    context.builder.SetInsertPoint(failure_block);
-    context.builder.CreateRet(u64_im(0));
-    function->insert(function->end(), failure_block);
-
-    // Success block - carry on
-    context.builder.SetInsertPoint(success_block);
-    function->insert(function->end(), success_block);
 }
 
 static void call_handler_and_return(Context& context, llvm::Function* f)

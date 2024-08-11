@@ -2,6 +2,7 @@
 #include "common.h"
 #include "jit/llvm.h"
 #include "instruction.h"
+#include "compressed_instruction.h"
 #include "cpu.h"
 
 namespace JIT
@@ -15,12 +16,14 @@ namespace JIT
             llvm::IRBuilder<>& builder,
             llvm::LLVMContext& context,
             u64 pc
-        ) : builder(builder), context(context), pc(pc), current_instruction(0) {}
+        ) : builder(builder), context(context), pc(pc),
+            current_instruction(0), current_compressed_instruction(0) {}
 
         // Variables
         llvm::Value* registers;
         u64 pc;
         Instruction current_instruction;
+        CompressedInstruction current_compressed_instruction;
 
         // Base interface functions
         llvm::Function* on_ecall;
@@ -45,6 +48,7 @@ namespace JIT
         llvm::Function* on_csr;
         llvm::Function* on_atomic;
         llvm::Function* on_floating;
+        llvm::Function* on_floating_compressed;
 
         // For early return
         std::optional<u64> return_pc = std::nullopt;
@@ -73,6 +77,10 @@ namespace JIT
         Context& jit_context
     );
     bool emit_instruction(
+        CPU& cpu,
+        Context& context
+    );
+    bool emit_compressed_instruction(
         CPU& cpu,
         Context& context
     );

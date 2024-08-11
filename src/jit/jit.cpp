@@ -4,10 +4,12 @@
 #include "jit/jit_a.h"
 #include "jit/jit_m.h"
 #include "jit/jit_f.h"
+#include "jit/jit_c.h"
 #include "opcodes_base.h"
 #include "opcodes_m.h"
 #include "opcodes_a.h"
 #include "opcodes_f.h"
+#include "opcodes_c.h"
 #include "opcodes_zicsr.h"
 
 using namespace JIT;
@@ -63,9 +65,32 @@ void JIT::run_next_frame(CPU& cpu)
 
         cpu.trace();
 
-        // Fetch next instruction
-        std::expected<Instruction, Exception> instruction =
-            cpu.read_32(cpu.pc, CPU::AccessType::Instruction);
+        // Try to get a compressed instruction...
+        const std::expected<CompressedInstruction, Exception> half_instruction =
+            cpu.read_16(cpu.pc, CPU::AccessType::Instruction);
+        const bool is_compressed = (half_instruction.has_value() && (half_instruction->instruction & 0b11) != 0b11);
+
+        // ...or a full 32-bit one
+        std::expected<Instruction, Exception> instruction = std::unexpected(Exception::IllegalInstruction);
+        if (!is_compressed) instruction = cpu.read_32(cpu.pc, CPU::AccessType::Instruction);
+
+        // If we couldn't fetch anything, raise an exception
+        if (!is_compressed && !instruction)
+        {
+            if (frame_empty)
+            {
+                u64 faulty_address = cpu.pc;
+                if (!cpu.read_8(cpu.pc)) faulty_address = cpu.pc;
+                else if (!cpu.read_8(cpu.pc + 1)) faulty_address = cpu.pc + 1;
+                else if (!cpu.read_8(cpu.pc + 1)) faulty_address = cpu.pc + 2;
+                else faulty_address = cpu.pc + 3;
+
+                cpu.raise_exception(instruction.error(), faulty_address);
+                delete module;
+                return;
+            }
+            else break;
+        }
 
         // Check it's valid
         if (!instruction.has_value() || instruction->instruction == 0xffffffff || instruction->instruction == 0)
@@ -73,15 +98,26 @@ void JIT::run_next_frame(CPU& cpu)
             if (frame_empty)
             {
                 cpu.raise_exception(Exception::IllegalInstruction, instruction->instruction);
-                assert(false);
+                delete module;
+                return;
             }
-            else
-                break;
+            else break;
+        }
+        else if (is_compressed && half_instruction->instruction == 0x0000)
+        {
+            if (frame_empty)
+            {
+                cpu.raise_exception(Exception::IllegalInstruction, half_instruction->instruction);
+                delete module;
+                return;
+            }
+            else break;
         }
 
         jit_context.current_instruction = *instruction;
 
-        if(emit_instruction(cpu, jit_context))
+        if ((is_compressed && emit_compressed_instruction(cpu, jit_context)) ||
+            (!is_compressed && emit_instruction(cpu, jit_context)))
         {
             // Now we've got at least one valid instruction, any failure to fetch
             // another might mean we just strayed too far into the future
@@ -106,7 +142,7 @@ void JIT::run_next_frame(CPU& cpu)
         if (jit_context.emitted_jalr)
             break;
 
-        cpu.pc = jit_context.pc + 4;
+        cpu.pc = jit_context.pc + (is_compressed ? 2 : 4);
         jit_context.pc = cpu.pc;
     }
 
@@ -716,6 +752,173 @@ bool JIT::emit_instruction(CPU& cpu, Context& context)
     return true;
 }
 
+bool JIT::emit_compressed_instruction(CPU& cpu, Context& context)
+{
+    const u8 funct3 = context.current_compressed_instruction.get_funct3();
+    const u8 opcode = context.current_compressed_instruction.get_opcode();
+
+    switch (opcode)
+    {
+        case 0b00:
+        {
+            switch (funct3)
+            {
+                case C_LW:          c_lw(context);         return true;
+                case C_LD:          c_ld(context);         return true;
+                case C_SW:          c_sw(context);         return true;
+                case C_SD:          c_sd(context);         return true;
+                case C_ADDI4SPN:    c_addi4spn(context);   return true;
+                case C_FLD:         c_fld(context);        return true;
+                case C_FSD:         c_fsd(context);        return true;
+                default:                                            return false;
+            }
+
+            return false;
+        }
+
+        case 0b01:
+        {
+            switch (funct3)
+            {
+                case C_LI:          c_li(context);         return true;
+                case C_J:           c_j(context);          return true;
+                case C_BEQZ:        c_beqz(context);       return true;
+                case C_BNEZ:        c_bnez(context);       return true;
+                case C_ADDI:        c_addi(context);       return true;
+                case C_ADDIW:       c_addiw(context);      return true;
+                case C_ADDI16SP:
+                {
+                    switch (context.current_compressed_instruction.get_rd())
+                    {
+                        case 0:                                     return true; // NOP
+                        case 2:     c_addi16sp(context);   return true;
+                        default:    c_lui(context);        return true;
+                    }
+                }
+                case 0b100:
+                {
+                    switch (context.current_compressed_instruction.get_funct2())
+                    {
+                        case C_SRLI: c_srli(context);      return true;
+                        case C_SRAI: c_srai(context);      return true;
+                        case C_ANDI: c_andi(context);      return true;
+                        case 0b11:
+                        {
+                            const u8 a = (context.current_compressed_instruction.instruction >> 12) & 0b1;
+                            const u8 b = (context.current_compressed_instruction.instruction >> 5) & 0b11;
+
+                            if (a == 0 && b == 0)
+                            {
+                                c_sub(context);
+                                return true;
+                            }
+
+                            if (a == 0 && b == 1)
+                            {
+                                c_xor(context);
+                                return true;
+                            }
+
+                            if (a == 0 && b == 2)
+                            {
+                                c_or(context);
+                                return true;
+                            }
+
+                            if (a == 0 && b == 3)
+                            {
+                                c_and(context);
+                                return true;
+                            }
+
+                            if (a == 1 && b == 0)
+                            {
+                                c_subw(context);
+                                return true;
+                            }
+
+                            if (a == 1 && b == 1)
+                            {
+                                c_addw(context);
+                                return true;
+                            }
+
+                            return false;
+                        }
+                        default: return false;
+                    }
+                }
+                default: return false;
+            }
+
+            return false;
+        }
+
+        case 0b10:
+        {
+            switch (funct3)
+            {
+                case C_LWSP:  c_lwsp(context);  return true;
+                case C_LDSP:  c_ldsp(context);  return true;
+                case C_FLDSP: c_fldsp(context); return true;
+                case C_SLLI:  c_slli(context);  return true;
+
+                case 0b100:
+                {
+                    const u8 a = (context.current_compressed_instruction.instruction >> 12) & 0b1;
+                    const u8 b = (context.current_compressed_instruction.instruction >> 2) & 0x1f;
+
+                    if (a == 0 && b == 0)
+                    {
+                        c_jr(context);
+                        return true;
+                    }
+
+                    else if (a == 0)
+                    {
+                        c_mv(context);
+                        return true;
+                    }
+
+                    if (a == 1 && b == 0)
+                    {
+                        if (context.current_compressed_instruction.get_rd() != 0)
+                        {
+                            c_jalr(context);
+                            return true;
+                        }
+                        else
+                        {
+                            c_ebreak(context);
+                            return true;
+                        }
+
+                        return false;
+                    }
+
+                    if (a == 1)
+                    {
+                        c_add(context);
+                        return true;
+                    }
+
+                    return false;
+                }
+
+                case C_SWSP:  c_swsp(context);  return true;
+                case C_SDSP:  c_sdsp(context);  return true;
+                case C_FSDSP: c_fsdsp(context); return true;
+                default: return false;
+            }
+
+            return false;
+        }
+        default: return false;
+    }
+
+    return false;
+}
+
 llvm::Value* JIT::get_registers(CPU& cpu, llvm::IRBuilder<>& builder)
 {
     llvm::Type* i64_ptr_type = builder.getInt64Ty()->getPointerTo();
@@ -900,6 +1103,13 @@ bool on_floating(Instruction instruction, u64 pc)
     return !interface_cpu->pending_trap.has_value();
 }
 
+bool on_floating_compressed(CompressedInstruction instruction, u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::opcodes_c(*interface_cpu, instruction);
+    return !interface_cpu->pending_trap.has_value();
+}
+
 void JIT::register_interface_functions(
     llvm::Module* module,
     llvm::LLVMContext& context,
@@ -916,11 +1126,29 @@ void JIT::register_interface_functions(
         false
     );
 
+    llvm::FunctionType* fallback_compressed_type = llvm::FunctionType::get
+    (
+        llvm::Type::getInt1Ty(context),
+        {
+            llvm::Type::getInt16Ty(context),
+            llvm::Type::getInt64Ty(context)
+        },
+        false
+    );
+
     #define TWINE_NAME(name) #name
 
     #define FALLBACK(name)\
         jit_context.name = llvm::Function::Create(\
             fallback_type,\
+            llvm::Function::ExternalLinkage,\
+            TWINE_NAME(name),\
+            module\
+        );
+
+    #define FALLBACK_COMPRESSED(name)\
+        jit_context.name = llvm::Function::Create(\
+            fallback_compressed_type,\
             llvm::Function::ExternalLinkage,\
             TWINE_NAME(name),\
             module\
@@ -994,6 +1222,7 @@ void JIT::register_interface_functions(
     FALLBACK(on_csr);
     FALLBACK(on_atomic);
     FALLBACK(on_floating);
+    FALLBACK_COMPRESSED(on_floating_compressed);
 }
 
 void JIT::link_interface_functions(
@@ -1024,4 +1253,5 @@ void JIT::link_interface_functions(
     LINK(on_csr);
     LINK(on_atomic);
     LINK(on_floating);
+    LINK(on_floating_compressed);
 }
