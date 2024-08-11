@@ -9,7 +9,9 @@ static llvm::Value* sign_extend_32_as_64(Context& context, llvm::Value* value);
 static llvm::Value* sign_extend(Context& context, llvm::Value* value);
 static llvm::Value* zero_extend(Context& context, llvm::Value* value);
 static llvm::Value* get_load_address(Context& context);
+static llvm::Value* get_store_address(Context& context);
 static llvm::Value* perform_load(Context& context, llvm::Function* f);
+static void perform_store(Context& context, llvm::Function* f, llvm::Value* value);
 
 void JIT::add(Context& context)
 {
@@ -186,6 +188,21 @@ void JIT::lhu(Context& context)
     set_rd(zero_extend(context, perform_load(context, context.on_lh)));
 }
 
+void JIT::sb(Context& context)
+{
+    perform_store(context, context.on_sb, u64_to_8(rs2));
+}
+
+void JIT::sh(Context& context)
+{
+    perform_store(context, context.on_sh, u64_to_16(rs2));
+}
+
+void JIT::sw(Context& context)
+{
+    perform_store(context, context.on_sw, u64_to_32(rs2));
+}
+
 void JIT::beq(Context& context)
 {
     llvm::Value* condition = context.builder.CreateICmpEQ(rs1, rs2);
@@ -234,6 +251,26 @@ void JIT::jal(Context& context)
     context.pc += offset - 4;
 }
 
+void JIT::jalr(Context& context)
+{
+    // Offset always has LSB set to zero
+    const i64 imm = context.current_instruction.get_imm(Instruction::Type::I);
+    llvm::Value* offset = context.builder.CreateAnd(
+        context.builder.CreateAdd(u64_im(imm), rs1),
+        0xfffffffffffffffe
+    );
+
+    store_register(
+        context,
+        context.current_instruction.get_rd(),
+        u64_im(context.pc + 4)
+    );
+
+    // We don't know the final PC at compile time so must return
+    context.builder.CreateRet(offset);
+    context.emitted_jalr = true;
+}
+
 void JIT::lui(Context& context)
 {
     set_rd(u64_im(context.current_instruction.get_imm(Instruction::Type::U)));
@@ -251,9 +288,49 @@ void JIT::ecall(Context& context)
     context.builder.CreateCall(context.on_ecall, { u64_im(context.pc) });
 }
 
+void JIT::ebreak(Context& context)
+{
+    context.builder.CreateCall(context.on_ebreak, { u64_im(context.pc) });
+}
+
+void JIT::uret(Context& context)
+{
+    context.builder.CreateCall(context.on_uret, { u64_im(context.pc) });
+}
+
+void JIT::sret(Context& context)
+{
+    context.builder.CreateCall(context.on_sret, { u64_im(context.pc) });
+}
+
 void JIT::mret(Context& context)
 {
     context.builder.CreateCall(context.on_mret, { u64_im(context.pc) });
+}
+
+void JIT::wfi(Context& context)
+{
+    context.builder.CreateCall(context.on_wfi, { u64_im(context.pc) });
+}
+
+void JIT::sfence_vma(Context& context)
+{
+    context.builder.CreateCall(context.on_sfence_vma, { u64_im(context.pc) });
+}
+
+void JIT::lwu(Context& context)
+{
+    set_rd(zero_extend(context, perform_load(context, context.on_lw)));
+}
+
+void JIT::ld(Context& context)
+{
+    set_rd(perform_load(context, context.on_ld));
+}
+
+void JIT::sd(Context& context)
+{
+    perform_store(context, context.on_sd, rs2);
 }
 
 void JIT::addiw(Context& context)
@@ -380,6 +457,14 @@ static llvm::Value* get_load_address(Context& context)
     );
 }
 
+static llvm::Value* get_store_address(Context& context)
+{
+    return context.builder.CreateAdd(
+        u64_im(context.current_instruction.get_imm(Instruction::Type::S)),
+        rs1
+    );
+}
+
 static llvm::Value* perform_load(Context& context, llvm::Function* f)
 {
     const auto bool_type = llvm::Type::getInt1Ty(context.context);
@@ -406,4 +491,28 @@ static llvm::Value* perform_load(Context& context, llvm::Function* f)
     function->insert(function->end(), success_block);
     context.builder.SetInsertPoint(success_block);
     return result;
+}
+
+static void perform_store(Context& context, llvm::Function* f, llvm::Value* value)
+{
+    llvm::Value* did_succeed = context.builder.CreateCall(f, {
+        get_store_address(context),
+        value,
+        u64_im(context.pc)
+    });
+
+    // Return early on failure
+    llvm::Function* function = context.builder.GetInsertBlock()->getParent();
+    llvm::BasicBlock* success_block = llvm::BasicBlock::Create(context.context);
+    llvm::BasicBlock* failure_block = llvm::BasicBlock::Create(context.context);
+    context.builder.CreateCondBr(did_succeed, success_block, failure_block);
+
+    // Failure block - unable to JIT further (for now!) so return early
+    context.builder.SetInsertPoint(failure_block);
+    context.builder.CreateRet(u64_im(context.pc + 4));
+    function->insert(function->end(), failure_block);
+
+    // Success block - carry on
+    function->insert(function->end(), success_block);
+    context.builder.SetInsertPoint(success_block);
 }

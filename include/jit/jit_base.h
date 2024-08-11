@@ -32,9 +32,9 @@ namespace JIT
     void lbu        (Context& context);
     void lhu        (Context& context);
 
-    inline void sb         (Context& context) { UNIMPLEMENTED(); }
-    inline void sh         (Context& context) { UNIMPLEMENTED(); }
-    inline void sw         (Context& context) { UNIMPLEMENTED(); }
+    void sb         (Context& context);
+    void sh         (Context& context);
+    void sw         (Context& context);
 
     void beq        (Context& context);
     void bne        (Context& context);
@@ -44,22 +44,22 @@ namespace JIT
     void bgeu       (Context& context);
 
     void jal        (Context& context);
-    inline void jalr       (Context& context) { UNIMPLEMENTED(); }
+    void jalr       (Context& context);
 
     void lui        (Context& context);
     void auipc      (Context& context);
 
     void ecall      (Context& context);
-    inline void ebreak     (Context& context) { UNIMPLEMENTED(); }
-    inline void uret       (Context& context) { UNIMPLEMENTED(); }
-    inline void sret       (Context& context) { UNIMPLEMENTED(); }
+    void ebreak     (Context& context);
+    void uret       (Context& context);
+    void sret       (Context& context);
     void mret       (Context& context);
-    inline void wfi        (Context& context) { UNIMPLEMENTED(); }
-    inline void sfence_vma (Context& context) { UNIMPLEMENTED(); }
+    void wfi        (Context& context);
+    void sfence_vma (Context& context);
 
-    inline void lwu        (Context& context) { UNIMPLEMENTED(); }
-    inline void ld         (Context& context) { UNIMPLEMENTED(); }
-    inline void sd         (Context& context) { UNIMPLEMENTED(); }
+    void lwu        (Context& context);
+    void ld         (Context& context);
+    void sd         (Context& context);
 
     void addiw      (Context& context);
     void slliw      (Context& context);

@@ -25,14 +25,24 @@ namespace JIT
         // Interface functions
         llvm::Function* on_csr;
         llvm::Function* on_ecall;
+        llvm::Function* on_ebreak;
+        llvm::Function* on_uret;
+        llvm::Function* on_sret;
         llvm::Function* on_mret;
+        llvm::Function* on_wfi;
+        llvm::Function* on_sfence_vma;
         llvm::Function* on_lb;
         llvm::Function* on_lh;
         llvm::Function* on_lw;
-        llvm::Function* print;
+        llvm::Function* on_ld;
+        llvm::Function* on_sb;
+        llvm::Function* on_sh;
+        llvm::Function* on_sw;
+        llvm::Function* on_sd;
 
         // For early return
         std::optional<u64> return_pc = std::nullopt;
+        bool emitted_jalr = false;
     };
 
     template <typename T>

@@ -69,19 +69,24 @@ void JIT::run_next_frame(CPU& cpu)
         jit_context.current_instruction = instruction->instruction;
         assert(emit_instruction(cpu, jit_context));
 
-        // Break if we encountered an instruction that requires "intervention"
+        // Break if we encountered an instruction that requires "intervention"...
         if (jit_context.return_pc.has_value())
         {
             cpu.pc = *jit_context.return_pc;
             break;
         }
 
+        // ...except JALR is special
+        if (jit_context.emitted_jalr)
+            break;
+
         cpu.pc = jit_context.pc + 4;
         jit_context.pc = cpu.pc;
     }
 
-    // Return from block
-    builder.CreateRet(llvm::ConstantInt::get(builder.getInt64Ty(), cpu.pc));
+    // Return from block (unless JALR has done it for us)
+    if (!jit_context.emitted_jalr)
+        builder.CreateRet(llvm::ConstantInt::get(builder.getInt64Ty(), cpu.pc));
 
     // Build engine
     std::string error;
@@ -435,12 +440,41 @@ void on_csr(Instruction instruction, u64 pc)
 
 void on_ecall(u64 pc)
 {
-    dbg("ecall");
     interface_cpu->pc = pc;
     ::ecall(*interface_cpu, Instruction(0));
 }
 
+void on_ebreak(u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::ebreak(*interface_cpu, Instruction(0));
+}
+
+void on_uret(u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::uret(*interface_cpu, Instruction(0));
+}
+
+void on_sret(u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::sret(*interface_cpu, Instruction(0));
+}
+
 void on_mret(u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::mret(*interface_cpu, Instruction(0));
+}
+
+void on_wfi(u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::mret(*interface_cpu, Instruction(0));
+}
+
+void on_sfence_vma(u64 pc)
 {
     interface_cpu->pc = pc;
     ::mret(*interface_cpu, Instruction(0));
@@ -477,10 +511,42 @@ u32 on_lw(u64 address, u64 pc, bool* did_succeed)
     return on_load<&CPU::read_32, u32>(address, pc, did_succeed);
 }
 
-void print(u16 value)
+u32 on_ld(u64 address, u64 pc, bool* did_succeed)
 {
-    dbg(value);
-    exit(0);
+    return on_load<&CPU::read_64, u64>(address, pc, did_succeed);
+}
+
+template<auto F, typename T>
+bool on_store(u64 address, T value, u64 pc)
+{
+    interface_cpu->pc = pc;
+    const auto error = (interface_cpu->*F)(address, value, CPU::AccessType::Store);
+    if (error.has_value())
+    {
+        interface_cpu->raise_exception(*error);
+        return false;
+    }
+    return true;
+}
+
+bool on_sb(u64 address, u8 value, u64 pc)
+{
+    return on_store<&CPU::write_8, u8>(address, value, pc);
+}
+
+bool on_sh(u64 address, u16 value, u64 pc)
+{
+    return on_store<&CPU::write_16, u16>(address, value, pc);
+}
+
+bool on_sw(u64 address, u32 value, u64 pc)
+{
+    return on_store<&CPU::write_32, u32>(address, value, pc);
+}
+
+bool on_sd(u64 address, u64 value, u64 pc)
+{
+    return on_store<&CPU::write_64, u64>(address, value, pc);
 }
 
 void JIT::register_interface_functions(
@@ -506,20 +572,6 @@ void JIT::register_interface_functions(
         module
     );
 
-    llvm::FunctionType* print_type = llvm::FunctionType::get
-    (
-        llvm::Type::getVoidTy(context),
-        { llvm::Type::getInt16Ty(context) },
-        false
-    );
-
-    jit_context.print = llvm::Function::Create(
-        print_type,
-        llvm::Function::ExternalLinkage,
-        "print",
-        module
-    );
-
     #define OPCODE_TYPE_1(return_type) llvm::FunctionType::get\
     (\
         return_type,\
@@ -538,6 +590,17 @@ void JIT::register_interface_functions(
         false\
     )
 
+    #define OPCODE_TYPE_3(data_type) llvm::FunctionType::get\
+    (\
+        llvm::Type::getInt1Ty(context),\
+        {\
+            llvm::Type::getInt64Ty(context),\
+            data_type,\
+            llvm::Type::getInt64Ty(context)\
+        },\
+        false\
+    )
+
     #define TWINE_NAME(name) #name
 
     #define OPCODE(name, return_type) jit_context.name = llvm::Function::Create(\
@@ -547,29 +610,21 @@ void JIT::register_interface_functions(
         module\
     )
 
-    OPCODE(on_ecall, OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
-    OPCODE(on_mret,  OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
-    OPCODE(on_lb,    OPCODE_TYPE_2(llvm::Type::getInt8Ty (context)));
-    OPCODE(on_lh,    OPCODE_TYPE_2(llvm::Type::getInt16Ty(context)));
-    OPCODE(on_lw,    OPCODE_TYPE_2(llvm::Type::getInt32Ty(context)));
-
-    const llvm::DataLayout& dataLayout = module->getDataLayout();
-    llvm::StructType* optionalStruct = llvm::StructType::create(
-        context,
-        { llvm::Type::getInt1Ty(context), llvm::Type::getInt16Ty(context) },
-        "a", false
-    );
-    const llvm::StructLayout* structLayout = dataLayout.getStructLayout(optionalStruct);
-
-    std::cout << "Size: " << structLayout->getSizeInBytes() << "\n";
-    // std::cout << "Alignment: " << structLayout->getAlignment().Constant() << "\n";
-    std::cout << "Offset of int1: " << structLayout->getElementOffset(0) << "\n";
-    std::cout << "Offset of int16: " << structLayout->getElementOffset(1) << "\n";
-
-    Optional<u16> bob = {};
-    std::cout << (u64)((u64)&bob.has_value - (u64)&bob) << std::endl;
-    std::cout << (u64)((u64)&bob.value - (u64)&bob) << std::endl;
-    std::cout << sizeof(bob) << std::endl;
+    OPCODE(on_ecall,        OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_ebreak,       OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_uret,         OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_sret,         OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_mret,         OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_wfi,          OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_sfence_vma,   OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_lb,           OPCODE_TYPE_2(llvm::Type::getInt8Ty(context)));
+    OPCODE(on_lh,           OPCODE_TYPE_2(llvm::Type::getInt16Ty(context)));
+    OPCODE(on_lw,           OPCODE_TYPE_2(llvm::Type::getInt32Ty(context)));
+    OPCODE(on_ld,           OPCODE_TYPE_2(llvm::Type::getInt64Ty(context)));
+    OPCODE(on_sb,           OPCODE_TYPE_3(llvm::Type::getInt8Ty(context)));
+    OPCODE(on_sh,           OPCODE_TYPE_3(llvm::Type::getInt16Ty(context)));
+    OPCODE(on_sw,           OPCODE_TYPE_3(llvm::Type::getInt32Ty(context)));
+    OPCODE(on_sd,           OPCODE_TYPE_3(llvm::Type::getInt64Ty(context)));
 }
 
 void JIT::link_interface_functions(
@@ -580,11 +635,20 @@ void JIT::link_interface_functions(
     #define LINK(name)\
         engine->addGlobalMapping(jit_context.name, (void*)&name);
 
-    LINK(print);
     LINK(on_csr);
     LINK(on_ecall);
+    LINK(on_ebreak);
+    LINK(on_uret);
+    LINK(on_sret);
     LINK(on_mret);
+    LINK(on_wfi);
+    LINK(on_sfence_vma);
     LINK(on_lb);
     LINK(on_lh);
     LINK(on_lw);
+    LINK(on_ld);
+    LINK(on_sb);
+    LINK(on_sh);
+    LINK(on_sw);
+    LINK(on_sd);
 }

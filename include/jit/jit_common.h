@@ -9,4 +9,6 @@
 #define u32_im(x) llvm::ConstantInt::get(context.builder.getInt32Ty(), x)
 #define u64_im(x) llvm::ConstantInt::get(context.builder.getInt64Ty(), x)
 #define u64_to_32(x) context.builder.CreateTrunc(x, context.builder.getInt32Ty())
+#define u64_to_16(x) context.builder.CreateTrunc(x, context.builder.getInt16Ty())
+#define u64_to_8(x) context.builder.CreateTrunc(x, context.builder.getInt8Ty())
 #define stop_translation() context.return_pc = context.pc + 4
