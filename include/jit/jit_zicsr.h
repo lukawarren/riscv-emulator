@@ -3,10 +3,10 @@
 
 namespace JIT
 {
-    void csrrw (const Instruction instruction, Context& context);
-    void csrrc (const Instruction instruction, Context& context);
-    void csrrs (const Instruction instruction, Context& context);
-    void csrrwi(const Instruction instruction, Context& context);
-    void csrrsi(const Instruction instruction, Context& context);
-    void csrrci(const Instruction instruction, Context& context);
+    void csrrw (Context& context);
+    void csrrc (Context& context);
+    void csrrs (Context& context);
+    void csrrwi(Context& context);
+    void csrrsi(Context& context);
+    void csrrci(Context& context);
 }

@@ -67,7 +67,7 @@ void JIT::run_next_frame(CPU& cpu)
         }
 
         jit_context.current_instruction = instruction->instruction;
-        assert(emit_instruction(cpu, *instruction, jit_context));
+        assert(emit_instruction(cpu, jit_context));
 
         // Break if we encountered an instruction that requires "intervention"
         if (jit_context.return_pc.has_value())
@@ -118,11 +118,11 @@ void JIT::run_next_frame(CPU& cpu)
     delete engine;
 }
 
-bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
+bool JIT::emit_instruction(CPU& cpu, Context& context)
 {
-    const u8 opcode = instruction.get_opcode();
-    const u8 funct3 = instruction.get_funct3();
-    const u8 funct7 = instruction.get_funct7();
+    const u8 opcode = context.current_instruction.get_opcode();
+    const u8 funct3 = context.current_instruction.get_funct3();
+    const u8 funct7 = context.current_instruction.get_funct7();
 
     switch (opcode)
     {
@@ -137,30 +137,30 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
                 {
                     switch (funct7)
                     {
-                        case 0:   add(instruction, context); break;
-                        case SUB: sub(instruction, context); break;
+                        case 0:   add(context); break;
+                        case SUB: sub(context); break;
                         default:  return false;
                     }
                     break;
                 }
-                case XOR: _xor(instruction, context); break;
-                case OR:  _or (instruction, context); break;
-                case AND: _and(instruction, context); break;
-                case SLL:  sll(instruction, context); break;
+                case XOR: _xor(context); break;
+                case OR:  _or (context); break;
+                case AND: _and(context); break;
+                case SLL:  sll(context); break;
 
                 case OPCODES_SHIFT_RIGHT:
                 {
                     switch (funct7)
                     {
-                        case SRL: srl(instruction, context); break;
-                        case SRA: sra(instruction, context); break;
+                        case SRL: srl(context); break;
+                        case SRA: sra(context); break;
                         default:  return false;
                     }
                     break;
                 }
 
-                case SLT:  slt (instruction, context); break;
-                case SLTU: sltu(instruction, context); break;
+                case SLT:  slt (context); break;
+                case SLTU: sltu(context); break;
                 default:   return false;
             }
             break;
@@ -170,25 +170,25 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
         {
             switch (funct3)
             {
-                case ADDI: addi(instruction, context); break;
-                case XORI: xori(instruction, context); break;
-                case ORI:  ori (instruction, context); break;
-                case ANDI: andi(instruction, context); break;
-                case SLLI: slli(instruction, context); break;
+                case ADDI: addi(context); break;
+                case XORI: xori(context); break;
+                case ORI:  ori (context); break;
+                case ANDI: andi(context); break;
+                case SLLI: slli(context); break;
 
                 case OPCODES_SHIFT_RIGHT:
                 {
                     switch (funct7 & 0b11111110)
                     {
-                        case SRAI: srai(instruction, context); break;
-                        case 0:    srli(instruction, context); break;
+                        case SRAI: srai(context); break;
+                        case 0:    srli(context); break;
                         default:   return false;
                     }
                     break;
                 }
 
-                case SLTI:  slti (instruction, context); break;
-                case SLTIU: sltiu(instruction, context); break;
+                case SLTI:  slti (context); break;
+                case SLTIU: sltiu(context); break;
                 default:    return false;
             }
             break;
@@ -198,15 +198,15 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
         {
             switch (funct3)
             {
-                case LB:    lb (instruction, context); break;
-                case LH:    lh (instruction, context); break;
-                case LW:    lw (instruction, context); break;
-                case LBU:   lbu(instruction, context); break;
-                case LHU:   lhu(instruction, context); break;
+                case LB:    lb (context); break;
+                case LH:    lh (context); break;
+                case LW:    lw (context); break;
+                case LBU:   lbu(context); break;
+                case LHU:   lhu(context); break;
 
                 // RV64I-specific
-                case LWU:   lwu(instruction, context); break;
-                case LD:    ld (instruction, context); break;
+                case LWU:   lwu(context); break;
+                case LD:    ld (context); break;
                 default:    return false;
             }
             break;
@@ -216,10 +216,10 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
         {
             switch (funct3)
             {
-                case SB:    sb(instruction, context); break;
-                case SH:    sh(instruction, context); break;
-                case SW:    sw(instruction, context); break;
-                case SD:    sd(instruction, context); break; // RV64I
+                case SB:    sb(context); break;
+                case SH:    sh(context); break;
+                case SW:    sw(context); break;
+                case SD:    sd(context); break; // RV64I
                 default:    return false;
             }
             break;
@@ -229,21 +229,21 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
         {
             switch (funct3)
             {
-                case BEQ:   beq (instruction, context); break;
-                case BNE:   bne (instruction, context); break;
-                case BLT:   blt (instruction, context); break;
-                case BGE:   bge (instruction, context); break;
-                case BLTU:  bltu(instruction, context); break;
-                case BGEU:  bgeu(instruction, context); break;
+                case BEQ:   beq (context); break;
+                case BNE:   bne (context); break;
+                case BLT:   blt (context); break;
+                case BGE:   bge (context); break;
+                case BLTU:  bltu(context); break;
+                case BGEU:  bgeu(context); break;
                 default:    return false;
             }
             break;
         }
 
-        case JAL:   jal  (instruction, context); break;
-        case JALR:  jalr (instruction, context); break;
-        case LUI:   lui  (instruction, context); break;
-        case AUIPC: auipc(instruction, context); break;
+        case JAL:   jal  (context); break;
+        case JALR:  jalr (context); break;
+        case LUI:   lui  (context); break;
+        case AUIPC: auipc(context); break;
 
         case OPCODES_BASE_SYSTEM:
         {
@@ -252,12 +252,12 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
             {
                 switch (funct3)
                 {
-                    case CSRRW:     csrrw (instruction, context); break;
-                    case CSRRS:     csrrs (instruction, context); break;
-                    case CSRRC:     csrrc (instruction, context); break;
-                    case CSRRWI:    csrrwi(instruction, context); break;
-                    case CSRRSI:    csrrsi(instruction, context); break;
-                    case CSRRCI:    csrrci(instruction, context); break;
+                    case CSRRW:     csrrw (context); break;
+                    case CSRRS:     csrrs (context); break;
+                    case CSRRC:     csrrc (context); break;
+                    case CSRRWI:    csrrwi(context); break;
+                    case CSRRSI:    csrrsi(context); break;
+                    case CSRRCI:    csrrci(context); break;
 
                     default:
                         return false;
@@ -265,47 +265,47 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
                 break;
             }
 
-            const u8 rs2 = instruction.get_rs2();
+            const u8 rs2 = context.current_instruction.get_rs2();
 
             if (rs2 == ECALL && funct7 == 0)
             {
-                ecall(instruction, context);
+                ecall(context);
                 return true;
             }
 
             if (rs2 == EBREAK && funct7 == 0)
             {
-                ebreak(instruction, context);
+                ebreak(context);
                 return true;
             }
 
             if (rs2 == URET && funct7 == 0)
             {
-                uret(instruction, context);
+                uret(context);
                 return true;
             }
 
             if (rs2 == 2 && funct7 == SRET)
             {
-                sret(instruction, context);
+                sret(context);
                 return true;
             }
 
             if (rs2 == 2 && funct7 == MRET)
             {
-                mret(instruction, context);
+                mret(context);
                 return true;
             }
 
             if (rs2 == 5 && funct7 == WFI)
             {
-                wfi(instruction, context);
+                wfi(context);
                 return true;
             }
 
             if (funct7 == SFENCE_VMA)
             {
-                sfence_vma(instruction, context);
+                sfence_vma(context);
                 return true;
             }
 
@@ -325,15 +325,15 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
         {
             switch (funct3)
             {
-                case ADDIW: addiw(instruction, context); break;
-                case SLLIW: slliw(instruction, context); break;
+                case ADDIW: addiw(context); break;
+                case SLLIW: slliw(context); break;
 
                 case OPCODES_SHIFT_RIGHT:
                 {
                     switch (funct7)
                     {
-                        case SRLIW: srliw(instruction, context); break;
-                        case SRAIW: sraiw(instruction, context); break;
+                        case SRLIW: srliw(context); break;
+                        case SRAIW: sraiw(context); break;
                         default:    return false;
                     }
                     break;
@@ -355,21 +355,21 @@ bool JIT::emit_instruction(CPU& cpu, Instruction instruction, Context& context)
                 {
                     switch (funct7)
                     {
-                        case ADDW:  addw(instruction, context); break;
-                        case SUBW:  subw(instruction, context); break;
+                        case ADDW:  addw(context); break;
+                        case SUBW:  subw(context); break;
                         default:    return false;
                     }
                     break;
                 }
 
-                case SLLW: sllw(instruction, context); break;
+                case SLLW: sllw(context); break;
 
                 case OPCODES_SHIFT_RIGHT:
                 {
                     switch (funct7)
                     {
-                        case SRLW:  srlw(instruction, context); break;
-                        case SRAW:  sraw(instruction, context); break;
+                        case SRLW:  srlw(context); break;
+                        case SRAW:  sraw(context); break;
                         default:    return false;
                     }
                     break;
@@ -429,7 +429,6 @@ void JIT::store_register(Context& context, u32 index, llvm::Value* value)
 
 void on_csr(Instruction instruction, u64 pc)
 {
-    dbg("csr");
     interface_cpu->pc = pc;
     ::opcodes_zicsr(*interface_cpu, instruction);
 }
@@ -447,18 +446,42 @@ void on_mret(u64 pc)
     ::mret(*interface_cpu, Instruction(0));
 }
 
-#if DEBUG_JIT
-void on_branch_fail(u64 pc)
+template<auto F, typename T>
+T on_load(u64 address, u64 pc, bool* did_succeed)
 {
-    static int i = 0;
-    if (i == 2)
+    interface_cpu->pc = pc;
+    const auto value = (interface_cpu->*F)(address, CPU::AccessType::Load);
+    if (!value)
     {
-        dbg("branch failed", dbg::hex(pc));
-        //exit(1);
+        interface_cpu->raise_exception(value.error());
+        *did_succeed = false;
+        return 0;
     }
-    i++;
+
+    *did_succeed = true;
+    return *value;
 }
-#endif
+
+u8 on_lb(u64 address, u64 pc, bool* did_succeed)
+{
+    return on_load<&CPU::read_8, u8>(address, pc, did_succeed);
+}
+
+u16 on_lh(u64 address, u64 pc, bool* did_succeed)
+{
+    return on_load<&CPU::read_16, u16>(address, pc, did_succeed);
+}
+
+u32 on_lw(u64 address, u64 pc, bool* did_succeed)
+{
+    return on_load<&CPU::read_32, u32>(address, pc, did_succeed);
+}
+
+void print(u16 value)
+{
+    dbg(value);
+    exit(0);
+}
 
 void JIT::register_interface_functions(
     llvm::Module* module,
@@ -476,13 +499,6 @@ void JIT::register_interface_functions(
         false
     );
 
-    llvm::FunctionType* opcode_type = llvm::FunctionType::get
-    (
-        llvm::Type::getVoidTy(context),
-        { llvm::Type::getInt64Ty(context) },
-        false
-    );
-
     jit_context.on_csr = llvm::Function::Create(
         on_csr_type,
         llvm::Function::ExternalLinkage,
@@ -490,26 +506,70 @@ void JIT::register_interface_functions(
         module
     );
 
-    jit_context.on_ecall = llvm::Function::Create(
-        opcode_type,
+    llvm::FunctionType* print_type = llvm::FunctionType::get
+    (
+        llvm::Type::getVoidTy(context),
+        { llvm::Type::getInt16Ty(context) },
+        false
+    );
+
+    jit_context.print = llvm::Function::Create(
+        print_type,
         llvm::Function::ExternalLinkage,
-        "on_ecall",
+        "print",
         module
     );
 
-    jit_context.on_mret = llvm::Function::Create(
-        opcode_type,
-        llvm::Function::ExternalLinkage,
-        "on_mret",
-        module
-    );
+    #define OPCODE_TYPE_1(return_type) llvm::FunctionType::get\
+    (\
+        return_type,\
+        { llvm::Type::getInt64Ty(context) },\
+        false\
+    )
 
-    jit_context.on_branch_fail = llvm::Function::Create(
-        opcode_type,
-        llvm::Function::ExternalLinkage,
-        "on_branch_fail",
-        module
+    #define OPCODE_TYPE_2(return_type) llvm::FunctionType::get\
+    (\
+        return_type,\
+        {\
+            llvm::Type::getInt64Ty(context),\
+            llvm::Type::getInt64Ty(context),\
+            llvm::PointerType::get(llvm::Type::getInt1Ty(context), 0)\
+        },\
+        false\
+    )
+
+    #define TWINE_NAME(name) #name
+
+    #define OPCODE(name, return_type) jit_context.name = llvm::Function::Create(\
+        return_type,\
+        llvm::Function::ExternalLinkage,\
+        TWINE_NAME(name),\
+        module\
+    )
+
+    OPCODE(on_ecall, OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_mret,  OPCODE_TYPE_1(llvm::Type::getVoidTy(context)));
+    OPCODE(on_lb,    OPCODE_TYPE_2(llvm::Type::getInt8Ty (context)));
+    OPCODE(on_lh,    OPCODE_TYPE_2(llvm::Type::getInt16Ty(context)));
+    OPCODE(on_lw,    OPCODE_TYPE_2(llvm::Type::getInt32Ty(context)));
+
+    const llvm::DataLayout& dataLayout = module->getDataLayout();
+    llvm::StructType* optionalStruct = llvm::StructType::create(
+        context,
+        { llvm::Type::getInt1Ty(context), llvm::Type::getInt16Ty(context) },
+        "a", false
     );
+    const llvm::StructLayout* structLayout = dataLayout.getStructLayout(optionalStruct);
+
+    std::cout << "Size: " << structLayout->getSizeInBytes() << "\n";
+    // std::cout << "Alignment: " << structLayout->getAlignment().Constant() << "\n";
+    std::cout << "Offset of int1: " << structLayout->getElementOffset(0) << "\n";
+    std::cout << "Offset of int16: " << structLayout->getElementOffset(1) << "\n";
+
+    Optional<u16> bob = {};
+    std::cout << (u64)((u64)&bob.has_value - (u64)&bob) << std::endl;
+    std::cout << (u64)((u64)&bob.value - (u64)&bob) << std::endl;
+    std::cout << sizeof(bob) << std::endl;
 }
 
 void JIT::link_interface_functions(
@@ -517,8 +577,14 @@ void JIT::link_interface_functions(
     Context& jit_context
 )
 {
-    engine->addGlobalMapping(jit_context.on_csr,   (void*)&on_csr);
-    engine->addGlobalMapping(jit_context.on_ecall, (void*)&on_ecall);
-    engine->addGlobalMapping(jit_context.on_mret,  (void*)&on_mret);
-    engine->addGlobalMapping(jit_context.on_branch_fail,  (void*)&on_branch_fail);
+    #define LINK(name)\
+        engine->addGlobalMapping(jit_context.name, (void*)&name);
+
+    LINK(print);
+    LINK(on_csr);
+    LINK(on_ecall);
+    LINK(on_mret);
+    LINK(on_lb);
+    LINK(on_lh);
+    LINK(on_lw);
 }

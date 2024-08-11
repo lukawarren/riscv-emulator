@@ -7,9 +7,9 @@ using namespace JIT;
     context.builder.CreateCall(context.on_csr, { u32_im(context.current_instruction.instruction), u64_im(context.pc) });\
     stop_translation();
 
-void JIT::csrrw (const Instruction instruction, Context& context) { FALL_BACK(); }
-void JIT::csrrc (const Instruction instruction, Context& context) { FALL_BACK(); }
-void JIT::csrrs (const Instruction instruction, Context& context) { FALL_BACK(); }
-void JIT::csrrwi(const Instruction instruction, Context& context) { FALL_BACK(); }
-void JIT::csrrsi(const Instruction instruction, Context& context) { FALL_BACK(); }
-void JIT::csrrci(const Instruction instruction, Context& context) { FALL_BACK(); }
+void JIT::csrrw (Context& context) { FALL_BACK(); }
+void JIT::csrrc (Context& context) { FALL_BACK(); }
+void JIT::csrrs (Context& context) { FALL_BACK(); }
+void JIT::csrrwi(Context& context) { FALL_BACK(); }
+void JIT::csrrsi(Context& context) { FALL_BACK(); }
+void JIT::csrrci(Context& context) { FALL_BACK(); }

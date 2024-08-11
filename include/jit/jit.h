@@ -20,18 +20,29 @@ namespace JIT
         // Variables
         llvm::Value* registers;
         u64 pc;
+        Instruction current_instruction;
 
         // Interface functions
         llvm::Function* on_csr;
         llvm::Function* on_ecall;
         llvm::Function* on_mret;
-        llvm::Function* on_branch_fail;
+        llvm::Function* on_lb;
+        llvm::Function* on_lh;
+        llvm::Function* on_lw;
+        llvm::Function* print;
 
-        // Early return
+        // For early return
         std::optional<u64> return_pc = std::nullopt;
+    };
 
-        // For falling back to the interpreter
-        Instruction current_instruction;
+    template <typename T>
+    struct Optional
+    {
+        bool has_value;
+        T value;
+
+        Optional() : has_value(false) {}
+        Optional(T value) : has_value(true), value(value) {}
     };
 
     void init();
@@ -47,11 +58,10 @@ namespace JIT
     );
     bool emit_instruction(
         CPU& cpu,
-        const Instruction instruction,
         Context& context
     );
 
     llvm::Value* get_registers(CPU& cpu, llvm::IRBuilder<>& builder);
     llvm::Value* load_register(Context& context, u32 index);
     void store_register(Context& context, u32 index, llvm::Value* value);
-}
+;}
