@@ -7,7 +7,6 @@ using namespace JIT;
 static void emit_branch(Context& context, llvm::Value* condition);
 static llvm::Value* get_load_address(Context& context);
 static llvm::Value* get_store_address(Context& context);
-static void call_handler_and_return(Context& context, llvm::Function* f);
 
 void JIT::add(Context& context)
 {
@@ -437,21 +436,3 @@ static llvm::Value* get_store_address(Context& context)
     );
 }
 
-static void call_handler_and_return(Context& context, llvm::Function* f)
-{
-    // LLVM won't let us just return in the middle of a block, so we always
-    // return true and return inside that block instead
-    llvm::Value* result = context.builder.CreateCall(f, { u64_im(context.pc) });
-
-    llvm::Function* root = context.builder.GetInsertBlock()->getParent();
-    llvm::BasicBlock* return_block = llvm::BasicBlock::Create(context.context);
-    llvm::BasicBlock* failure_block = llvm::BasicBlock::Create(context.context);
-    context.builder.CreateCondBr(result, return_block, failure_block);
-
-    context.builder.SetInsertPoint(return_block);
-    context.builder.CreateRet(u64_im(context.pc + 4));
-    root->insert(root->end(), return_block);
-
-    context.builder.SetInsertPoint(failure_block);
-    root->insert(root->end(), failure_block);
-}

@@ -310,7 +310,7 @@ void c_jalr(CPU& cpu, const CompressedInstruction instruction)
 void c_beqz(CPU& cpu, const CompressedInstruction instruction)
 {
     // Minus 2 as will be added by the caller
-    const u8 rs1 = instruction.get_rd_with_offset();
+    const u8 rs1 = instruction.get_rs1_alt();
     if (cpu.registers[rs1] == 0)
         cpu.pc += instruction.get_branch_offset() - 2;
 }
@@ -318,9 +318,21 @@ void c_beqz(CPU& cpu, const CompressedInstruction instruction)
 void c_bnez(CPU& cpu, const CompressedInstruction instruction)
 {
     // Minus 2 as will be added by the caller
-    const u8 rs1 = instruction.get_rd_with_offset();
+    const u8 rs1 = instruction.get_rs1_alt();
     if (cpu.registers[rs1] != 0)
         cpu.pc += instruction.get_branch_offset() - 2;
+}
+
+void c_li(CPU& cpu, const CompressedInstruction instruction)
+{
+    const u64 imm = instruction.get_none_zero_imm();
+    cpu.registers[instruction.get_rd()] = imm;
+}
+
+void c_lui(CPU& cpu, const CompressedInstruction instruction)
+{
+    const u64 imm = instruction.get_lui_non_zero_imm();
+    cpu.registers[instruction.get_rd()] = imm;
 }
 
 void c_addi(CPU& cpu, const CompressedInstruction instruction)
@@ -337,18 +349,6 @@ void c_addiw(CPU& cpu, const CompressedInstruction instruction)
     // Take the lower 32 bits, then sign extend to 64
     const u64 extended = (i64)(i32)(result & 0xffffffff);
     cpu.registers[instruction.get_rd()] = extended;
-}
-
-void c_li(CPU& cpu, const CompressedInstruction instruction)
-{
-    const u64 imm = instruction.get_none_zero_imm();
-    cpu.registers[instruction.get_rd()] = imm;
-}
-
-void c_lui(CPU& cpu, const CompressedInstruction instruction)
-{
-    const u64 imm = instruction.get_lui_non_zero_imm();
-    cpu.registers[instruction.get_rd()] = imm;
 }
 
 void c_addi16sp(CPU& cpu, const CompressedInstruction instruction)
@@ -403,7 +403,7 @@ void c_add(CPU& cpu, const CompressedInstruction instruction)
 void c_addw(CPU& cpu, const CompressedInstruction instruction)
 {
     const u8 rd = instruction.get_rs1_alt();
-    const u8 rs2 = instruction.get_rd_alt();
+    const u8 rs2 = instruction.get_rs2_alt();
 
     // Take the lower 32 bits, then sign extend to 64
     const u64 result = cpu.registers[rd] + cpu.registers[rs2];

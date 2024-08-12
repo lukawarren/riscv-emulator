@@ -1,7 +1,11 @@
 #pragma once
 
 #define rs1 load_register(context, context.current_instruction.get_rs1())
+#define rs1_c load_register(context, context.current_compressed_instruction.get_rs1())
+#define rs1_c_alt load_register(context, context.current_compressed_instruction.get_rs1_alt())
 #define rs2 load_register(context, context.current_instruction.get_rs2())
+#define rs2_c load_register(context, context.current_compressed_instruction.get_rs2())
+#define rs2_c_alt load_register(context, context.current_compressed_instruction.get_rs2_alt())
 #define sp load_register(context, 2)
 #define set_rd(r) store_register(context, context.current_instruction.get_rd(), r)
 #define set_rd_c(r) store_register(context, context.current_compressed_instruction.get_rd(), r)
@@ -118,4 +122,23 @@ void perform_store(JIT::Context& context, llvm::Function* f, llvm::Value* value,
     // Success block - carry on
     context.builder.SetInsertPoint(success_block);
     function->insert(function->end(), success_block);
+}
+
+inline void call_handler_and_return(JIT::Context& context, llvm::Function* f)
+{
+    // LLVM won't let us just return in the middle of a block, so we always
+    // return true and return inside that block instead
+    llvm::Value* result = context.builder.CreateCall(f, { u64_im(context.pc) });
+
+    llvm::Function* root = context.builder.GetInsertBlock()->getParent();
+    llvm::BasicBlock* return_block = llvm::BasicBlock::Create(context.context);
+    llvm::BasicBlock* failure_block = llvm::BasicBlock::Create(context.context);
+    context.builder.CreateCondBr(result, return_block, failure_block);
+
+    context.builder.SetInsertPoint(return_block);
+    context.builder.CreateRet(u64_im(context.pc + 4));
+    root->insert(root->end(), return_block);
+
+    context.builder.SetInsertPoint(failure_block);
+    root->insert(root->end(), failure_block);
 }

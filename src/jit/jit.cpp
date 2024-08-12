@@ -60,7 +60,8 @@ void JIT::run_next_frame(CPU& cpu)
         if ((cpu.pc & 0b1) != 0)
         {
             cpu.raise_exception(Exception::InstructionAddressMisaligned, cpu.pc);
-            assert(false);
+            delete module;
+            return;
         }
 
         cpu.trace();
@@ -93,7 +94,7 @@ void JIT::run_next_frame(CPU& cpu)
         }
 
         // Check it's valid
-        if (!instruction.has_value() || instruction->instruction == 0xffffffff || instruction->instruction == 0)
+        if (!is_compressed && (instruction->instruction == 0xffffffff || instruction->instruction == 0))
         {
             if (frame_empty)
             {
@@ -114,7 +115,10 @@ void JIT::run_next_frame(CPU& cpu)
             else break;
         }
 
-        jit_context.current_instruction = *instruction;
+        if (is_compressed)
+            jit_context.current_compressed_instruction = *half_instruction;
+        else
+            jit_context.current_instruction = *instruction;
 
         if ((is_compressed && emit_compressed_instruction(cpu, jit_context)) ||
             (!is_compressed && emit_instruction(cpu, jit_context)))
@@ -166,7 +170,7 @@ void JIT::run_next_frame(CPU& cpu)
     engine->finalizeObject();
 
 #if DEBUG_JIT
-    module->print(llvm::outs(), nullptr);
+    //module->print(llvm::outs(), nullptr);
     assert(!llvm::verifyModule(*module, &llvm::errs()));
 #endif
 
