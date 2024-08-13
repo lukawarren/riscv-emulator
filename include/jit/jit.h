@@ -49,10 +49,6 @@ namespace JIT
         llvm::Function* on_atomic;
         llvm::Function* on_floating;
         llvm::Function* on_floating_compressed;
-
-        // For early return
-        std::optional<u64> return_pc = std::nullopt;
-        bool emitted_jalr = false;
     };
 
     template <typename T>

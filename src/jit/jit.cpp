@@ -14,7 +14,8 @@
 
 using namespace JIT;
 
-#define DEBUG_JIT true
+#define DEBUG_JIT false
+#define FRAME_LIMIT 10000
 
 // Global CPU pointer (for this file only) for said interface functions
 static CPU* interface_cpu = nullptr;
@@ -54,7 +55,8 @@ void JIT::run_next_frame(CPU& cpu)
 
     // Build blocks
     bool frame_empty = true;
-    while (true)
+    int i;
+    for (i = 0; i < FRAME_LIMIT; ++i)
     {
         // Check for 16-bit alignment
         if ((cpu.pc & 0b1) != 0)
@@ -64,7 +66,9 @@ void JIT::run_next_frame(CPU& cpu)
             return;
         }
 
+#if DEBUG_JIT
         cpu.trace();
+#endif
 
         // Try to get a compressed instruction...
         const std::expected<CompressedInstruction, Exception> half_instruction =
@@ -135,26 +139,20 @@ void JIT::run_next_frame(CPU& cpu)
                 break;
         }
 
-        // Break if we encountered an instruction that requires "intervention"...
-        if (jit_context.return_pc.has_value())
-        {
-            cpu.pc = *jit_context.return_pc;
-            break;
-        }
-
-        // ...except JALR is special
-        if (jit_context.emitted_jalr)
-            break;
-
         cpu.pc = jit_context.pc + (is_compressed ? 2 : 4);
         jit_context.pc = cpu.pc;
     }
 
-    // Return from block (unless JALR has done it for us)
-    if (!jit_context.emitted_jalr)
-        builder.CreateRet(llvm::ConstantInt::get(builder.getInt64Ty(), cpu.pc));
+    static int average_i = 0;
+    static int n = 0;
+    average_i += i;
+    n += 1;
+    dbg((float)average_i / (float)n);
 
-    // Build engine
+    // Return from block
+    builder.CreateRet(llvm::ConstantInt::get(builder.getInt64Ty(), cpu.pc));
+
+    // Build engine - TODO: fix tests that fail under optimisations so that they can occur??
     std::string error;
     llvm::ExecutionEngine* engine = llvm::EngineBuilder(std::unique_ptr<llvm::Module>(module))
         .setErrorStr(&error)
@@ -170,7 +168,7 @@ void JIT::run_next_frame(CPU& cpu)
     engine->finalizeObject();
 
 #if DEBUG_JIT
-    //module->print(llvm::outs(), nullptr);
+    module->print(llvm::outs(), nullptr);
     assert(!llvm::verifyModule(*module, &llvm::errs()));
 #endif
 
@@ -179,6 +177,7 @@ void JIT::run_next_frame(CPU& cpu)
     auto run = (u64(*)())engine->getFunctionAddress("jit_main");
     u64 next_pc = run();
     cpu.pc = next_pc;
+    dbg((i64)cpu.pc - (i64)starting_pc);
 
     // If the next PC is inside the already JIT'ed block, we don't need to compile
     // again, but can instead just jump back... but only if the block *starts*
@@ -1015,6 +1014,9 @@ bool on_sfence_vma(u64 pc)
 template<auto F, typename T>
 T on_load(u64 address, u64 pc, bool* did_succeed)
 {
+    // TODO: remove
+    interface_cpu->invalidate_tlb();
+
     interface_cpu->pc = pc;
     const auto value = (interface_cpu->*F)(address, CPU::AccessType::Load);
     if (!value)
@@ -1051,6 +1053,9 @@ u32 on_ld(u64 address, u64 pc, bool* did_succeed)
 template<auto F, typename T>
 bool on_store(u64 address, T value, u64 pc)
 {
+    // TODO: remove
+    interface_cpu->invalidate_tlb();
+
     interface_cpu->pc = pc;
     const auto error = (interface_cpu->*F)(address, value, CPU::AccessType::Store);
     if (error.has_value())

@@ -18,7 +18,6 @@
 #define u64_to_32(x) context.builder.CreateTrunc(x, context.builder.getInt32Ty())
 #define u64_to_16(x) context.builder.CreateTrunc(x, context.builder.getInt16Ty())
 #define u64_to_8(x) context.builder.CreateTrunc(x, context.builder.getInt8Ty())
-#define stop_translation() context.return_pc = context.pc + 4
 
 #ifdef JIT_ENABLE_FALLBACK
 static void fall_back(llvm::Function* function, JIT::Context& context, bool is_compressed = false)
@@ -124,21 +123,29 @@ void perform_store(JIT::Context& context, llvm::Function* f, llvm::Value* value,
     function->insert(function->end(), success_block);
 }
 
-inline void call_handler_and_return(JIT::Context& context, llvm::Function* f)
+inline void create_non_terminating_return(JIT::Context& context, llvm::Value* pc, llvm::Value* condition = nullptr)
 {
-    // LLVM won't let us just return in the middle of a block, so we always
-    // return true and return inside that block instead
-    llvm::Value* result = context.builder.CreateCall(f, { u64_im(context.pc) });
+    if (condition == nullptr)
+        condition = u1_im(true);
 
     llvm::Function* root = context.builder.GetInsertBlock()->getParent();
     llvm::BasicBlock* return_block = llvm::BasicBlock::Create(context.context);
     llvm::BasicBlock* failure_block = llvm::BasicBlock::Create(context.context);
-    context.builder.CreateCondBr(result, return_block, failure_block);
+    context.builder.CreateCondBr(condition, return_block, failure_block);
 
     context.builder.SetInsertPoint(return_block);
-    context.builder.CreateRet(u64_im(context.pc + 4));
+    context.builder.CreateRet(pc);
     root->insert(root->end(), return_block);
 
     context.builder.SetInsertPoint(failure_block);
     root->insert(root->end(), failure_block);
+}
+
+inline void call_handler_and_return(JIT::Context& context, llvm::Function* f)
+{
+    create_non_terminating_return(
+        context,
+        u64_im(context.pc + 4),
+        context.builder.CreateCall(f, { u64_im(context.pc) })
+    );
 }

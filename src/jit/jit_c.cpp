@@ -111,18 +111,14 @@ void JIT::c_jr(Context& context)
     const auto _rs1 = context.current_compressed_instruction.get_rs1();
     if (_rs1 != 0)
     {
-        context.builder.CreateRet(
-            load_register(context, _rs1)
-        );
-        context.emitted_jalr = true;
+        create_non_terminating_return(context, load_register(context, _rs1));
     }
 }
 
 void JIT::c_jalr(Context& context)
 {
     store_register(context, 1, u64_im(context.pc + 2));
-    context.builder.CreateRet(rs1_c);
-    context.emitted_jalr = true;
+    create_non_terminating_return(context, rs1_c);
 }
 
 void JIT::c_beqz(Context& context)

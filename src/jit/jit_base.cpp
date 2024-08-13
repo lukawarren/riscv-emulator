@@ -262,8 +262,7 @@ void JIT::jalr(Context& context)
     );
 
     // We don't know the final PC at compile time so must return
-    context.builder.CreateRet(offset);
-    context.emitted_jalr = true;
+    create_non_terminating_return(context, offset);
 }
 
 void JIT::lui(Context& context)

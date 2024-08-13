@@ -125,7 +125,17 @@ int main(int argc, char** argv)
         try
         {
             while(true)
+            {
                 JIT::run_next_frame(cpu);
+                cpu.bus.clock(cpu);
+                cpu.mcycle.increment(cpu);
+                cpu.minstret.increment(cpu);
+                cpu.time.increment(cpu);
+
+                const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
+                if (trap.has_value())
+                    cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
+            }
         }
         catch (std::string& e)
         {
