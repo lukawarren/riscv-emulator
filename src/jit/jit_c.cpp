@@ -295,7 +295,7 @@ void JIT::c_subw(Context& context)
 
 void JIT::c_ebreak(Context& context)
 {
-    call_handler_and_return(context, context.on_ebreak);
+    call_handler_and_return(context, context.on_c_ebreak);
 }
 
 // -- Helpers --

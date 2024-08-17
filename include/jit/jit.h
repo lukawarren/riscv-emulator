@@ -28,6 +28,7 @@ namespace JIT
         // Base interface functions
         llvm::Function* on_ecall;
         llvm::Function* on_ebreak;
+        llvm::Function* on_c_ebreak;
         llvm::Function* on_uret;
         llvm::Function* on_sret;
         llvm::Function* on_mret;
@@ -87,6 +88,9 @@ namespace JIT
     );
     void cache_frame(
         Frame& frame
+    );
+    bool check_for_exceptions(
+        CPU& cpu
     );
     std::optional<Frame> get_cached_frame(
         u64 pc

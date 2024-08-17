@@ -35,9 +35,9 @@ static void fall_back(llvm::Function* function, JIT::Context& context, bool is_c
     llvm::BasicBlock* failure_block = llvm::BasicBlock::Create(context.context);
     context.builder.CreateCondBr(did_succeed, success_block, failure_block);
 
-    // Exception occured so the PC's about to change - abort!
+    // Exception occured; return
     context.builder.SetInsertPoint(failure_block);
-    context.builder.CreateRet(u64_im(0));
+    context.builder.CreateRet(u64_im(context.pc));
     root->insert(root->end(), failure_block);
 
     // All went well; carry on
@@ -146,7 +146,7 @@ inline void call_handler_and_return(JIT::Context& context, llvm::Function* f)
 {
     create_non_terminating_return(
         context,
-        u64_im(context.pc + 4),
-        context.builder.CreateCall(f, { u64_im(context.pc) })
+        context.builder.CreateCall(f, { u64_im(context.pc) }),
+        nullptr
     );
 }

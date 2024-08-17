@@ -57,7 +57,9 @@ void JIT::run_next_frame(CPU& cpu)
         frame = compile_next_frame(cpu);
         if (!frame.has_value())
         {
-            // Some sort of exception occured; we will deal with it next time
+            // Some sort of exception occured when fetching the instruction
+            // We will deal with it later but we must still raise it
+            check_for_exceptions(cpu);
             return;
         }
 
@@ -220,7 +222,7 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
     link_interface_functions(engine, jit_context);
 
 #if DEBUG_JIT
-    module->print(llvm::outs(), nullptr);
+    // module->print(llvm::outs(), nullptr);
     assert(!llvm::verifyModule(*module, &llvm::errs()));
     assert(!llvm::verifyFunction(*function, &llvm::errs()));
 #endif
@@ -234,23 +236,12 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
 
 void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
 {
-    const auto check_for_exceptions = [&]()
-    {
-        const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
-        if (trap.has_value())
-        {
-            cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
-            return false;
-        }
-        return true;
-    };
-
     // Run
     interface_cpu = &cpu;
     auto run = (u64(*)(u64))frame.engine->getFunctionAddress("jit_main");
     u64 next_pc = run(pc);
     cpu.pc = next_pc;
-    if (!check_for_exceptions())
+    if (!check_for_exceptions(cpu))
         return;
 
     // If the next PC is inside the already JIT'ed block, we can instead just jump back
@@ -259,7 +250,7 @@ void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
         next_pc = run(next_pc);
         cpu.pc = next_pc;
 
-        if (!check_for_exceptions())
+        if (!check_for_exceptions(cpu))
             return;
     }
 }
@@ -278,6 +269,17 @@ std::optional<Frame> JIT::get_cached_frame(u64 pc)
     }
 
     return std::nullopt;
+}
+
+bool JIT::check_for_exceptions(CPU& cpu)
+{
+    const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
+    if (trap.has_value())
+    {
+        cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
+        return false;
+    }
+    return true;
 }
 
 bool JIT::emit_instruction(CPU& cpu, Context& context)
@@ -1050,55 +1052,77 @@ void JIT::store_register(Context& context, u32 index, llvm::Value* value)
     context.builder.CreateStore(value, element_pointer);
 }
 
-bool on_ecall(u64 pc)
+/*
+    The following on_* opcodes return the next program counter.
+    Unfortunately, should an exception occur (which for some opcodes
+    is all the time), the PC will be 2 or 4 too high as a result, meaning
+    the exception's info field might be wrong. Hence care should be taken
+    to return the PC of the next valid instruction, but *only* *if no
+    exception occurred! The interpeter does this too, but for every opcode.
+*/
+#define RETURN_FROM_OPCODE_HANDLER(x)\
+    if (interface_cpu->pending_trap.has_value())\
+        return interface_cpu->pc;\
+    else\
+        return interface_cpu->pc + x;
+
+u64 on_ecall(u64 pc)
 {
     interface_cpu->pc = pc;
     ::ecall(*interface_cpu, Instruction(0));
-    return true;
+    RETURN_FROM_OPCODE_HANDLER(4);
 }
 
-bool on_ebreak(u64 pc)
+u64 on_ebreak(u64 pc)
 {
     interface_cpu->pc = pc;
     ::ebreak(*interface_cpu, Instruction(0));
-    return true;
+    RETURN_FROM_OPCODE_HANDLER(4);
 }
 
-bool on_uret(u64 pc)
+u64 on_c_ebreak(u64 pc)
+{
+    interface_cpu->pc = pc;
+    ::ebreak(*interface_cpu, Instruction(0));
+    RETURN_FROM_OPCODE_HANDLER(2);
+}
+
+u64 on_uret(u64 pc)
 {
     interface_cpu->pc = pc;
     ::uret(*interface_cpu, Instruction(0));
-    return true;
+    RETURN_FROM_OPCODE_HANDLER(4);
 }
 
-bool on_sret(u64 pc)
+u64 on_sret(u64 pc)
 {
     interface_cpu->pc = pc;
     ::sret(*interface_cpu, Instruction(0));
-    return true;
+    RETURN_FROM_OPCODE_HANDLER(4);
 }
 
-bool on_mret(u64 pc)
+u64 on_mret(u64 pc)
 {
     interface_cpu->pc = pc;
     ::mret(*interface_cpu, Instruction(0));
-    return true;
+    dbg("mret", dbg::hex(interface_cpu->pc));
+    RETURN_FROM_OPCODE_HANDLER(4);
 }
 
-bool on_wfi(u64 pc)
+u64 on_wfi(u64 pc)
 {
     interface_cpu->pc = pc;
-    ::mret(*interface_cpu, Instruction(0));
-    return true;
+    ::wfi(*interface_cpu, Instruction(0));
+    RETURN_FROM_OPCODE_HANDLER(4);
 }
 
-bool on_sfence_vma(u64 pc)
+u64 on_sfence_vma(u64 pc)
 {
     // sfence.vma doesn't care about the instruction currently but might in
     // the future when we support partial TLB invalidations
     interface_cpu->pc = pc;
     ::sfence_vma(*interface_cpu, Instruction(0));
-    return true;
+    RETURN_FROM_OPCODE_HANDLER(4);
 }
 
 template<auto F, typename T>
@@ -1300,13 +1324,14 @@ void JIT::register_interface_functions(
             module\
         )
 
-    OPCODE(on_ecall,        OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
-    OPCODE(on_ebreak,       OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
-    OPCODE(on_uret,         OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
-    OPCODE(on_sret,         OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
-    OPCODE(on_mret,         OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
-    OPCODE(on_wfi,          OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
-    OPCODE(on_sfence_vma,   OPCODE_TYPE_1(llvm::Type::getInt1Ty(context)));
+    OPCODE(on_ecall,        OPCODE_TYPE_1(llvm::Type::getInt64Ty(context)));
+    OPCODE(on_ebreak,       OPCODE_TYPE_1(llvm::Type::getInt64Ty(context)));
+    OPCODE(on_c_ebreak,     OPCODE_TYPE_1(llvm::Type::getInt64Ty(context)));
+    OPCODE(on_uret,         OPCODE_TYPE_1(llvm::Type::getInt64Ty(context)));
+    OPCODE(on_sret,         OPCODE_TYPE_1(llvm::Type::getInt64Ty(context)));
+    OPCODE(on_mret,         OPCODE_TYPE_1(llvm::Type::getInt64Ty(context)));
+    OPCODE(on_wfi,          OPCODE_TYPE_1(llvm::Type::getInt64Ty(context)));
+    OPCODE(on_sfence_vma,   OPCODE_TYPE_1(llvm::Type::getInt64Ty(context)));
     OPCODE(on_lb,           OPCODE_TYPE_2(llvm::Type::getInt8Ty(context)));
     OPCODE(on_lh,           OPCODE_TYPE_2(llvm::Type::getInt16Ty(context)));
     OPCODE(on_lw,           OPCODE_TYPE_2(llvm::Type::getInt32Ty(context)));
