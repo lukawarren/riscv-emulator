@@ -15,13 +15,13 @@
 using namespace JIT;
 
 #define DEBUG_JIT false
-#define FRAME_LIMIT 10000
+#define FRAME_LIMIT 8192
 
 // Global CPU pointer (for this file only) for said interface functions
 static CPU* interface_cpu = nullptr;
 
 // Cached previously translated code
-static std::unordered_map<u64, llvm::ExecutionEngine*> cached_engines = {};
+static std::vector<Frame> cached_frames = {};
 
 // Global LLVM
 llvm::LLVMContext context;
@@ -35,30 +35,29 @@ void JIT::init()
 
 void JIT::run_next_frame(CPU& cpu)
 {
-    // Keep track of the starting PC so that any "local" branches avoid re-compilation
-    u64 starting_pc = cpu.pc;
+    const u64 starting_pc = cpu.pc;
 
     // Check if code has already been translated
-    if (cached_engines.contains(cpu.pc))
+    std::optional<Frame> frame = get_cached_frame(starting_pc);
+    if (frame.has_value())
     {
-        llvm::ExecutionEngine* engine = cached_engines.at(cpu.pc);
-        execute_frame(cpu, starting_pc, engine);
+        execute_frame(cpu, *frame, starting_pc);
     }
     else
     {
-        llvm::ExecutionEngine* engine = compile_frame(cpu, starting_pc);
-        if (engine == nullptr)
+        frame = compile_next_frame(cpu);
+        if (!frame.has_value())
         {
             // Some sort of exception occured; we will deal with it next time
             return;
         }
 
-        execute_frame(cpu, starting_pc, engine);
-        cached_engines[starting_pc] = engine;
+        execute_frame(cpu, *frame, starting_pc);
+        cache_frame(*frame);
     }
 }
 
-llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
+std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
 {
     // Create module
     llvm::Module* module = new llvm::Module("jit", context);
@@ -70,7 +69,7 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
     register_interface_functions(module, context, jit_context);
 
     // Create entry
-    llvm::FunctionType* function_type = llvm::FunctionType::get(builder.getInt64Ty(), false);
+    llvm::FunctionType* function_type = llvm::FunctionType::get(builder.getInt64Ty(), { builder.getInt64Ty() }, false);
     llvm::Function* function = llvm::Function::Create(
         function_type,
         llvm::Function::ExternalLinkage,
@@ -80,7 +79,17 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
     llvm::BasicBlock* entry = llvm::BasicBlock::Create(context, "entry", function);
     builder.SetInsertPoint(entry);
 
+    // We will be called with an argument corresponding to the PC, and use a switch
+    // to jump to the correct label; populated later.
+    llvm::Value* pc_arg = function->getArg(0);
+    llvm::BasicBlock* default_block = llvm::BasicBlock::Create(context, "default", function);
+    llvm::SwitchInst* switch_instruction = builder.CreateSwitch(pc_arg, default_block, FRAME_LIMIT);
+    std::unordered_map<u64, llvm::BasicBlock*> label_map;
+    builder.SetInsertPoint(default_block);
+
     // Fetch and emit instructions...
+    u64 starting_pc = cpu.pc;
+    u64 ending_pc;
     bool frame_empty = true;
     for (int i = 0; i < FRAME_LIMIT; ++i)
     {
@@ -89,10 +98,11 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
         {
             cpu.raise_exception(Exception::InstructionAddressMisaligned, cpu.pc);
             delete module;
-            return nullptr;
+            return std::nullopt;
         }
 
 #if DEBUG_JIT
+        dbg(dbg::hex(cpu.pc));
         cpu.trace();
 #endif
 
@@ -118,7 +128,7 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
 
                 cpu.raise_exception(instruction.error(), faulty_address);
                 delete module;
-                return nullptr;
+                return std::nullopt;
             }
             else break;
         }
@@ -130,7 +140,7 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
             {
                 cpu.raise_exception(Exception::IllegalInstruction, instruction->instruction);
                 delete module;
-                return nullptr;
+                return std::nullopt;
             }
             else break;
         }
@@ -140,7 +150,7 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
             {
                 cpu.raise_exception(Exception::IllegalInstruction, half_instruction->instruction);
                 delete module;
-                return nullptr;
+                return std::nullopt;
             }
             else break;
         }
@@ -149,6 +159,11 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
             jit_context.current_compressed_instruction = *half_instruction;
         else
             jit_context.current_instruction = *instruction;
+
+        llvm::BasicBlock* pc_block = llvm::BasicBlock::Create(context, "", function);
+        builder.CreateBr(pc_block);
+        builder.SetInsertPoint(pc_block);
+        label_map[cpu.pc] = pc_block;
 
         if ((is_compressed && emit_compressed_instruction(cpu, jit_context)) ||
             (!is_compressed && emit_instruction(cpu, jit_context)))
@@ -165,6 +180,7 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
                 break;
         }
 
+        ending_pc = cpu.pc;
         cpu.pc = jit_context.pc + (is_compressed ? 2 : 4);
         jit_context.pc = cpu.pc;
 
@@ -174,6 +190,13 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
 
     // Return from block
     builder.CreateRet(llvm::ConstantInt::get(builder.getInt64Ty(), cpu.pc));
+
+    // Fill in the switch instruction
+    for (const auto& label : label_map)
+    {
+        llvm::BasicBlock* label_block = label.second;
+        switch_instruction->addCase(llvm::ConstantInt::get(builder.getInt64Ty(), label.first), label_block);
+    }
 
     // Build engine - TODO: fix tests that fail under optimisations so that they can occur??
     std::string error;
@@ -194,30 +217,43 @@ llvm::ExecutionEngine* JIT::compile_frame(CPU& cpu, u64 starting_pc)
     assert(!llvm::verifyFunction(*function, &llvm::errs()));
 #endif
 
-    // IR will be lazily compiled when we call the main function but it's nicer
+    // IR will be lazily compiled when we call getFunctionAddress but it's nicer
     // to do it here so it makes more sense in the profiler
     engine->finalizeObject();
 
-    return engine;
+    return Frame(engine, starting_pc, ending_pc);
 }
 
-void JIT::execute_frame(CPU& cpu, u64 starting_pc, llvm::ExecutionEngine* engine)
+void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
 {
     // Run
     interface_cpu = &cpu;
-    auto run = (u64(*)())engine->getFunctionAddress("jit_main");
-    u64 next_pc = run();
+    auto run = (u64(*)(u64))frame.engine->getFunctionAddress("jit_main");
+    u64 next_pc = run(pc);
     cpu.pc = next_pc;
 
-    // If the next PC is inside the already JIT'ed block, we don't need to compile
-    // again, but can instead just jump back... but only if the block *starts*
-    // where we want to jump to! This won't happen immediately (e.g. on a first branch
-    // back), but will on subsequent runs.
-    while(next_pc == starting_pc)
+    // If the next PC is inside the already JIT'ed block, we can instead just jump back
+    while(next_pc >= frame.starting_pc && next_pc <= frame.ending_pc)
     {
-        next_pc = run();
+        next_pc = run(next_pc);
         cpu.pc = next_pc;
     }
+}
+
+void JIT::cache_frame(Frame& frame)
+{
+    cached_frames.emplace_back(frame);
+}
+
+std::optional<Frame> JIT::get_cached_frame(u64 pc)
+{
+    for (const auto& frame : cached_frames)
+    {
+        if (pc >= frame.starting_pc && pc <= frame.ending_pc)
+            return frame;
+    }
+
+    return std::nullopt;
 }
 
 bool JIT::emit_instruction(CPU& cpu, Context& context)

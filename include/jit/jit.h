@@ -63,18 +63,33 @@ namespace JIT
         Optional(T value) : has_value(true), value(value) {}
     };
 
+    struct Frame
+    {
+        llvm::ExecutionEngine* engine;
+        u64 starting_pc;
+        u64 ending_pc;
+
+        Frame(llvm::ExecutionEngine* engine, u64 starting_pc, u64 ending_pc) :
+            engine(engine), starting_pc(starting_pc), ending_pc(ending_pc) {}
+    };
+
     void init();
     void run_next_frame(
         CPU& cpu
     );
-    llvm::ExecutionEngine* compile_frame(
-        CPU& cpu,
-        u64 starting_pc
+    std::optional<Frame> compile_next_frame(
+        CPU& cpu
     );
     void execute_frame(
         CPU& cpu,
-        u64 starting_pc,
-        llvm::ExecutionEngine* engine
+        Frame& frame,
+        u64 pc
+    );
+    void cache_frame(
+        Frame& frame
+    );
+    std::optional<Frame> get_cached_frame(
+        u64 pc
     );
     void register_interface_functions(
         llvm::Module* module,

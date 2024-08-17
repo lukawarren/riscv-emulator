@@ -236,14 +236,17 @@ void JIT::bgeu(Context& context)
 
 void JIT::jal(Context& context)
 {
-    // Instead of actually running a jump, we can just simulate the effects
+    // You may think that instead of actually running a jump, we can just simulate
+    // the effects by modifying the program counter. But that'll mess up the frame
+    // caching as we assume each frame is contiguous in virtual address space.
     const i64 offset = context.current_instruction.get_imm(Instruction::Type::J);
     store_register(
         context,
         context.current_instruction.get_rd(),
         u64_im(context.pc + 4)
     );
-    context.pc += offset - 4;
+    create_non_terminating_return(context, u64_im(context.pc + offset));
+    abort_translation();
 }
 
 void JIT::jalr(Context& context)
