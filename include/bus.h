@@ -49,7 +49,7 @@ public:
     // For A extension
     std::unordered_set<u64> reservations = {};
 
-    void clock(CPU& cpu);
+    void clock(CPU& cpu, bool is_jit = false);
 
 private:
     std::pair<BusDevice&, u64> get_bus_device(const u64 address, const u64 size);

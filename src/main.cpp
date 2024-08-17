@@ -127,7 +127,7 @@ int main(int argc, char** argv)
             while(true)
             {
                 JIT::run_next_frame(cpu);
-                cpu.bus.clock(cpu);
+                cpu.bus.clock(cpu, true);
                 cpu.mcycle.increment(cpu);
                 cpu.minstret.increment(cpu);
                 cpu.time.increment(cpu);
