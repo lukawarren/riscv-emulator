@@ -1175,6 +1175,7 @@ bool on_csr(Instruction instruction, u64 pc)
     interface_cpu->pc = pc;
     ::opcodes_zicsr(*interface_cpu, instruction);
     interface_cpu->check_for_invalid_tlb();
+    interface_cpu->registers[0] = 0;
     return !interface_cpu->pending_trap.has_value();
 }
 
@@ -1187,6 +1188,7 @@ bool on_atomic(Instruction instruction, u64 pc)
 {
     interface_cpu->pc = pc;
     ::opcodes_a(*interface_cpu, instruction);
+    interface_cpu->registers[0] = 0;
     return !interface_cpu->pending_trap.has_value();
 }
 
@@ -1194,6 +1196,7 @@ bool on_floating(Instruction instruction, u64 pc)
 {
     interface_cpu->pc = pc;
     ::opcodes_f(*interface_cpu, instruction);
+    interface_cpu->registers[0] = 0;
     return !interface_cpu->pending_trap.has_value();
 }
 
@@ -1201,6 +1204,7 @@ bool on_floating_compressed(CompressedInstruction instruction, u64 pc)
 {
     interface_cpu->pc = pc;
     ::opcodes_c(*interface_cpu, instruction);
+    interface_cpu->registers[0] = 0;
     return !interface_cpu->pending_trap.has_value();
 }
 
