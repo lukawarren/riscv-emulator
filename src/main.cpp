@@ -131,10 +131,6 @@ int main(int argc, char** argv)
                 cpu.mcycle.increment(cpu);
                 cpu.minstret.increment(cpu);
                 cpu.time.increment(cpu);
-
-                const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
-                if (trap.has_value())
-                    cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
             }
         }
         catch (std::string& e)

@@ -110,9 +110,9 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
             return std::nullopt;
         }
 
-#if DEBUG_JIT
+    #if DEBUG_JIT
         cpu.trace();
-#endif
+    #endif
 
         // Try to get a compressed instruction...
         const std::expected<CompressedInstruction, Exception> half_instruction =
@@ -234,17 +234,33 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
 
 void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
 {
+    const auto check_for_exceptions = [&]()
+    {
+        const std::optional<CPU::PendingTrap> trap = cpu.get_pending_trap();
+        if (trap.has_value())
+        {
+            cpu.handle_trap(trap->cause, trap->info, trap->is_interrupt);
+            return false;
+        }
+        return true;
+    };
+
     // Run
     interface_cpu = &cpu;
     auto run = (u64(*)(u64))frame.engine->getFunctionAddress("jit_main");
     u64 next_pc = run(pc);
     cpu.pc = next_pc;
+    if (!check_for_exceptions())
+        return;
 
     // If the next PC is inside the already JIT'ed block, we can instead just jump back
     while(next_pc >= frame.starting_pc && next_pc <= frame.ending_pc)
     {
         next_pc = run(next_pc);
         cpu.pc = next_pc;
+
+        if (!check_for_exceptions())
+            return;
     }
 }
 
@@ -1078,8 +1094,10 @@ bool on_wfi(u64 pc)
 
 bool on_sfence_vma(u64 pc)
 {
+    // sfence.vma doesn't care about the instruction currently but might in
+    // the future when we support partial TLB invalidations
     interface_cpu->pc = pc;
-    ::mret(*interface_cpu, Instruction(0));
+    ::sfence_vma(*interface_cpu, Instruction(0));
     return true;
 }
 
