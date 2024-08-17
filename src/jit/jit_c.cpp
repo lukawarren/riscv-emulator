@@ -103,7 +103,10 @@ void JIT::c_sdsp(Context& context)
 
 void JIT::c_j(Context& context)
 {
-    context.pc += context.current_compressed_instruction.get_jump_offset() - 2;
+    // As with an uncompressed jump, we can't just "simulate it" as you'd think
+    create_non_terminating_return(context, u64_im(
+        context.pc + context.current_compressed_instruction.get_jump_offset()
+    ));
 }
 
 void JIT::c_jr(Context& context)

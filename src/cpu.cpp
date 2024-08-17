@@ -346,6 +346,7 @@ void CPU::execute_compressed_instruction(const CompressedInstruction instruction
 void CPU::invalidate_tlb()
 {
     tlb_entries = 0;
+    tlb_was_flushed = true;
 }
 
 std::expected<u64, Exception> CPU::tlb_lookup(

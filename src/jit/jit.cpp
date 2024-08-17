@@ -37,6 +37,15 @@ void JIT::run_next_frame(CPU& cpu)
 {
     const u64 starting_pc = cpu.pc;
 
+    // We cache in virtual address space so any changes to the TLB mean trouble
+    if (cpu.tlb_was_flushed)
+    {
+        for (auto& frame : cached_frames)
+            delete frame.engine;
+        cached_frames.clear();
+        cpu.tlb_was_flushed = false;
+    }
+
     // Check if code has already been translated
     std::optional<Frame> frame = get_cached_frame(starting_pc);
     if (frame.has_value())
@@ -102,7 +111,6 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
         }
 
 #if DEBUG_JIT
-        dbg(dbg::hex(cpu.pc));
         cpu.trace();
 #endif
 
@@ -1078,9 +1086,6 @@ bool on_sfence_vma(u64 pc)
 template<auto F, typename T>
 T on_load(u64 address, u64 pc, bool* did_succeed)
 {
-    // TODO: remove
-    interface_cpu->invalidate_tlb();
-
     interface_cpu->pc = pc;
     const auto value = (interface_cpu->*F)(address, CPU::AccessType::Load);
     if (!value)
@@ -1117,9 +1122,6 @@ u32 on_ld(u64 address, u64 pc, bool* did_succeed)
 template<auto F, typename T>
 bool on_store(u64 address, T value, u64 pc)
 {
-    // TODO: remove
-    interface_cpu->invalidate_tlb();
-
     interface_cpu->pc = pc;
     const auto error = (interface_cpu->*F)(address, value, CPU::AccessType::Store);
     if (error.has_value())
@@ -1154,6 +1156,7 @@ bool on_csr(Instruction instruction, u64 pc)
 {
     interface_cpu->pc = pc;
     ::opcodes_zicsr(*interface_cpu, instruction);
+    interface_cpu->check_for_invalid_tlb();
     return !interface_cpu->pending_trap.has_value();
 }
 
