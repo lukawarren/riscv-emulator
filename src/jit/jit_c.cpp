@@ -112,6 +112,7 @@ void JIT::c_jr(Context& context)
     if (_rs1 != 0)
     {
         create_non_terminating_return(context, load_register(context, _rs1));
+        abort_translation();
     }
 }
 
@@ -119,6 +120,7 @@ void JIT::c_jalr(Context& context)
 {
     store_register(context, 1, u64_im(context.pc + 2));
     create_non_terminating_return(context, rs1_c);
+    abort_translation();
 }
 
 void JIT::c_beqz(Context& context)

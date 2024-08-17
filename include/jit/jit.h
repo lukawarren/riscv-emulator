@@ -49,6 +49,8 @@ namespace JIT
         llvm::Function* on_atomic;
         llvm::Function* on_floating;
         llvm::Function* on_floating_compressed;
+
+        bool abort_translation = false;
     };
 
     template <typename T>
@@ -62,7 +64,18 @@ namespace JIT
     };
 
     void init();
-    void run_next_frame(CPU& cpu);
+    void run_next_frame(
+        CPU& cpu
+    );
+    llvm::ExecutionEngine* compile_frame(
+        CPU& cpu,
+        u64 starting_pc
+    );
+    void execute_frame(
+        CPU& cpu,
+        u64 starting_pc,
+        llvm::ExecutionEngine* engine
+    );
     void register_interface_functions(
         llvm::Module* module,
         llvm::LLVMContext& context,

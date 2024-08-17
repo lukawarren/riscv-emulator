@@ -18,6 +18,7 @@
 #define u64_to_32(x) context.builder.CreateTrunc(x, context.builder.getInt32Ty())
 #define u64_to_16(x) context.builder.CreateTrunc(x, context.builder.getInt16Ty())
 #define u64_to_8(x) context.builder.CreateTrunc(x, context.builder.getInt8Ty())
+#define abort_translation() context.abort_translation = true
 
 #ifdef JIT_ENABLE_FALLBACK
 static void fall_back(llvm::Function* function, JIT::Context& context, bool is_compressed = false)

@@ -263,6 +263,7 @@ void JIT::jalr(Context& context)
 
     // We don't know the final PC at compile time so must return
     create_non_terminating_return(context, offset);
+    abort_translation();
 }
 
 void JIT::lui(Context& context)
