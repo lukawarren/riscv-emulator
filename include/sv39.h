@@ -24,6 +24,8 @@ struct Address
 
 struct VirtualAddress : Address
 {
+    VirtualAddress(const u64 address) : Address(address) {}
+
     std::array<u64, 3> get_vpns() const
     {
         return {
@@ -36,6 +38,8 @@ struct VirtualAddress : Address
 
 struct PhysicalAddress : Address
 {
+    PhysicalAddress(const u64 address) : Address(address) {}
+
     std::array<u64, 3> get_ppns() const
     {
         return {
@@ -48,6 +52,8 @@ struct PhysicalAddress : Address
 
 struct PageTableEntry : Address
 {
+    PageTableEntry(const u64 address) : Address(address) {}
+
     u8 get_v() const { return (address >> 0) & 0b1; }
     u8 get_r() const { return (address >> 1) & 0b1; }
     u8 get_w() const { return (address >> 2) & 0b1; }

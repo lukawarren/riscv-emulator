@@ -18,7 +18,11 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 # Must have -ffloat-store (or /fp:precise) for RV64F's IEEE 754
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /fp:precise /W4)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Clang
+    target_compile_options(${PROJECT_NAME} PRIVATE -Werror -Wall -Wextra -pedantic -Wno-unused-parameter -O3 -g -fdiagnostics-color=always)
 else()
+    # Probably GCC
     target_compile_options(${PROJECT_NAME} PRIVATE -ffloat-store -Werror -Wall -Wextra -pedantic -Wno-unused-parameter -O3 -g -fdiagnostics-color=always)
 endif()
 

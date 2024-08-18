@@ -82,7 +82,10 @@ void VirtioBlockDevice::clock(CPU& cpu, PLIC& plic)
             common_registers.interrupt_ack = 0;
             plic.clear_interrupt_pending(PLIC_INTERRUPT_BLK);
         }
-        else throw std::runtime_error("unknown virtio interrupt_ack " + common_registers.interrupt_ack);
+        else throw std::runtime_error(
+            "unknown virtio interrupt_ack " +
+            std::to_string(common_registers.interrupt_ack)
+        );
     }
 
     if (wrote_to_queue_notify)
