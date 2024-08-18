@@ -222,7 +222,7 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
     link_interface_functions(engine, jit_context);
 
 #if DEBUG_JIT
-    // module->print(llvm::outs(), nullptr);
+    //module->print(llvm::outs(), nullptr);
     assert(!llvm::verifyModule(*module, &llvm::errs()));
     assert(!llvm::verifyFunction(*function, &llvm::errs()));
 #endif
@@ -241,7 +241,11 @@ void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
     auto run = (u64(*)(u64))frame.engine->getFunctionAddress("jit_main");
     u64 next_pc = run(pc);
     cpu.pc = next_pc;
+
     if (!check_for_exceptions(cpu))
+        return;
+
+    if (cpu.tlb_was_flushed)
         return;
 
     // If the next PC is inside the already JIT'ed block, we can instead just jump back
@@ -1105,7 +1109,6 @@ u64 on_mret(u64 pc)
 {
     interface_cpu->pc = pc;
     ::mret(*interface_cpu, Instruction(0));
-    dbg("mret", dbg::hex(interface_cpu->pc));
     RETURN_FROM_OPCODE_HANDLER(4);
 }
 

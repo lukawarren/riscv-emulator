@@ -90,7 +90,7 @@ llvm::Value* perform_load(JIT::Context& context, llvm::Function* f, F&& get_addr
 
     // Failure block - unable to JIT further (for now!) so return early
     context.builder.SetInsertPoint(failure_block);
-    context.builder.CreateRet(u64_im(0));
+    context.builder.CreateRet(u64_im(context.pc));
     function->insert(function->end(), failure_block);
 
     // Success block - carry on
@@ -116,7 +116,7 @@ void perform_store(JIT::Context& context, llvm::Function* f, llvm::Value* value,
 
     // Failure block - unable to JIT further (for now!) so return early
     context.builder.SetInsertPoint(failure_block);
-    context.builder.CreateRet(u64_im(0));
+    context.builder.CreateRet(u64_im(context.pc));
     function->insert(function->end(), failure_block);
 
     // Success block - carry on
