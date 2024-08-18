@@ -26,6 +26,11 @@ static std::vector<Frame> cached_frames = {};
 // Global LLVM
 llvm::LLVMContext context;
 
+#if DEBUG_JIT
+llvm::Function* debug_trace;
+void on_debug_trace(Instruction instruction, u64 pc);
+#endif
+
 void JIT::init()
 {
     llvm::InitializeNativeTarget();
@@ -112,10 +117,6 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
             return std::nullopt;
         }
 
-    #if DEBUG_JIT
-        cpu.trace();
-    #endif
-
         // Try to get a compressed instruction...
         const std::expected<CompressedInstruction, Exception> half_instruction =
             cpu.read_16(cpu.pc, CPU::AccessType::Instruction);
@@ -175,6 +176,13 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
         builder.SetInsertPoint(pc_block);
         label_map[cpu.pc] = pc_block;
 
+    #if DEBUG_JIT
+        builder.CreateCall(debug_trace, {
+            llvm::ConstantInt::get(builder.getInt32Ty(), jit_context.current_instruction.instruction),
+            llvm::ConstantInt::get(builder.getInt64Ty(), jit_context.pc)
+        });
+    #endif
+
         if ((is_compressed && emit_compressed_instruction(cpu, jit_context)) ||
             (!is_compressed && emit_instruction(cpu, jit_context)))
         {
@@ -222,7 +230,6 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
     link_interface_functions(engine, jit_context);
 
 #if DEBUG_JIT
-    //module->print(llvm::outs(), nullptr);
     assert(!llvm::verifyModule(*module, &llvm::errs()));
     assert(!llvm::verifyFunction(*function, &llvm::errs()));
 #endif
@@ -255,6 +262,9 @@ void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
         cpu.pc = next_pc;
 
         if (!check_for_exceptions(cpu))
+            return;
+
+        if (cpu.tlb_was_flushed)
             return;
     }
 }
@@ -1027,6 +1037,10 @@ llvm::Value* JIT::get_registers(CPU& cpu, llvm::IRBuilder<>& builder)
 
 llvm::Value* JIT::load_register(Context& context, u32 index)
 {
+#ifdef DEBUG_JIT
+    assert(index <= 31);
+#endif
+
     // x0 is always zero
     if (index == 0)
         return llvm::ConstantInt::get(context.builder.getInt64Ty(), 0);
@@ -1042,6 +1056,10 @@ llvm::Value* JIT::load_register(Context& context, u32 index)
 
 void JIT::store_register(Context& context, u32 index, llvm::Value* value)
 {
+#ifdef DEBUG_JIT
+    assert(index <= 31);
+#endif
+
     // x0 is always zero
     if (index == 0)
         return;
@@ -1235,6 +1253,22 @@ bool on_floating_compressed(CompressedInstruction instruction, u64 pc)
     return !interface_cpu->pending_trap.has_value();
 }
 
+#if DEBUG_JIT
+void on_debug_trace(Instruction instruction, u64 pc)
+{
+    // TODO: make separate stub for compressed instructions
+    char buf[80] = { 0 };
+    disasm_inst(
+        buf,
+        sizeof(buf),
+        rv64,
+        pc,
+        instruction.instruction
+    );
+    printf("%016" PRIx64 ":  %s\n", pc, buf);
+}
+#endif
+
 void JIT::register_interface_functions(
     llvm::Module* module,
     llvm::LLVMContext& context,
@@ -1349,6 +1383,15 @@ void JIT::register_interface_functions(
     FALLBACK(on_atomic);
     FALLBACK(on_floating);
     FALLBACK_COMPRESSED(on_floating_compressed);
+
+#if DEBUG_JIT
+    debug_trace = llvm::Function::Create(
+        fallback_type,
+        llvm::Function::ExternalLinkage,
+        "debug_trace",
+        module
+    );
+#endif
 }
 
 void JIT::link_interface_functions(
@@ -1380,4 +1423,8 @@ void JIT::link_interface_functions(
     LINK(on_atomic);
     LINK(on_floating);
     LINK(on_floating_compressed);
+
+#if DEBUG_JIT
+    engine->addGlobalMapping(debug_trace, (void*)&on_debug_trace);
+#endif
 }
