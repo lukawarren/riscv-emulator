@@ -14,13 +14,13 @@ public:
 
 private:
     // ns16550a state
-    u8 ier;
-    u8 lcr;
-    u8 dll;
-    u8 dlm;
-    u8 mcr;
-    u8 current_interrupt;
-    u8 pending_interrupts;
+    u8 ier = 0;
+    u8 lcr = 0;
+    u8 dll = 0;
+    u8 dlm = 0;
+    u8 mcr = 0;
+    u8 current_interrupt = 0;
+    u8 pending_interrupts = 0;
 
     // Input
     bool listening_to_input;
