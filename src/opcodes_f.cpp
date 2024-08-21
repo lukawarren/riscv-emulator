@@ -41,7 +41,10 @@ bool check_fs_field(CPU& cpu, bool is_write)
     // See Table 3.4 of the privileged spec ("FS and XS state transitions")
     // In short, if it's a write we become "dirty".
     if (is_write)
+    {
         cpu.mstatus.fields.fs = 3;
+        cpu.check_for_invalid_tlb();
+    }
 
     return true;
 }

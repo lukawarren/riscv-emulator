@@ -15,7 +15,7 @@
 using namespace JIT;
 
 #define DEBUG_JIT false
-#define FRAME_LIMIT 8192
+#define FRAME_LIMIT 256
 
 // Global CPU pointer (for this file only) for said interface functions
 static CPU* interface_cpu = nullptr;
@@ -25,6 +25,9 @@ static std::vector<Frame> cached_frames = {};
 
 // Global LLVM
 llvm::LLVMContext context;
+
+// Hack to fix PC return issues
+static bool csr_caused_tlb_flush = false;
 
 #if DEBUG_JIT
 llvm::Function* debug_trace;
@@ -45,7 +48,7 @@ void JIT::run_next_frame(CPU& cpu)
     const u64 starting_pc = cpu.pc;
 
     // We cache in virtual address space so any changes to the TLB mean trouble
-    if (cpu.tlb_was_flushed)
+    if (cpu.tlb_was_flushed) [[unlikely]]
     {
         for (auto& frame : cached_frames)
             delete frame.engine;
@@ -254,26 +257,20 @@ void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
     // Run
     interface_cpu = &cpu;
     auto run = (u64(*)(u64))frame.engine->getFunctionAddress("jit_main");
-
-    static int i = 0;
-    if (frame.starting_pc == 0x80E77050)
-        dbg("running", i++, pc, dbg::hex((u64)run));
-
     u64 next_pc = run(pc);
-
-    if (frame.starting_pc == 0x80E77050)
-        dbg("ran");
-
     cpu.pc = next_pc;
 
     if (!check_for_exceptions(cpu))
         return;
 
+    if (csr_caused_tlb_flush)
+    {
+        cpu.pc += 4;
+        csr_caused_tlb_flush = false;
+    }
+
     if (cpu.tlb_was_flushed)
         return;
-
-    // REMOVE
-    return;
 
     // If the next PC is inside the already JIT'ed block, we can instead just jump back
     while(next_pc >= frame.starting_pc && next_pc <= frame.ending_pc)
@@ -283,6 +280,12 @@ void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
 
         if (!check_for_exceptions(cpu))
             return;
+
+        if (csr_caused_tlb_flush)
+        {
+            cpu.pc += 4;
+            csr_caused_tlb_flush = false;
+        }
 
         if (cpu.tlb_was_flushed)
             return;
@@ -1241,7 +1244,12 @@ bool on_csr(Instruction instruction, u64 pc)
     ::opcodes_zicsr(*interface_cpu, instruction);
     interface_cpu->check_for_invalid_tlb();
     interface_cpu->registers[0] = 0;
-    return !interface_cpu->pending_trap.has_value();
+
+    // Return if an exception occured or the TLB was invalidated
+    // All the PC logic goes to great lengths to preserve the PC
+    // when we return false so we'll have to be a bit creative
+    csr_caused_tlb_flush = interface_cpu->tlb_was_flushed;
+    return !interface_cpu->pending_trap.has_value() && !interface_cpu->tlb_was_flushed;
 }
 
 void set_fcsr_dz()
@@ -1291,7 +1299,7 @@ bool on_debug_trace(Instruction instruction, u64 pc)
 
 void on_debug_print(u64 value)
 {
-    dbg("on_debug_print", value);
+    (void)value;
 }
 #endif
 
@@ -1441,6 +1449,7 @@ void JIT::link_interface_functions(
 
     LINK(on_ecall);
     LINK(on_ebreak);
+    LINK(on_c_ebreak);
     LINK(on_uret);
     LINK(on_sret);
     LINK(on_mret);

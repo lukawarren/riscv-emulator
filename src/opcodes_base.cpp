@@ -651,6 +651,8 @@ void sret(CPU& cpu, const Instruction instruction)
     cpu.mstatus.fields.sie = cpu.mstatus.fields.spie;
     cpu.mstatus.fields.spie = 1;
     cpu.mstatus.fields.spp = 0;
+
+    cpu.check_for_invalid_tlb();
 }
 
 void mret(CPU& cpu, const Instruction instruction)
@@ -678,6 +680,8 @@ void mret(CPU& cpu, const Instruction instruction)
     cpu.mstatus.fields.mie = cpu.mstatus.fields.mpie;
     cpu.mstatus.fields.mpie = 1;
     cpu.mstatus.fields.mpp = 0;
+
+    cpu.check_for_invalid_tlb();
 }
 
 void wfi(CPU& cpu, const Instruction instruction)
