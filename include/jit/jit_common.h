@@ -18,7 +18,6 @@
 #define u64_to_32(x) context.builder.CreateTrunc(x, context.builder.getInt32Ty())
 #define u64_to_16(x) context.builder.CreateTrunc(x, context.builder.getInt16Ty())
 #define u64_to_8(x) context.builder.CreateTrunc(x, context.builder.getInt8Ty())
-#define abort_translation() context.abort_translation = true
 
 #ifdef JIT_ENABLE_FALLBACK
 static void fall_back(llvm::Function* function, JIT::Context& context, bool is_compressed = false)
@@ -127,7 +126,7 @@ void perform_store(JIT::Context& context, llvm::Function* f, llvm::Value* value,
 inline void create_non_terminating_return(JIT::Context& context, llvm::Value* pc, llvm::Value* condition = nullptr)
 {
     if (condition == nullptr)
-        condition = u1_im(true);
+        condition = llvm::ConstantInt::getTrue(context.context);
 
     llvm::Function* root = context.builder.GetInsertBlock()->getParent();
     llvm::BasicBlock* return_block = llvm::BasicBlock::Create(context.context);

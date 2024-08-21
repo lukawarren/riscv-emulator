@@ -246,7 +246,6 @@ void JIT::jal(Context& context)
         u64_im(context.pc + 4)
     );
     create_non_terminating_return(context, u64_im(context.pc + offset));
-    abort_translation();
 }
 
 void JIT::jalr(Context& context)
@@ -266,7 +265,6 @@ void JIT::jalr(Context& context)
 
     // We don't know the final PC at compile time so must return
     create_non_terminating_return(context, offset);
-    abort_translation();
 }
 
 void JIT::lui(Context& context)
