@@ -28,7 +28,9 @@ llvm::LLVMContext context;
 
 #if DEBUG_JIT
 llvm::Function* debug_trace;
-void on_debug_trace(Instruction instruction, u64 pc);
+llvm::Function* debug_print;
+bool on_debug_trace(Instruction instruction, u64 pc);
+void on_debug_print(u64 value);
 #endif
 
 void JIT::init()
@@ -98,6 +100,9 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
     // We will be called with an argument corresponding to the PC, and use a switch
     // to jump to the correct label; populated later.
     llvm::Value* pc_arg = function->getArg(0);
+#if DEBUG_JIT
+    builder.CreateCall(debug_print, { pc_arg });
+#endif
     llvm::BasicBlock* default_block = llvm::BasicBlock::Create(context, "default", function);
     llvm::SwitchInst* switch_instruction = builder.CreateSwitch(pc_arg, default_block, FRAME_LIMIT);
     std::unordered_map<u64, llvm::BasicBlock*> label_map;
@@ -230,6 +235,9 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
     link_interface_functions(engine, jit_context);
 
 #if DEBUG_JIT
+    if (starting_pc == 0x80E77050)
+        module->print(llvm::outs(), nullptr);
+
     assert(!llvm::verifyModule(*module, &llvm::errs()));
     assert(!llvm::verifyFunction(*function, &llvm::errs()));
 #endif
@@ -246,7 +254,16 @@ void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
     // Run
     interface_cpu = &cpu;
     auto run = (u64(*)(u64))frame.engine->getFunctionAddress("jit_main");
+
+    static int i = 0;
+    if (frame.starting_pc == 0x80E77050)
+        dbg("running", i++, pc, dbg::hex((u64)run));
+
     u64 next_pc = run(pc);
+
+    if (frame.starting_pc == 0x80E77050)
+        dbg("ran");
+
     cpu.pc = next_pc;
 
     if (!check_for_exceptions(cpu))
@@ -254,6 +271,9 @@ void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
 
     if (cpu.tlb_was_flushed)
         return;
+
+    // REMOVE
+    return;
 
     // If the next PC is inside the already JIT'ed block, we can instead just jump back
     while(next_pc >= frame.starting_pc && next_pc <= frame.ending_pc)
@@ -1254,7 +1274,7 @@ bool on_floating_compressed(CompressedInstruction instruction, u64 pc)
 }
 
 #if DEBUG_JIT
-void on_debug_trace(Instruction instruction, u64 pc)
+bool on_debug_trace(Instruction instruction, u64 pc)
 {
     // TODO: make separate stub for compressed instructions
     char buf[80] = { 0 };
@@ -1266,6 +1286,12 @@ void on_debug_trace(Instruction instruction, u64 pc)
         instruction.instruction
     );
     printf("%016" PRIx64 ":  %s\n", pc, buf);
+    return true;
+}
+
+void on_debug_print(u64 value)
+{
+    dbg("on_debug_print", value);
 }
 #endif
 
@@ -1391,6 +1417,17 @@ void JIT::register_interface_functions(
         "debug_trace",
         module
     );
+    debug_print = llvm::Function::Create(
+        llvm::FunctionType::get
+        (
+            llvm::Type::getVoidTy(context),
+            { llvm::Type::getInt64Ty(context) },
+            false
+        ),
+        llvm::Function::ExternalLinkage,
+        "debug_print",
+        module
+    );
 #endif
 }
 
@@ -1426,5 +1463,6 @@ void JIT::link_interface_functions(
 
 #if DEBUG_JIT
     engine->addGlobalMapping(debug_trace, (void*)&on_debug_trace);
+    engine->addGlobalMapping(debug_print, (void*)&on_debug_print);
 #endif
 }
