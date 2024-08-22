@@ -5,7 +5,6 @@
 // Helpers
 u64 get_load_address(const CPU& cpu, const Instruction instruction);
 u64 get_store_address(const CPU& cpu, const Instruction instruction);
-u32 get_wide_shift_amount(const CPU& cpu, const Instruction instruction);
 bool check_branch_alignment(CPU& cpu, const u64 target);
 
 bool opcodes_base(CPU& cpu, const Instruction instruction)
@@ -647,11 +646,13 @@ void sret(CPU& cpu, const Instruction instruction)
     if (cpu.mstatus.fields.spp != (u64)PrivilegeLevel::Machine)
         cpu.mstatus.fields.mprv = 0;
 
-    cpu.pc = *read_csr(cpu, CSR_SEPC) - 4;
+    cpu.pc = *cpu.sepc.read(cpu) - 4;
     cpu.privilege_level = (PrivilegeLevel)cpu.mstatus.fields.spp;
     cpu.mstatus.fields.sie = cpu.mstatus.fields.spie;
     cpu.mstatus.fields.spie = 1;
     cpu.mstatus.fields.spp = 0;
+
+    cpu.check_for_invalid_tlb();
 }
 
 void mret(CPU& cpu, const Instruction instruction)
@@ -679,6 +680,8 @@ void mret(CPU& cpu, const Instruction instruction)
     cpu.mstatus.fields.mie = cpu.mstatus.fields.mpie;
     cpu.mstatus.fields.mpie = 1;
     cpu.mstatus.fields.mpp = 0;
+
+    cpu.check_for_invalid_tlb();
 }
 
 void wfi(CPU& cpu, const Instruction instruction)
@@ -765,21 +768,21 @@ void addiw(CPU& cpu, const Instruction instruction)
 
 void slliw(CPU& cpu, const Instruction instruction)
 {
-    const u32 shift_amount = get_wide_shift_amount(cpu, instruction);
+    const u32 shift_amount = instruction.get_wide_shift_amount();
     cpu.registers[instruction.get_rd()] =
         (i64)(i32)(cpu.registers[instruction.get_rs1()] << shift_amount);
 }
 
 void srliw(CPU& cpu, const Instruction instruction)
 {
-    const u32 shift_amount = get_wide_shift_amount(cpu, instruction);
+    const u32 shift_amount = instruction.get_wide_shift_amount();
     const u32 rs1 = (u32)cpu.registers[instruction.get_rs1()];
     cpu.registers[instruction.get_rd()] = (i64)(i32)(rs1 >> shift_amount);
 }
 
 void sraiw(CPU& cpu, const Instruction instruction)
 {
-    const u32 shift_amount = get_wide_shift_amount(cpu, instruction);
+    const u32 shift_amount = instruction.get_wide_shift_amount();
     const i32 rs1 = (i32)cpu.registers[instruction.get_rs1()];
     cpu.registers[instruction.get_rd()] = (i64)(rs1 >> shift_amount);
 }
@@ -839,13 +842,6 @@ u64 get_store_address(const CPU& cpu, const Instruction instruction)
 {
     return instruction.get_imm(Instruction::Type::S) +
         cpu.registers[instruction.get_rs1()];
-}
-
-u32 get_wide_shift_amount(const CPU&, const Instruction instruction)
-{
-    // SLLIW, SRLIW and SRAIW generate an illegal instruction exception
-    // if imm[5] != 0. TODO: emulate!
-    return instruction.get_imm(Instruction::Type::I) & 0b11111;
 }
 
 bool check_branch_alignment(CPU& cpu, const u64 target)

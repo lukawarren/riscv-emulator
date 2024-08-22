@@ -232,6 +232,10 @@ public:
     bool emulating_test = false;
 
     void invalidate_tlb();
+    void check_for_invalid_tlb();
+
+    // For JIT
+    bool tlb_was_flushed = false;
 
 private:
     void execute_instruction(const Instruction instruction);
@@ -262,8 +266,6 @@ private:
         const u64 pte_address,
         const AccessType access_type
     );
-
-    void check_for_invalid_tlb();
 
     std::expected<u64, Exception> virtual_address_to_physical(
         const u64 address,

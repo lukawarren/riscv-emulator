@@ -227,8 +227,7 @@ void csrrw(CPU& cpu, const Instruction instruction)
         return;
 
     // Put old value of CSR into rd
-    if (instruction.get_rd() != 0)
-        cpu.registers[instruction.get_rd()] = *value;
+    cpu.registers[instruction.get_rd()] = *value;
 }
 
 void csrrs(CPU& cpu, const Instruction instruction)
@@ -288,8 +287,7 @@ void csrrwi(CPU& cpu, const Instruction instruction)
         return;
 
     // Put old value of CSR into rd
-    if (instruction.get_rd() != 0)
-        cpu.registers[instruction.get_rd()] = *csr;
+    cpu.registers[instruction.get_rd()] = *csr;
 }
 
 void csrrsi(CPU& cpu, const Instruction instruction)

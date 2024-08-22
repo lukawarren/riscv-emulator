@@ -29,7 +29,7 @@ std::optional<u64> FCSR::read(CPU& cpu)
 /*
     For the below there is no need to do the full check (like above)
     because we already know RV64F is already enabled (as these are only
-    called by opcodes), so there can't possible be an exception.
+    called by opcodes), so there can't possibly be an exception.
 */
 void FCSR::set_nx(CPU& cpu) { bits |=  (1 << 0); cpu.mstatus.fields.fs = 3; }
 void FCSR::set_uf(CPU& cpu) { bits |=  (1 << 1); cpu.mstatus.fields.fs = 3; }

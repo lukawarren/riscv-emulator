@@ -68,8 +68,7 @@ struct CompressedInstruction
 
     u8 get_rs1_alt() const
     {
-        // 3 bits; 7-9 inclusive
-        return ((instruction >> 7) & 0b111) + register_offset;
+        return get_rd_with_offset();
     }
 
     u8 get_rs2_alt() const

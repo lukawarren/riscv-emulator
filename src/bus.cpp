@@ -42,7 +42,7 @@ size_t Bus::write_file(const u64 address, const std::string& filename)
     return file.second;
 }
 
-void Bus::clock(CPU& cpu)
+void Bus::clock(CPU& cpu, bool is_jit)
 {
     clint.increment(cpu);
 
@@ -52,7 +52,7 @@ void Bus::clock(CPU& cpu)
     // every so often shaves about 1 second of Linux's (currently) 13 second
     // boot time.
 
-    if (((++clock_counter) % 1024) == 0)
+    if (((++clock_counter) % 1024) == 0 || is_jit)
     {
         uart.clock(plic);
         block_device.clock(cpu, plic);
