@@ -17,7 +17,7 @@ using namespace JIT;
 #define DEBUG_JIT false
 #define FRAME_LIMIT 256
 
-// Global CPU pointer (for this file only) for said interface functions
+// Global CPU pointer for interface functions
 static CPU* interface_cpu = nullptr;
 
 // Cached previously translated code
@@ -1169,6 +1169,14 @@ u64 on_sfence_vma(u64 pc)
     RETURN_FROM_OPCODE_HANDLER(4);
 }
 
+/*
+    For some reason, Clang will fail to properly execute loads when optimisations
+    are enabled. TODO: fix what is likely undefined behaviour
+ */
+#ifdef __clang__
+#pragma clang optimize off
+#endif
+
 template<auto F, typename T>
 T on_load(u64 address, u64 pc, bool* did_succeed)
 {
@@ -1184,6 +1192,10 @@ T on_load(u64 address, u64 pc, bool* did_succeed)
     *did_succeed = true;
     return *value;
 }
+
+#ifdef __clang__
+#pragma clang optimize on
+#endif
 
 u8 on_lb(u64 address, u64 pc, bool* did_succeed)
 {
