@@ -102,17 +102,7 @@ int main(int argc, char** argv)
             }
         };
         if (test_mode)
-        {
-            try
-            {
-                emulate.operator()<true>();
-            }
-            catch (std::string& e)
-            {
-                if (e == "pass") return 0;
-                else return 1;
-            }
-        }
+            emulate.operator()<true>();
         else
             emulate.operator()<false>();
     }
@@ -121,22 +111,13 @@ int main(int argc, char** argv)
     else
     {
         JIT::init();
-
-        try
+        while(true)
         {
-            while(true)
-            {
-                JIT::run_next_frame(cpu);
-                cpu.bus.clock(cpu, true);
-                cpu.mcycle.increment(cpu);
-                cpu.minstret.increment(cpu);
-                cpu.time.increment(cpu);
-            }
-        }
-        catch (std::string& e)
-        {
-            if (e == "pass") return 0;
-            else return 1;
+            JIT::run_next_frame(cpu);
+            cpu.bus.clock(cpu, true);
+            cpu.mcycle.increment(cpu);
+            cpu.minstret.increment(cpu);
+            cpu.time.increment(cpu);
         }
     }
 }

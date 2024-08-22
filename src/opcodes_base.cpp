@@ -588,8 +588,8 @@ void ecall(CPU& cpu, const Instruction instruction)
             RISC-V tests use an ecall to signal the test is over.
             A 0 in x10 represents a pass.
          */
-        if (cpu.registers[10] == 0) throw std::string("pass");
-        else throw std::string("fail");
+        if (cpu.registers[10] == 0) exit(0);
+        else exit(1);
     }
 
     // Normal operation

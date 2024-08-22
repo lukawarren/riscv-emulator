@@ -21,6 +21,7 @@ if(MSVC)
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Clang
     target_compile_options(${PROJECT_NAME} PRIVATE -Werror -Wall -Wextra -pedantic -Wno-unused-parameter -O3 -g -fdiagnostics-color=always)
+    message(WARNING "You are using Clang, so -ffloat-store is not supported. Do not expect accurate RV64FD emulation!")
 else()
     # Probably GCC
     target_compile_options(${PROJECT_NAME} PRIVATE -ffloat-store -Werror -Wall -Wextra -pedantic -Wno-unused-parameter -O3 -g -fdiagnostics-color=always)
@@ -45,5 +46,9 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE include/jit/llvm.h)
 find_package(LLVM REQUIRED CONFIG)
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
-target_link_libraries(${PROJECT_NAME} PRIVATE LLVM-18)
 
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    target_link_libraries(${PROJECT_NAME} PRIVATE LLVM)
+else()
+    target_link_libraries(${PROJECT_NAME} PRIVATE LLVM-18)
+endif()
