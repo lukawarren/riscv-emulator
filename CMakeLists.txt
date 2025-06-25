@@ -30,6 +30,7 @@ endif()
 
 # Dependencies
 add_subdirectory(external/riscv-disassembler)
+add_subdirectory(external/tpde)
 target_link_libraries(${PROJECT_NAME} PRIVATE rvasm)
 
 # Add include directories
@@ -37,6 +38,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     external/riscv-disassembler/src
     external/dbg-macro/
+    external/tpde/tpde/include
+    external/tpde/tpde-llvm/include
 )
 
 # PCH
@@ -51,5 +54,5 @@ add_definitions(${LLVM_DEFINITIONS})
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     target_link_libraries(${PROJECT_NAME} PRIVATE LLVM)
 else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE LLVM-18)
+    target_link_libraries(${PROJECT_NAME} PRIVATE LLVM tpde tpde_llvm)
 endif()

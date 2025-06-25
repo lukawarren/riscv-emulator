@@ -12,16 +12,18 @@
 #include "opcodes_c.h"
 #include "opcodes_zicsr.h"
 
+static tpde_llvm::LLVMCompiler* compiler = nullptr;
+
 using namespace JIT;
 
 #define DEBUG_JIT false
-#define FRAME_LIMIT 256
+#define FRAME_LIMIT 64
 
 // Global CPU pointer for interface functions
 static CPU* interface_cpu = nullptr;
 
 // Cached previously translated code
-static std::vector<Frame> cached_frames = {};
+static std::vector<Frame*> cached_frames = {};
 
 // Global LLVM
 llvm::LLVMContext context;
@@ -41,6 +43,10 @@ void JIT::init()
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
+
+    llvm::Triple triple(llvm::sys::getDefaultTargetTriple());
+    compiler = tpde_llvm::LLVMCompiler::create(triple).release();
+    assert(compiler != nullptr);
 }
 
 void JIT::run_next_frame(CPU& cpu)
@@ -50,14 +56,12 @@ void JIT::run_next_frame(CPU& cpu)
     // We cache in virtual address space so any changes to the TLB mean trouble
     if (cpu.tlb_was_flushed) [[unlikely]]
     {
-        for (auto& frame : cached_frames)
-            delete frame.engine;
         cached_frames.clear();
         cpu.tlb_was_flushed = false;
     }
 
     // Check if code has already been translated
-    std::optional<Frame> frame = get_cached_frame(starting_pc);
+    std::optional<Frame*> frame = get_cached_frame(starting_pc);
     if (frame.has_value())
     {
         execute_frame(cpu, *frame, starting_pc);
@@ -78,7 +82,7 @@ void JIT::run_next_frame(CPU& cpu)
     }
 }
 
-std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
+std::optional<Frame*> JIT::compile_next_frame(CPU& cpu)
 {
     // Create module
     llvm::Module* module = new llvm::Module("jit", context);
@@ -113,7 +117,7 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
 
     // Fetch and emit instructions...
     u64 starting_pc = cpu.pc;
-    u64 ending_pc;
+    u64 ending_pc = 0;
     bool frame_empty = true;
     for (int i = 0; i < FRAME_LIMIT; ++i)
     {
@@ -224,39 +228,26 @@ std::optional<Frame> JIT::compile_next_frame(CPU& cpu)
         switch_instruction->addCase(llvm::ConstantInt::get(builder.getInt64Ty(), label.first), label_block);
     }
 
-    // Build engine - TODO: fix tests that fail under optimisations so that they can occur??
-    std::string error;
-    llvm::ExecutionEngine* engine = llvm::EngineBuilder(std::unique_ptr<llvm::Module>(module))
-        .setErrorStr(&error)
-        .setOptLevel(llvm::CodeGenOptLevel::None)
-        .setEngineKind(llvm::EngineKind::JIT)
-        .create();
-
-    if (!engine)
-        throw std::runtime_error("failed to create llvm::ExecutionEngine: " + error);
-
-    link_interface_functions(engine, jit_context);
+    // Compile
+    auto mapper = compiler->compile_and_map(*module, map_interface_function);
+    
+    // Locate entrypoint
+    void* entrypoint = mapper.lookup_global(module->getFunction("jit_main"));
 
 #if DEBUG_JIT
-    if (starting_pc == 0x80E77050)
-        module->print(llvm::outs(), nullptr);
-
+    assert(entrypoint != nullptr);
     assert(!llvm::verifyModule(*module, &llvm::errs()));
-    assert(!llvm::verifyFunction(*function, &llvm::errs()));
+    module->print(llvm::outs(), nullptr);
 #endif
 
-    // IR will be lazily compiled when we call getFunctionAddress but it's nicer
-    // to do it here so it makes more sense in the profiler
-    engine->finalizeObject();
-
-    return Frame(engine, starting_pc, ending_pc);
+    return new Frame(std::move(mapper), entrypoint, starting_pc, ending_pc);
 }
 
-void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
+void JIT::execute_frame(CPU& cpu, Frame* frame, u64 pc)
 {
     // Run
     interface_cpu = &cpu;
-    auto run = (u64(*)(u64))frame.engine->getFunctionAddress("jit_main");
+    auto run = (u64(*)(u64))frame->entrypoint;
     u64 next_pc = run(pc);
     cpu.pc = next_pc;
 
@@ -273,7 +264,7 @@ void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
         return;
 
     // If the next PC is inside the already JIT'ed block, we can instead just jump back
-    while(next_pc >= frame.starting_pc && next_pc <= frame.ending_pc)
+    while(next_pc >= frame->starting_pc && next_pc <= frame->ending_pc)
     {
         next_pc = run(next_pc);
         cpu.pc = next_pc;
@@ -292,16 +283,16 @@ void JIT::execute_frame(CPU& cpu, Frame& frame, u64 pc)
     }
 }
 
-void JIT::cache_frame(Frame& frame)
+void JIT::cache_frame(Frame* frame)
 {
     cached_frames.emplace_back(frame);
 }
 
-std::optional<Frame> JIT::get_cached_frame(u64 pc)
+std::optional<Frame*> JIT::get_cached_frame(u64 pc)
 {
-    for (const auto& frame : cached_frames)
+    for (const auto frame : cached_frames)
     {
-        if (pc >= frame.starting_pc && pc <= frame.ending_pc)
+        if (pc >= frame->starting_pc && pc <= frame->ending_pc)
             return frame;
     }
 
@@ -1453,13 +1444,9 @@ void JIT::register_interface_functions(
 #endif
 }
 
-void JIT::link_interface_functions(
-    llvm::ExecutionEngine* engine,
-    Context& jit_context
-)
+void* JIT::map_interface_function(std::string_view symbol)
 {
-    #define LINK(name)\
-        engine->addGlobalMapping(jit_context.name, (void*)&name);
+    #define LINK(x) if (symbol == #x) return (void*)&x;
 
     LINK(on_ecall);
     LINK(on_ebreak);
@@ -1485,7 +1472,10 @@ void JIT::link_interface_functions(
     LINK(on_floating_compressed);
 
 #if DEBUG_JIT
-    engine->addGlobalMapping(debug_trace, (void*)&on_debug_trace);
-    engine->addGlobalMapping(debug_print, (void*)&on_debug_print);
+    if (symbol == "debug_trace") return (void*)&on_debug_trace;
+    if (symbol == "debug_print") return (void*)&on_debug_print;
 #endif
-}
+
+    assert(false);
+    return (void*)0;
+} 

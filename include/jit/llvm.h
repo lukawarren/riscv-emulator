@@ -7,3 +7,6 @@
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
+#include <tpde-llvm/LLVMCompiler.hpp>
+#include <llvm/TargetParser/Host.h>
+

@@ -475,7 +475,7 @@ std::expected<u64, Exception> CPU::virtual_address_to_physical(
             case AccessType::Load:        return std::unexpected(Exception::LoadPageFault);
             case AccessType::Store:       return std::unexpected(Exception::StoreOrAMOPageFault);
             case AccessType::Trace:       return std::unexpected(Exception::InternalProgramUse);
-            default: assert(false);
+            default: assert(false);       return std::unexpected(Exception::InternalProgramUse);
         }
     };
 

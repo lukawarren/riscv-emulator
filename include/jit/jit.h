@@ -66,33 +66,34 @@ namespace JIT
 
     struct Frame
     {
-        llvm::ExecutionEngine* engine;
+        tpde_llvm::JITMapper mapper;
+        void* entrypoint;
         u64 starting_pc;
         u64 ending_pc;
 
-        Frame(llvm::ExecutionEngine* engine, u64 starting_pc, u64 ending_pc) :
-            engine(engine), starting_pc(starting_pc), ending_pc(ending_pc) {}
+        Frame(tpde_llvm::JITMapper&& mapper, void* entrypoint, u64 starting_pc, u64 ending_pc) :
+            mapper(std::move(mapper)), entrypoint(entrypoint), starting_pc(starting_pc), ending_pc(ending_pc) {}
     };
 
     void init();
     void run_next_frame(
         CPU& cpu
     );
-    std::optional<Frame> compile_next_frame(
+    std::optional<Frame*> compile_next_frame(
         CPU& cpu
     );
     void execute_frame(
         CPU& cpu,
-        Frame& frame,
+        Frame* frame,
         u64 pc
     );
     void cache_frame(
-        Frame& frame
+        Frame* frame
     );
     bool check_for_exceptions(
         CPU& cpu
     );
-    std::optional<Frame> get_cached_frame(
+    std::optional<Frame*> get_cached_frame(
         u64 pc
     );
     void register_interface_functions(
@@ -100,9 +101,8 @@ namespace JIT
         llvm::LLVMContext& context,
         Context& jit_context
     );
-    void link_interface_functions(
-        llvm::ExecutionEngine* engine,
-        Context& jit_context
+    void* map_interface_function(
+        std::string_view symbol
     );
     bool emit_instruction(
         CPU& cpu,
