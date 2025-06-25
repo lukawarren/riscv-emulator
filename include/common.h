@@ -18,9 +18,11 @@
 #include <mutex>
 #include <functional>
 
-// For UART stdin
+// For UART stdin - must undefine CR1, etc. as breaks LLVM build
 #include <termios.h>
 #include <unistd.h>
+#undef CR1
+#undef CR2
 
 // For virtio endianness check
 #include <bit>

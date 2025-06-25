@@ -1051,9 +1051,11 @@ bool JIT::emit_compressed_instruction(CPU& cpu, Context& context)
 
 llvm::Value* JIT::get_registers(CPU& cpu, llvm::IRBuilder<>& builder)
 {
-    llvm::Type* i64_ptr_type = builder.getInt64Ty()->getPointerTo();
+    // 0 = default address space
+    llvm::Type* i64_type = builder.getInt64Ty();
+    llvm::Type* i64_ptr_type = llvm::PointerType::get(i64_type, 0);
     return builder.CreateIntToPtr(
-        llvm::ConstantInt::get(builder.getInt64Ty(), reinterpret_cast<uint64_t>(cpu.registers)),
+        llvm::ConstantInt::get(i64_type, reinterpret_cast<uint64_t>(cpu.registers)),
         i64_ptr_type
     );
 }
